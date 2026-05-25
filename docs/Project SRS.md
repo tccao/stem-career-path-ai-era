@@ -10,7 +10,7 @@
 
 **Initial Deliverable:** Single HTML landing page supported by Markdown planning and maintenance docs
 
-**Primary Reviewer:** CodeForGood Leadership
+**Primary Reviewer:** Code For Good Leadership
 
 **Future Maintainers:** Student volunteers
 
@@ -29,7 +29,7 @@ The landing page will introduce the program, explain its 8-pillar readiness path
 * Clearly explain the program mission, structure, and expected participant outcomes.
 * Provide clear calls to action for program sign-up and donations.
 * Make the project simple enough for student and volunteer teams to maintain.
-* Prepare the project for review and deployment by CodeForGood Leadership.
+* Prepare the project for review and deployment by Code For Good Leadership.
 
 ### 2.2 Secondary Goals
 
@@ -56,7 +56,7 @@ Volunteers who may help with mentorship, curriculum support, resume reviews, moc
 
 Students who will learn web development by maintaining the page, updating content, and improving the project over time.
 
-### 3.5 CodeForGood Leadership
+### 3.5 Code For Good Leadership
 
 Leadership responsible for validating that the project is clean, maintainable, and ready to be hosted within Code For Good’s AWS environment.
 
@@ -107,11 +107,12 @@ Use the reference landing page for structure and flow, but use Code For Good’s
 4. Mission / problem section
 5. Program Pillars S-curve trail
 6. How It Works section
-7. Testimonials / impact stories section
-8. Resources section
-9. FAQ section
-10. Final CTA section
-11. Footer
+7. Program Timeline Tracks section
+8. Testimonials / impact stories section
+9. Resources section
+10. FAQ section
+11. Final CTA section
+12. Footer
 
 ## 6. Header and Navigation Plan
 
@@ -135,6 +136,7 @@ Dropdown links:
 Overview
 Program Pillars
 How It Works
+Timeline Tracks
 Testimonials
 Resources
 FAQ
@@ -298,17 +300,104 @@ Explain the participant journey.
 
 Use a simple numbered step layout or horizontal timeline on desktop. Use stacked cards on mobile.
 
-## 11. Testimonials / Impact Stories Section
+## 11. Program Timeline Tracks
 
 ### 11.1 Section Purpose
 
+The landing page should explain that the program supports two participant timelines: a longer track for current students who are still in school and a faster track for recent graduates who need job-readiness support sooner.
+
+This section helps visitors understand which version of the program fits their current stage.
+
+### 11.2 During School Track
+
+The **During School Track** is designed for current high school, college, or graduate students who can build career readiness over multiple academic terms.
+
+Recommended duration:
+
+```text
+12–18 months
+```
+
+Primary focus:
+
+* Build AI-augmented learning habits
+* Complete portfolio projects gradually
+* Strengthen GitHub, LinkedIn, and resume presence
+* Explore certifications strategically
+* Participate in micro-internships or volunteer projects
+* Gain confidence before graduation
+
+Suggested milestones:
+
+1. Foundation and self-assessment
+2. AI-era skill building
+3. Portfolio project development
+4. Certifications and industry tooling
+5. Micro-internships or volunteer projects
+6. Career materials and interview preparation
+
+### 11.3 Recent Graduate Track
+
+The **Recent Graduate Track** is designed for students who have already graduated or are close to graduation and need a focused career-readiness sprint.
+
+Recommended duration:
+
+```text
+8–12 weeks
+```
+
+Primary focus:
+
+* Clarify target roles quickly
+* Polish resume, LinkedIn, and GitHub
+* Build or improve one deployable project
+* Practice interview and job-search workflows
+* Learn practical AI and industry tooling
+* Prepare for job applications, freelance work, internships, or startup paths
+
+Suggested milestones:
+
+1. Career direction and readiness audit
+2. Resume, LinkedIn, and GitHub cleanup
+3. Portfolio project sprint
+4. AI and industry tooling practice
+5. Applications, mock interviews, and mentor feedback
+6. Final job, freelance, internship, or startup readiness review
+
+### 11.4 Timeline Display Requirement
+
+The landing page should show both tracks in a side-by-side card layout on desktop and stacked cards on mobile.
+
+Each timeline card should include:
+
+```text
+Track name
+Recommended duration
+Who it is for
+Main outcomes
+Suggested milestones
+```
+
+### 11.5 Acceptance Criteria
+
+* The page clearly shows both program tracks.
+* Each track includes a recommended duration.
+* The During School Track shows a 12–18 month pathway.
+* The Recent Graduate Track shows an 8–12 week pathway.
+* Timeline cards are readable on desktop and mobile.
+* Timeline content uses plain language suitable for students and volunteers.
+
+## 12. Testimonials / Impact Stories Section
+
+### 12.1 Section Purpose
+
 Build trust and show human impact.
 
-### 11.2 Rule
+### 12.2 Rule
 
 No fake testimonials. Use impact statement cards inplace until we get real testimonials.
 
-### 11.3 MVP Card Types
+### 12.3 MVP Card Types
 
 #### Student Participant
 
@@ -334,17 +423,17 @@ Community projects give students practical experience while helping nonprofits s
 High school volunteers can maintain and improve the page while learning real-world HTML, CSS, documentation, and version control.
 ```
 
-### 11.4 Future Version
+### 12.4 Future Version
 
 Replace impact cards with real testimonials once the program has participants, mentors, or partners willing to share quotes.
 
-## 12. Resources Section
+## 13. Resources Section
 
-### 12.1 Section Purpose
+### 13.1 Section Purpose
 
 Give the page room to grow into a practical student resource hub.
 
-### 12.2 MVP Resource Cards
+### 13.2 MVP Resource Cards
 
 * Resume and LinkedIn checklist
 * GitHub portfolio checklist
@@ -353,13 +442,13 @@ Give the page room to grow into a practical student resource hub.
 * Freelance readiness checklist
 * Project idea bank
 
-### 12.3 MVP Behavior
+### 13.3 MVP Behavior
 
 Resource links can point to placeholder anchors until actual documents are created.
 
-## 13. FAQ Section
+## 14. FAQ Section
 
-### 13.1 FAQ Questions
+### 14.1 FAQ Questions
 
 1. Who is this program for?
 2. Do I need coding experience?
@@ -370,13 +459,13 @@ Resource links can point to placeholder anchors until actual documents are creat
 7. How can mentors or volunteers help?
 8. Is this program connected to Code For Good projects?
 
-### 13.2 FAQ Behavior
+### 14.2 FAQ Behavior
 
 Use a simple accordion with minimal JavaScript.
 
-## 14. Final CTA Section
+## 15. Final CTA Section
 
-### 14.1 CTA Copy
+### 15.1 CTA Copy
 
 ```text
 Ready to support STEM graduates in the AI era?
@@ -389,9 +478,9 @@ Sign Up
 Donate
 ```
 
-## 15. Technical Requirements
+## 16. Technical Requirements
 
-### 15.1 MVP Requirements
+### 16.1 MVP Requirements
 
 * Single `index.html` file
 * Embedded CSS
@@ -404,7 +493,7 @@ Donate
 * Clear section comments
 * AWS static-hosting ready
 
-### 15.2 JavaScript Scope
+### 16.2 JavaScript Scope
 
 Only use JavaScript for:
 
@@ -413,7 +502,7 @@ Only use JavaScript for:
 * FAQ accordion
 * Optional smooth scrolling
 
-### 15.3 Avoid in MVP
+### 16.3 Avoid in MVP
 
 * React
 * Bootstrap
@@ -423,9 +512,9 @@ Only use JavaScript for:
 * Complex animations
 * External analytics scripts
 
-## 16. Maintainability Rules
+## 17. Maintainability Rules
 
-### 16.1 Use Section Comments
+### 17.1 Use Section Comments
 
 Example:
 
@@ -433,19 +522,19 @@ Example:
 <!-- ================= HERO SECTION ================= -->
 ```
 
-### 16.2 Use CSS Variables
+### 17.2 Use CSS Variables
 
 All colors should be controlled from the `:root` block.
 
-### 16.3 Keep Content Easy to Edit
+### 17.3 Keep Content Easy to Edit
 
 Avoid deeply nested HTML when possible.
 
-### 16.4 Use Plain Language Comments
+### 17.4 Use Plain Language Comments
 
 Comments should help new students understand what each section does.
 
-### 16.5 Protect Accessibility
+### 17.5 Protect Accessibility
 
 Do not remove:
 
@@ -455,7 +544,7 @@ Do not remove:
 * button labels
 * focus states
 
-## 17. Suggested Repository Structure
+## 18. Suggested Repository Structure
 
 ```text
 stem-career-path-ai-era/
@@ -475,9 +564,9 @@ stem-career-path-ai-era/
 ```
 
 
-## 18. Documentation Plan
+## 19. Documentation Plan
 
-### 18.1 README.md
+### 19.1 README.md
 
 Purpose:
 
@@ -487,7 +576,7 @@ Purpose:
 * Explain how to make safe edits
 * Explain deployment assumptions
 
-### 18.2 docs/project-overview.md
+### 19.2 docs/project-overview.md
 
 Purpose:
 
@@ -496,7 +585,7 @@ Purpose:
 * 8 pillars
 * Success metrics
 
-### 18.3 docs/design-guidelines.md
+### 19.3 docs/design-guidelines.md
 
 Purpose:
 
@@ -506,7 +595,7 @@ Purpose:
 * Card styles
 * Layout rules
 
-### 18.4 docs/content-guide.md
+### 19.4 docs/content-guide.md
 
 Purpose:
 
@@ -516,7 +605,7 @@ Purpose:
 * How to add testimonials
 * How to update CTA links
 
-### 18.5 docs/maintenance-guide.md
+### 19.5 docs/maintenance-guide.md
 
 Purpose:
 
@@ -526,7 +615,7 @@ Purpose:
 * Link checking checklist
 * Common mistakes to avoid
 
-### 18.6 docs/aws-deployment-notes.md
+### 19.6 docs/aws-deployment-notes.md
 
 Purpose:
 
@@ -536,7 +625,7 @@ Purpose:
 * Uses relative asset paths
 * Forms and donations require external links unless backend is added later
 
-### 18.7 docs/student-onboarding.md
+### 19.7 docs/student-onboarding.md
 
 Purpose:
 
@@ -546,7 +635,7 @@ Purpose:
 * Explain review process
 
 
-## 19. Development Phases
+## 20. Development Phases
 
 ### Phase 1 — Planning
 
@@ -599,12 +688,12 @@ Deliverables:
 * Demo script
 * Known limitations
 * Future roadmap
-* CodeForGood Leadership handoff notes
+* Code For Good Leadership handoff notes
 
 
-## 20. QA Checklist
+## 21. QA Checklist
 
-### 20.1 Content QA
+### 21.1 Content QA
 
 * [ ] Page title is clear
 * [ ] Mission is understandable within 5 seconds
@@ -614,7 +703,7 @@ Deliverables:
 * [ ] No fake testimonials are used
 * [ ] Contact information is correct
 
-### 20.2 Design QA
+### 21.2 Design QA
 
 * [ ] Matches Code For Good colors
 * [ ] Cards have consistent spacing
@@ -623,7 +712,7 @@ Deliverables:
 * [ ] S-curve trail is readable on desktop
 * [ ] Pillars stack correctly on mobile
 
-### 20.3 Accessibility QA
+### 21.3 Accessibility QA
 
 * [ ] Images have alt text
 * [ ] Navigation has aria label
@@ -632,7 +721,7 @@ Deliverables:
 * [ ] Headings follow logical order
 * [ ] FAQ accordion is usable with keyboard
 
-### 20.4 Technical QA
+### 21.4 Technical QA
 
 * [ ] `index.html` opens locally
 * [ ] No broken internal links
@@ -642,7 +731,7 @@ Deliverables:
 * [ ] No framework dependencies
 * [ ] Assets use relative paths
 
-### 20.5 AWS Readiness QA
+### 21.5 AWS Readiness QA
 
 * [ ] Static hosting compatible
 * [ ] No backend required for MVP
@@ -650,7 +739,7 @@ Deliverables:
 * [ ] File names are clean
 * [ ] Documentation explains deployment assumptions
 
-## 21. Future Roadmap
+## 22. Future Roadmap
 
 ### Version 1.0
 
@@ -678,7 +767,7 @@ Deliverables:
 * CMS or simple content management approach
 * Analytics and impact tracking
 
-## 22. Open Questions
+## 23. Open Questions
 
 These should be clarified before final implementation:
 
@@ -690,11 +779,37 @@ These should be clarified before final implementation:
 6. Are there required AWS hosting conventions from the senior SWE?
 7. Who will approve final copy before deployment?
 
-## 23. Immediate Next Steps
+## 24. Immediate Next Steps
 
 1. Finalize landing page section copy.
 2. Confirm CTA links for Donate and Sign Up.
 3. Build `index.html` with embedded CSS and minimal JavaScript.
 4. Create documentation files.
 5. Run QA checklist.
-6. Prepare demo script and handoff notes for CodeForGood Leadership.
+6. Prepare demo script and handoff notes for Code For Good Leadership.
+
+## License
+
+```text
+MIT License
+
+Copyright (c) 2026 Code For Good
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
