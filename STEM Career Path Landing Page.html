@@ -708,11 +708,13 @@
       gap: 10px;
     }
 
-    .hv-cohort image-slot {
+    .hv-cohort image-slot,
+    .hv-cohort img {
       width: 64px;
       height: 64px;
       border-radius: 50%;
       box-shadow: 0 0 0 3px #fff, 0 6px 18px rgba(75, 0, 130, 0.18);
+      object-fit: cover;
     }
 
     /* cohort labels */
@@ -778,11 +780,13 @@
       gap: 6px;
     }
 
-    .hv-person image-slot {
+    .hv-person image-slot,
+    .hv-person img {
       width: 56px;
       height: 56px;
       border-radius: 50%;
       box-shadow: 0 0 0 2px #fff, 0 2px 8px rgba(75, 0, 130, 0.12);
+      object-fit: cover;
     }
 
     .hv-person .lbl {
@@ -1970,17 +1974,20 @@
             </div>
             <!-- Cohort 1 -->
             <div class="hv-cohort hv-cohort-1">
-              <image-slot id="cohort-spring-2026" shape="circle" placeholder="Spring 2026"></image-slot>
+              <!-- <image-slot id="cohort-spring-2026" shape="circle" placeholder="Spring 2026"></image-slot> -->
+              <img src="assets/images/cohort1.jpg" alt="Spring 2027">
               <span class="lbl">Spring 2026</span>
             </div>
             <!-- Cohort 2 -->
             <div class="hv-cohort hv-cohort-2">
-              <image-slot id="cohort-fall-2026" shape="circle" placeholder="Fall 2026"></image-slot>
+              <!-- <image-slot id="cohort-fall-2026" shape="circle" placeholder="Fall 2026"></image-slot> -->
+              <img src="assets/images/cohort2.jpg" alt="Spring 2027">
               <span class="lbl">Fall 2026</span>
             </div>
             <!-- Cohort 3 -->
             <div class="hv-cohort hv-cohort-3">
-              <image-slot id="cohort-spring-2027" shape="circle" placeholder="Spring 2027"></image-slot>
+              <!-- <image-slot id="cohort-spring-2027" shape="circle" placeholder="Spring 2027"></image-slot> -->
+              <img src="assets/images/cohort3.jpg" alt="Spring 2027">
               <span class="lbl">Spring 2027</span>
             </div>
             <!-- Bottom badge -->
@@ -1988,15 +1995,18 @@
               <div class="heading">Built by people</div>
               <div class="hv-people">
                 <div class="hv-person">
-                  <image-slot id="hero-cohort" shape="circle" placeholder="Cohort"></image-slot>
+                  <!-- <image-slot id="hero-cohort" shape="circle" placeholder="Cohort"></image-slot> -->
+                  <img src="assets/images/cohort4.jpg" alt="Spring 2027">
                   <span class="lbl">Cohort</span>
                 </div>
                 <div class="hv-person">
-                  <image-slot id="hero-volunteers" shape="circle" placeholder="Volunteers"></image-slot>
+                  <!-- <image-slot id="hero-volunteers" shape="circle" placeholder="Volunteers"></image-slot> -->
+                  <img src="assets/images/Profile2.jpg" alt="Volunteers Image">
                   <span class="lbl">Volunteers</span>
                 </div>
                 <div class="hv-person">
-                  <image-slot id="hero-mentors" shape="circle" placeholder="Mentors"></image-slot>
+                  <!-- <image-slot id="hero-mentors" shape="circle" placeholder="Mentors"></image-slot> -->
+                  <img src="assets/images/Profile2.jpg" alt="Volunteers Image">
                   <span class="lbl">Mentors</span>
                 </div>
               </div>
