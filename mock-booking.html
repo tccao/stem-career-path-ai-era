@@ -5,7 +5,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Book your 15-min interview · Code For Good (mock Cal.com)</title>
+
+  <!--
+    Maintenance map
+    1. This is a mock booking flow: left event details, right calendar/time picker,
+       then a confirmation panel inside the same card.
+    2. JavaScript owns all calendar rendering; edit MONTHS, DOW, TIMES, and isAvailable()
+       to change scheduling behavior.
+    3. Applicant context comes from query string first, then sessionStorage from the
+       landing-page application modal.
+  -->
+
   <style>
+    /* ================= DESIGN TOKENS ================= */
     :root {
       --cfg-purple-dark: #4b0082;
       --cfg-purple: #6a0dad;
@@ -27,6 +39,7 @@
       --r-xl: 24px;
     }
 
+    /* ================= BASE / RESET ================= */
     *,
     *::before,
     *::after {
@@ -54,7 +67,7 @@
       color: var(--cfg-purple);
     }
 
-    /* ---- top bar ---- */
+    /* ---- Top Bar ---- */
     .topbar {
       display: flex;
       align-items: center;
@@ -90,7 +103,7 @@
       color: var(--cfg-purple);
     }
 
-    /* ---- booking card ---- */
+    /* ---- Booking Card Shell ---- */
     .wrap {
       max-width: 1040px;
       margin: 8px auto 48px;
@@ -108,7 +121,7 @@
       min-height: 540px;
     }
 
-    /* ---- event info (left) ---- */
+    /* ---- Event Info Column ---- */
     .event-info {
       padding: 32px 30px;
       border-right: 1px solid var(--cfg-border);
@@ -174,7 +187,7 @@
       padding-top: 18px;
     }
 
-    /* ---- scheduler (right) ---- */
+    /* ---- Scheduler Column ---- */
     .scheduler {
       padding: 28px 30px 32px;
       display: grid;
@@ -188,7 +201,7 @@
       margin: 0 0 4px;
     }
 
-    /* calendar */
+    /* Calendar grid and date controls. */
     .cal-head {
       display: flex;
       align-items: center;
@@ -298,7 +311,7 @@
       background: currentColor;
     }
 
-    /* times */
+    /* Available time-slot list. */
     .times-col {
       display: flex;
       flex-direction: column;
@@ -411,7 +424,7 @@
       transform: translateY(-1px);
     }
 
-    /* ---- confirmation ---- */
+    /* ---- Confirmation State ---- */
     .booked {
       display: none;
       padding: 48px 40px;
@@ -536,6 +549,7 @@
 </head>
 
 <body>
+  <!-- ================= TOP BAR ================= -->
   <div class="topbar">
     <a class="brand" href="STEM%20Career%20Path%20Landing%20Page.html">
       <img src="assets/icons/codeforgood-logo.png" alt="Code For Good">
@@ -544,9 +558,10 @@
     <a class="back" href="STEM%20Career%20Path%20Landing%20Page.html">← Back to site</a>
   </div>
 
+  <!-- ================= BOOKING FLOW ================= -->
   <div class="wrap">
     <div class="booking-card" id="card">
-      <!-- LEFT: event info -->
+      <!-- Left column: static event details plus applicant track when available. -->
       <aside class="event-info">
         <div class="event-host">
           <img src="assets/icons/codeforgood-logo.png" alt="Code For Good">
@@ -586,7 +601,7 @@
         </p>
       </aside>
 
-      <!-- RIGHT: scheduler -->
+      <!-- Right column: calendar and time selection rendered/updated by JavaScript. -->
       <section class="scheduler" id="scheduler">
         <h2 id="schedTitle">Select a date &amp; time</h2>
 
@@ -630,7 +645,7 @@
         </div>
       </section>
 
-      <!-- CONFIRMATION (replaces card content) -->
+      <!-- Confirmation panel: hidden until a date and time are confirmed. -->
       <div class="booked" id="booked" style="grid-column: 1 / -1;">
         <div class="step-pill">Step 2 of 2 · Interview scheduled</div>
         <div class="check">
@@ -662,8 +677,17 @@
   </div>
 
   <script>
+    /*
+      Booking behavior
+      - Reads applicant name/track from URL or sessionStorage.
+      - Renders a rolling three-month weekday-only calendar.
+      - Shows available time buttons after a date is selected.
+      - Swaps the card into a confirmation summary after booking.
+    */
+
     (function () {
-      // ----- read applicant from query string / sessionStorage -----
+      // ----- Applicant Context -----
+      // Query string values override sessionStorage so links can personalize the page.
       var params = new URLSearchParams(window.location.search);
       var applicant = { name: '', track: '' };
       try {
@@ -684,7 +708,8 @@
       document.getElementById('sumWho').textContent =
         (applicant.name || 'You') + ' + Program Owner';
 
-      // ----- calendar state -----
+      // ----- Calendar Constants And State -----
+      // Availability is intentionally simple for the mock: weekdays only for three months.
       var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
         'September', 'October', 'November', 'December'];
       var DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -709,16 +734,18 @@
       var confirmBar = document.getElementById('confirmBar');
       var pickText = document.getElementById('pickText');
 
+      // Central rule for whether a day can be booked.
       function isAvailable(d) {
-        // weekdays only, today or later
         var day = d.getDay();
         return d >= today && day !== 0 && day !== 6;
       }
 
+      // Shared long date label used by the time picker and confirmation summary.
       function fmtLong(d) {
         return DOW[d.getDay()] + ', ' + MONTHS[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
       }
 
+      // Rebuild the month grid from the current view date and selection state.
       function renderCalendar() {
         calMonth.textContent = MONTHS[view.getMonth()] + ' ' + view.getFullYear();
         prevBtn.disabled = view <= minMonth;
@@ -765,6 +792,7 @@
         }
       }
 
+      // Reset time state whenever the user chooses a new date.
       function selectDate(d) {
         selectedDate = d;
         selectedTime = null;
@@ -773,6 +801,7 @@
         renderTimes();
       }
 
+      // Render time buttons for the selected date and reveal the confirm bar on pick.
       function renderTimes() {
         if (!selectedDate) return;
         timesDate.textContent = fmtLong(selectedDate);
@@ -799,7 +828,8 @@
         if (view < maxMonth) { view = new Date(view.getFullYear(), view.getMonth() + 1, 1); renderCalendar(); }
       });
 
-      // ----- confirm booking -----
+      // ----- Confirm Booking -----
+      // Hide the picker columns and show the confirmation panel in the same card.
       document.getElementById('confirmBtn').addEventListener('click', function () {
         if (!selectedDate || !selectedTime) return;
         document.getElementById('scheduler').style.display = 'none';
@@ -816,7 +846,7 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
       });
 
-      // init
+      // Initial render starts on the current month.
       renderCalendar();
     })();
   </script>

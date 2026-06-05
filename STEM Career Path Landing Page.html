@@ -8,12 +8,23 @@
     content="STEM Graduates Career Path — AI Era. A Code For Good initiative helping STEM students and recent graduates build AI-era skills, project portfolios, and career readiness.">
   <title>STEM Graduates Career Path — AI Era. Code For Good</title>
 
+  <!--
+    Maintenance map
+    1. CSS in this file is grouped by page region: tokens, header/nav, reusable buttons,
+       content sections, modals, and responsive rules.
+    2. Body content follows the public funnel: header -> hero -> program details -> FAQ ->
+       final CTA -> footer -> modals.
+    3. JavaScript is intentionally small and split into two blocks:
+       - page behavior (nav/dropdown/FAQ)
+       - mock workflow behavior (signup/login redirects)
+  -->
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
 
 
   <style>
-    /* ================= DESIGN================= */
+    /* ================= DESIGN TOKENS ================= */
     :root {
       /* Code For Good (cfg) color system (per SRS 4.2) */
       --cfg-purple-dark: #4b0082;
@@ -49,7 +60,7 @@
       --container: 1000px;
     }
 
-    /* Global Styles */
+    /* ================= BASE / RESET ================= */
     *,
     *::before,
     *::after {
@@ -107,7 +118,7 @@
       text-wrap: pretty;
     }
 
-    /* Container for page content */
+    /* Shared content width for each major section. */
     .container {
       max-width: var(--container);
       margin: 0 auto;
@@ -3055,8 +3066,16 @@
     </div>
   </footer>
 
-  <!-- ================= MINIMAL JAVASCRIPT ================= -->
+  <!-- ================= PAGE BEHAVIOR JAVASCRIPT ================= -->
   <script>
+    /*
+      Small page interactions only:
+      - Mobile navigation disclosure
+      - Sticky nav background state
+      - STEM Career Path dropdown
+      - FAQ accordion
+    */
+
     // Mobile nav toggle
     (function () {
       var toggle = document.getElementById('navToggle');
@@ -3070,7 +3089,7 @@
       }
     })();
 
-    // Frosted nav background on scroll
+    // Adds a compact/frosted header style after the visitor starts scrolling.
     (function () {
       var header = document.getElementById('siteHeader');
       if (!header) return;
@@ -3082,7 +3101,7 @@
       onScroll();
     })();
 
-    // STEM Career Path dropdown
+    // Keeps the program dropdown usable by click, hover, outside-click, and Escape.
     (function () {
       var dd = document.getElementById('programDropdown');
       if (!dd) return;
@@ -3096,7 +3115,7 @@
         var open = dd.getAttribute('data-open') === 'true';
         setOpen(!open);
       });
-      // Open on hover for desktop
+      // Desktop hover support; click remains the primary accessible control.
       var hoverTimer;
       dd.addEventListener('mouseenter', function () {
         if (window.matchMedia('(min-width: 769px)').matches) {
@@ -3109,7 +3128,7 @@
           hoverTimer = setTimeout(function () { setOpen(false); }, 140);
         }
       });
-      // Click outside to close
+      // Global close behaviors keep the dropdown from lingering open.
       document.addEventListener('click', function (e) {
         if (!dd.contains(e.target)) setOpen(false);
       });
@@ -3117,13 +3136,13 @@
       document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') setOpen(false);
       });
-      // Close on link click (smooth-scroll then close panel)
+      // Close after a link click so mobile users return to page content immediately.
       dd.querySelectorAll('a').forEach(function (a) {
         a.addEventListener('click', function () { setOpen(false); });
       });
     })();
 
-    // FAQ accordion
+    // FAQ accordion: one question is open at a time to keep the section compact.
     (function () {
       var faqWrap = document.getElementById('faqWrap');
       if (!faqWrap) return;
@@ -3165,11 +3184,11 @@
         <form id="applyForm" novalidate>
           <div class="field">
             <label for="af-name">Full name <span class="req">*</span></label>
-            <input id="af-name" name="name" type="text" placeholder="e.g. Maya Johnson" required autocomplete="name">
+            <input id="af-name" name="name" type="text" placeholder="e.g. Tinh Cao" required autocomplete="name">
           </div>
           <div class="field">
             <label for="af-email">Email <span class="req">*</span></label>
-            <input id="af-email" name="email" type="email" placeholder="you@email.com" required autocomplete="email">
+            <input id="af-email" name="email" type="email" placeholder="caotinh98c@email.com" required autocomplete="email">
           </div>
           <div class="form-row">
             <div class="field">
@@ -3229,7 +3248,7 @@
         <form id="loginForm" novalidate>
           <div class="field">
             <label for="lf-email">Email</label>
-            <input id="lf-email" name="email" type="email" placeholder="you@email.com" value="maya@email.com"
+            <input id="lf-email" name="email" type="email" placeholder="you@email.com" value="Tinh@email.com"
               autocomplete="email">
           </div>
           <div class="field">
@@ -3246,8 +3265,16 @@
     </div>
   </div>
 
-  <!-- ================= MOCK WORKFLOW JS ================= -->
+  <!-- ================= MOCK WORKFLOW JAVASCRIPT ================= -->
   <script>
+    /*
+      Demo-only funnel logic:
+      - Sign-up opens the application modal.
+      - Application submit stores a temporary applicant object in sessionStorage.
+      - Login and application completion route into the mock dashboard flow.
+      Replace these redirects with real auth/API calls when wiring the product.
+    */
+
     (function () {
       var body = document.body;
       var applyModal = document.getElementById('applyModal');
@@ -3303,7 +3330,7 @@
       // Login submit -> dashboard
       document.getElementById('loginForm').addEventListener('submit', function (e) {
         e.preventDefault();
-        var name = 'Maya';
+        var name = 'Tinh';
         try {
           var saved = JSON.parse(sessionStorage.getItem('cfg_applicant') || 'null');
           if (saved && saved.name) name = saved.name.split(' ')[0];

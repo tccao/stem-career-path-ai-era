@@ -5,7 +5,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard · STEM Career Path (mock /app)</title>
+
+  <!--
+    Maintenance map
+    1. This mock dashboard is a single-file prototype: tokens and layout CSS live in <style>,
+       static dashboard markup lives in <body>, and sidebar trees are rendered by JavaScript.
+    2. To update the pathway navigation, edit the PILLARS and FASTTRACK arrays near the bottom.
+    3. To replace the mock data with real data later, keep buildTree() as the rendering boundary.
+  -->
+
   <style>
+    /* ================= DESIGN TOKENS ================= */
     :root {
       --cfg-purple-dark: #4b0082;
       --cfg-purple: #6a0dad;
@@ -29,6 +39,7 @@
       --sidebar: 280px;
     }
 
+    /* ================= BASE / RESET ================= */
     *,
     *::before,
     *::after {
@@ -62,7 +73,7 @@
       line-height: 1.2;
     }
 
-    /* ---------- top bar ---------- */
+    /* ---------- Top Bar ---------- */
     .topbar {
       position: sticky;
       top: 0;
@@ -164,13 +175,13 @@
       font-size: 0.78rem;
     }
 
-    /* ---------- layout ---------- */
+    /* ---------- App Layout ---------- */
     .layout {
       margin-left: var(--sidebar);
       min-height: calc(100vh - 64px);
     }
 
-    /* ---------- sidebar ---------- */
+    /* ---------- Sidebar Shell ---------- */
     .sidebar {
       background: #fff;
       border-right: 1px solid var(--cfg-border);
@@ -255,7 +266,7 @@
       border-top: 1px solid var(--cfg-border);
     }
 
-    /* ---------- sidebar progress bar ---------- */
+    /* ---------- Sidebar Progress Bar ---------- */
     .sb-progress {
       margin: 2px 6px 12px;
       padding: 13px 14px;
@@ -307,7 +318,7 @@
       color: var(--cfg-muted);
     }
 
-    /* ---------- accordion nav ---------- */
+    /* ---------- Accordion Navigation ---------- */
     .acc {
       display: block;
     }
@@ -369,7 +380,7 @@
       padding: 3px 0 6px 10px;
     }
 
-    /* simple sub-links */
+    /* Secondary links nested inside accordion panels. */
     .sub-link {
       display: block;
       padding: 8px 12px;
@@ -391,7 +402,7 @@
       background: var(--cfg-purple-light);
     }
 
-    /* level-2 (pillar / week) */
+    /* Level-2 pathway accordions rendered from JavaScript data. */
     .acc.lvl2>.acc-head {
       display: flex;
       align-items: center;
@@ -442,7 +453,7 @@
       padding-bottom: 0;
     }
 
-    /* milestone bullets */
+    /* Milestone bullets inside each pillar/week panel. */
     .milestones {
       list-style: none;
       margin: 0;
@@ -480,7 +491,7 @@
       border-color: var(--cfg-purple);
     }
 
-    /* ---------- main ---------- */
+    /* ---------- Main Dashboard ---------- */
     .main {
       padding: 28px 32px 48px;
       max-width: 1100px;
@@ -551,7 +562,7 @@
       color: var(--cfg-text);
     }
 
-    /* stat cards */
+    /* Stat cards summarize readiness, deliverables, badges, and streaks. */
     .stats {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
@@ -596,7 +607,7 @@
       margin-top: 5px;
     }
 
-    /* two-column row */
+    /* Two-column summary row: current module and onboarding state. */
     .row-2 {
       display: grid;
       grid-template-columns: 1.6fr 1fr;
@@ -635,7 +646,7 @@
       border-radius: 999px;
     }
 
-    /* continue learning */
+    /* Current-module card. */
     .continue {
       background: linear-gradient(135deg, var(--cfg-purple-dark) 0%, var(--cfg-purple) 65%, #7e2bb8 100%);
       color: #fff;
@@ -710,7 +721,7 @@
       transform: translateY(-1px);
     }
 
-    /* next interview card */
+    /* Onboarding card. */
     .meet {
       display: flex;
       gap: 14px;
@@ -795,7 +806,7 @@
       color: var(--cfg-muted);
     }
 
-    /* pillars */
+    /* Visual eight-pillar pathway cards. */
     .pillars {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
@@ -893,7 +904,7 @@
       height: 15px;
     }
 
-    /* gig ladder */
+    /* Earn-while-you-learn ladder. */
     .ladder {
       display: flex;
       gap: 10px;
@@ -974,7 +985,7 @@
       color: var(--cfg-purple);
     }
 
-    /* mobile */
+    /* ---------- Responsive Rules ---------- */
     .menu-btn {
       display: none;
       width: 40px;
@@ -1032,7 +1043,7 @@
 </head>
 
 <body>
-  <!-- top bar -->
+  <!-- ================= TOP BAR ================= -->
   <header class="topbar">
     <div style="display:flex; align-items:center; gap:14px;">
       <button class="menu-btn" id="menuBtn" aria-label="Toggle menu">
@@ -1057,16 +1068,17 @@
       </button>
       <div class="user">
         <div class="avatar" id="avatar">M</div>
-        <div class="name" id="userName">Maya<small>Student · Beneficiary</small></div>
+        <div class="name" id="userName">Tinh<small>Student · Beneficiary</small></div>
       </div>
     </div>
   </header>
 
+  <!-- ================= APP SHELL ================= -->
   <div class="layout">
-    <!-- sidebar -->
+    <!-- ================= SIDEBAR NAVIGATION ================= -->
     <nav class="sidebar" id="sidebar">
 
-      <!-- pathway progress -->
+      <!-- Pathway progress is calculated from the PILLARS data array in the script. -->
       <div class="sb-progress">
         <div class="top">
           <span class="lab">8 Pillars - Track</span>
@@ -1199,11 +1211,11 @@
       </div>
     </nav>
 
-    <!-- main -->
+    <!-- ================= DASHBOARD CONTENT ================= -->
     <main class="main">
       <div class="page-head">
         <div>
-          <h1 id="welcome">Welcome back, Maya 👋</h1>
+          <h1 id="welcome">Welcome back, Tinh 👋</h1>
           <p>You're on <b>8 Pillars - Track</b>. Here's where to pick things up.</p>
         </div>
         <div class="access-chip">
@@ -1213,7 +1225,7 @@
         </div>
       </div>
 
-      <!-- stats -->
+      <!-- Snapshot metrics for the participant's current mock progress. -->
       <div class="stats">
         <div class="stat">
           <div class="ico">
@@ -1260,7 +1272,7 @@
         </div>
       </div>
 
-      <!-- continue + next -->
+      <!-- Main action row: resume learning plus onboarding status. -->
       <div class="row-2">
         <div class="card continue">
           <span class="eyebrow">Continue learning</span>
@@ -1323,7 +1335,7 @@
         </div>
       </div>
 
-      <!-- pillars -->
+      <!-- Static pathway overview cards; sidebar details are rendered from JS data. -->
       <div class="section-title">
         <h2>Your 8-pillar pathway</h2>
         <a href="#">View full path →</a>
@@ -1395,7 +1407,7 @@
         </div>
       </div>
 
-      <!-- gig ladder -->
+      <!-- Earnings ladder preview for later program milestones. -->
       <div class="section-title">
         <h2>Earn-while-you-learn ladder</h2>
         <a href="#">About gigs →</a>
@@ -1450,8 +1462,16 @@
   </div>
 
   <script>
+    /*
+      Dashboard behavior
+      - Personalizes the mock view from ?name= or sessionStorage.
+      - Renders nested sidebar accordions from PILLARS and FASTTRACK arrays.
+      - Calculates the sidebar progress bar from completed PILLARS milestones.
+      - Handles accordion and mobile-sidebar interactions.
+    */
+
     (function () {
-      // ---------- greet by name ----------
+      // ---------- Visitor Personalization ----------
       var params = new URLSearchParams(window.location.search);
       var name = params.get('name');
       if (!name) {
@@ -1467,7 +1487,8 @@
         document.getElementById('avatar').textContent = name.charAt(0).toUpperCase();
       }
 
-      // ---------- pathway data (same template drives Pillars + Fast Track) ----------
+      // ---------- Pathway Data ----------
+      // The same object shape drives both the 8-pillar path and the Fast Track path.
       var PILLARS = [
         {
           name: 'Pillar 1 · AI-Augmented Skills', ms: [
@@ -1558,13 +1579,14 @@
         }
       ];
 
+      // Escape pathway labels before string-rendering into the sidebar.
       function esc(s) {
         return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       }
 
       var CHEV = '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg>';
 
-      // Render a group (pillars OR weeks) -> nested accordion with milestone bullets
+      // Render a group (pillars OR weeks) into nested accordion milestone panels.
       function buildTree(container, groups) {
         var html = '';
         groups.forEach(function (g) {
@@ -1588,7 +1610,8 @@
       buildTree(pillarsTree, PILLARS);
       buildTree(fasttrackTree, FASTTRACK);
 
-      // ---------- pathway progress bar (driven by Path A milestones) ----------
+      // ---------- Pathway Progress Bar ----------
+      // Counts completed milestones in the full 8-pillar path.
       (function () {
         var done = 0, total = 0;
         PILLARS.forEach(function (g) { g.ms.forEach(function (m) { total++; if (m[1]) done++; }); });
@@ -1598,7 +1621,8 @@
         document.getElementById('sbSub').textContent = done + ' of ' + total + ' milestones complete';
       })();
 
-      // ---------- single-open accordion (works at both levels) ----------
+      // ---------- Accordion Behavior ----------
+      // Opens one sibling panel at a time at whichever accordion level was clicked.
       var sidebar = document.getElementById('sidebar');
       sidebar.addEventListener('click', function (e) {
         var head = e.target.closest('.acc-head');
@@ -1614,13 +1638,14 @@
         acc.setAttribute('data-open', isOpen ? 'false' : 'true');
       });
 
-      // default: show the 8 Pillars section with the current pillar expanded
+      // Default open state: show the 8 Pillars section with the current pillar expanded.
       var pillarsSection = pillarsTree.closest('.acc');
       if (pillarsSection) pillarsSection.setAttribute('data-open', 'true');
       var lvl2 = pillarsTree.querySelectorAll('.acc.lvl2');
       if (lvl2[1]) lvl2[1].setAttribute('data-open', 'true');
 
-      // ---------- mobile sidebar (close only on leaf links, not on expand) ----------
+      // ---------- Mobile Sidebar ----------
+      // Close only on leaf links; accordion expand buttons should keep the menu open.
       var menuBtn = document.getElementById('menuBtn');
       menuBtn.addEventListener('click', function () { sidebar.classList.toggle('open'); });
       sidebar.querySelectorAll('a.nav-item, .sub-link').forEach(function (i) {

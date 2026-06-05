@@ -42,6 +42,7 @@ All planning lives in `docs/`. Read these before contributing to the V2 platform
 | [`docs/Customer-Journey.md`](docs/Customer-Journey.md) | Personas, the access lifecycle state machine, end-to-end apply→provision→expire flow |
 | [`docs/Architecture-Design.md`](docs/Architecture-Design.md) | Build-ready AWS serverless design: role separation, audit trail, rate limiting, audit logging |
 | [`docs/Service-Tradeoff-Analysis.md`](docs/Service-Tradeoff-Analysis.md) | Board-facing cost & service justification (charges, alternatives, nonprofit credits) |
+| [`requirements.txt`](requirements.txt) | Local apt package requirements for Python venv support, `tidy`, and `xmllint` |
 
 > The original combined planning file, `docs/Sprint-Planning_Sitemap-and-Wireframes.md`, has been
 > **retired** — its content is split across the Sitemap, Customer-Journey, and Architecture docs above.
@@ -603,4 +604,3 @@ Before making large changes:
 
 The project requirements are based on the SRS document: `docs/Project SRS.md`. The V2 platform
 direction is detailed in the planning docs listed under **Planning & Architecture Documentation**.
-
