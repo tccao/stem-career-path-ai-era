@@ -1835,6 +1835,348 @@
       outline-offset: 2px;
       border-radius: 6px;
     }
+
+    /* ================= NAV CTA (Subscribe / Login) ================= */
+    .nav-cta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .btn-sm {
+      padding: 10px 18px;
+      font-size: 0.92rem;
+    }
+
+    @media (max-width: 768px) {
+      .nav-cta {
+        gap: 6px;
+      }
+
+      .nav-cta .btn {
+        padding: 9px 14px;
+        font-size: 0.85rem;
+      }
+    }
+
+    /* ================= MODALS ================= */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(42, 31, 61, 0.55);
+      backdrop-filter: blur(3px);
+      -webkit-backdrop-filter: blur(3px);
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 40px 20px;
+      overflow-y: auto;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-overlay[data-open="true"] {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal {
+      background: #fff;
+      border-radius: var(--r-xl);
+      box-shadow: var(--shadow-lg);
+      width: 100%;
+      max-width: 540px;
+      margin: auto;
+      overflow: hidden;
+      transform: translateY(14px) scale(0.98);
+      transition: transform 0.22s ease;
+    }
+
+    .modal-overlay[data-open="true"] .modal {
+      transform: none;
+    }
+
+    .modal-login {
+      max-width: 420px;
+    }
+
+    .modal-head {
+      position: relative;
+      padding: 28px 32px 22px;
+      background: linear-gradient(135deg, var(--cfg-purple-dark) 0%, var(--cfg-purple) 100%);
+      color: #fff;
+    }
+
+    .modal-head .eyebrow {
+      background: rgba(255, 255, 255, 0.16);
+      color: #fff;
+      margin-bottom: 10px;
+    }
+
+    .modal-head h3 {
+      color: #fff;
+      font-size: 1.5rem;
+      margin: 0 0 6px;
+    }
+
+    .modal-head p {
+      color: rgba(255, 255, 255, 0.85);
+      margin: 0;
+      font-size: 0.95rem;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 0;
+      background: rgba(255, 255, 255, 0.16);
+      color: #fff;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      transition: background-color 0.15s ease;
+    }
+
+    .modal-close:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .modal-body {
+      padding: 26px 32px 32px;
+    }
+
+    .field {
+      margin-bottom: 18px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--cfg-text);
+      margin-bottom: 7px;
+    }
+
+    .field label .req {
+      color: var(--cfg-coral);
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+      width: 100%;
+      font-family: inherit;
+      font-size: 0.96rem;
+      color: var(--cfg-text);
+      padding: 12px 14px;
+      border: 1px solid var(--cfg-border);
+      border-radius: var(--r-md);
+      background: #fff;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .field textarea {
+      resize: vertical;
+      min-height: 84px;
+    }
+
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+      outline: none;
+      border-color: var(--cfg-purple);
+      box-shadow: 0 0 0 3px rgba(106, 13, 173, 0.12);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 520px) {
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .modal-actions {
+      margin-top: 22px;
+    }
+
+    .modal-actions .btn {
+      width: 100%;
+    }
+
+    .modal-foot {
+      margin-top: 16px;
+      text-align: center;
+      font-size: 0.86rem;
+      color: var(--cfg-muted);
+    }
+
+    .modal-foot a {
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    body.modal-open {
+      overflow: hidden;
+    }
+
+    /* ================= FIXED FLOATING NAV ================= */
+    .site-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 200;
+      padding: 14px 18px;
+      background: transparent;
+      border: 0;
+    }
+
+    .nav-bar {
+      position: relative;
+      max-width: 1120px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 16px;
+      padding: 8px 12px 8px 18px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      background: transparent;
+      transition: background-color 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease;
+    }
+
+    /* frosted glass once the page is scrolled */
+    .site-header.scrolled .nav-bar {
+      background: rgba(255, 255, 255, 0.72);
+      -webkit-backdrop-filter: saturate(160%) blur(12px);
+      backdrop-filter: saturate(160%) blur(12px);
+      border-color: var(--cfg-border);
+      box-shadow: 0 10px 30px rgba(75, 0, 130, 0.12);
+    }
+
+    .nav-logo {
+      justify-self: start;
+      display: inline-flex;
+      align-items: center;
+      text-decoration: none;
+    }
+
+    .nav-logo img {
+      height: 46px;
+      width: auto;
+    }
+
+    /* centered links */
+    .site-header .primary-nav {
+      justify-self: center;
+      padding: 0px 30px 0px 0px;
+      flex: none;
+    }
+
+    .site-header .primary-nav>ul {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .site-header .primary-nav a,
+    .site-header .dropdown-trigger {
+      color: var(--cfg-purple-dark);
+      font-weight: 600;
+      font-size: 0.98rem;
+      padding: 9px 14px;
+      border-radius: 10px;
+    }
+
+    .site-header .primary-nav a:hover,
+    .site-header .primary-nav a:focus-visible,
+    .site-header .dropdown-trigger:hover,
+    .site-header .dropdown-trigger:focus-visible {
+      background: rgba(106, 13, 173, 0.08);
+      color: var(--cfg-purple);
+      outline: none;
+    }
+
+    /* right cluster: CTAs + mobile toggle */
+    .nav-right {
+      justify-self: end;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* clear the fixed bar at the top of the hero */
+    .hero {
+      padding-top: 104px;
+    }
+
+    /* mobile: centered links collapse into a dropdown panel */
+    @media (max-width: 860px) {
+      .nav-bar {
+        grid-template-columns: 1fr auto;
+      }
+
+      .site-header .primary-nav {
+        position: absolute;
+        top: calc(100% + 10px);
+        left: 0;
+        right: 0;
+        justify-self: stretch;
+        background: #fff;
+        border: 1px solid var(--cfg-border);
+        border-radius: var(--r-lg);
+        box-shadow: var(--shadow-lg);
+        padding: 10px;
+        display: none;
+      }
+
+      .site-header .primary-nav[data-open="true"] {
+        display: block;
+      }
+
+      .site-header .primary-nav>ul {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 2px;
+      }
+
+      .site-header .primary-nav a,
+      .site-header .dropdown-trigger {
+        width: 100%;
+        justify-content: flex-start;
+      }
+
+      .site-header .nav-toggle {
+        display: inline-flex;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .nav-cta .btn {
+        padding: 8px 13px;
+        font-size: 0.82rem;
+      }
+
+      .nav-logo img {
+        height: 38px;
+      }
+    }
   </style>
 </head>
 
@@ -1842,62 +2184,54 @@
   <a href="#main" class="skip">Skip to content</a>
 
   <!-- ================= HEADER ================= -->
-  <header class="site-header" id="siteHeader" data-style="reference" role="banner">
-    <!-- Centered logo block (reference style) -->
-    <div class="header-logo-area">
-      <a class="brand-stacked" href="https://www.codeforgood.us" aria-label="Code For Good home">
-        <span class="brand-mark" aria-hidden="true">
-          <img src="assets/icons/codeforgood-logo.png" alt="Code For Good Logo" />
-        </span>
-        <!-- <span class="brand-wordmark">Code For Good</span>
-        <span class="brand-tagline">STEM Career Path · AI Era</span> -->
+  <header class="site-header" id="siteHeader" role="banner">
+    <div class="nav-bar" id="navBar">
+      <!-- Logo (left) -->
+      <a class="nav-logo" href="#top" aria-label="Code For Good home">
+        <img src="assets/icons/codeforgood-logo.png" alt="Code For Good Logo" />
       </a>
-    </div>
 
-    <!-- Nav strip (lavender background) -->
-    <div class="nav-strip">
-      <div class="container">
-        <a class="brand-inline" href="#top">
-          <span class="brand-mark" aria-hidden="true">
-            <img src="assets/icons/codeforgood-logo.png" alt="Code For Good Logo" />
-          </span>
-          <span>Code For Good</span>
-        </a>
-        <!-- Navigation toggle button -->
+      <!-- Navigation links (centered) -->
+      <nav class="primary-nav" id="primaryNav" aria-label="Main navigation">
+        <ul>
+          <li><a href="https://www.codeforgood.us/#about">About</a></li>
+          <li><a href="https://www.codeforgood.us/#volunteer">Volunteer</a></li>
+          <li><a href="https://www.codeforgood.us/#success">Success Stories</a></li>
+          <li><a href="https://www.codeforgood.us/#contact">Contact</a></li>
+          <li class="dropdown" id="programDropdown">
+            <button class="dropdown-trigger" aria-expanded="false" aria-haspopup="true">
+              STEM Career Path
+              <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 9l6 6 6-6"></path>
+              </svg>
+            </button>
+            <ul class="dropdown-menu" role="menu">
+              <li><a href="#overview" role="menuitem">Overview</a></li>
+              <li><a href="#pillars" role="menuitem">Program Pillars</a></li>
+              <li><a href="#how" role="menuitem">How It Works</a></li>
+              <li><a href="#tracks" role="menuitem">Timeline Tracks</a></li>
+              <li><a href="#impact" role="menuitem">Testimonials</a></li>
+              <li><a href="#resources" role="menuitem">Resources</a></li>
+              <li><a href="#faq" role="menuitem">FAQ</a></li>
+              <li><a class="menu-cta js-signup" href="#" role="menuitem">Sign Up →</a></li>
+            </ul>
+          </li>
+        </ul>
+      </nav>
+
+      <!-- Right cluster: CTAs (right-aligned) + mobile toggle -->
+      <div class="nav-right">
+        <div class="nav-cta">
+          <button class="btn btn-primary btn-sm js-signup" type="button">SignUp</button>
+          <button class="btn btn-ghost btn-sm" type="button" id="loginBtn">Login</button>
+        </div>
         <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation" aria-expanded="false"
           aria-controls="primaryNav">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
             <path d="M4 7h16M4 12h16M4 17h16"></path>
           </svg>
         </button>
-        <!-- Navigation menu -->
-        <nav class="primary-nav" id="primaryNav" aria-label="Main navigation">
-          <ul>
-            <li><a href="https://www.codeforgood.us/#about">About</a></li>
-            <li><a href="https://www.codeforgood.us/#volunteer">Volunteer</a></li>
-            <li><a href="https://www.codeforgood.us/#success">Success Stories</a></li>
-            <li><a href="https://www.codeforgood.us/#contact">Contact</a></li>
-            <li class="dropdown" id="programDropdown">
-              <button class="dropdown-trigger" aria-expanded="false" aria-haspopup="true">
-                STEM Career Path
-                <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
-                  stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M6 9l6 6 6-6"></path>
-                </svg>
-              </button>
-              <ul class="dropdown-menu" role="menu">
-                <li><a href="#overview" role="menuitem">Overview</a></li>
-                <li><a href="#pillars" role="menuitem">Program Pillars</a></li>
-                <li><a href="#how" role="menuitem">How It Works</a></li>
-                <li><a href="#tracks" role="menuitem">Timeline Tracks</a></li>
-                <li><a href="#impact" role="menuitem">Testimonials</a></li>
-                <li><a href="#resources" role="menuitem">Resources</a></li>
-                <li><a href="#faq" role="menuitem">FAQ</a></li>
-                <li><a class="menu-cta" href="#signup" role="menuitem">Sign Up →</a></li>
-              </ul>
-            </li>
-          </ul>
-        </nav>
       </div>
     </div>
   </header>
@@ -1925,7 +2259,7 @@
           </p>
           <!-- Hero cta buttons -->
           <div class="hero-ctas">
-            <a class="btn btn-primary" href="#">
+            <a class="btn btn-primary js-signup" href="#" id="heroSubscribe">
               Sign Up for the Program
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
                 stroke-linejoin="round">
@@ -2636,7 +2970,7 @@
           <p>Whether you're a student starting the pathway, a mentor offering hours, or a donor backing the program —
             every contribution moves a graduate forward.</p>
           <div class="hero-ctas" style="justify-content: center;">
-            <a class="btn btn-primary" href="#signup-form">
+            <a class="btn btn-primary js-signup" href="#" id="ctaSubscribe">
               Sign Up for the Program
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
                 stroke-linejoin="round">
@@ -2738,6 +3072,18 @@
       }
     })();
 
+    // Frosted nav background on scroll
+    (function () {
+      var header = document.getElementById('siteHeader');
+      if (!header) return;
+      function onScroll() {
+        if (window.scrollY > 12) header.classList.add('scrolled');
+        else header.classList.remove('scrolled');
+      }
+      window.addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
+    })();
+
     // STEM Career Path dropdown
     (function () {
       var dd = document.getElementById('programDropdown');
@@ -2801,6 +3147,172 @@
     })();
 
 
+  </script>
+
+  <!-- ================= APPLICATION MODAL (Subscribe) ================= -->
+  <div class="modal-overlay" id="applyModal" role="dialog" aria-modal="true" aria-labelledby="applyTitle">
+    <div class="modal" role="document">
+      <div class="modal-head">
+        <span class="eyebrow">Request access</span>
+        <button class="modal-close" type="button" data-close aria-label="Close dialog">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"
+            stroke-linecap="round">
+            <path d="M6 6l12 12M18 6L6 18"></path>
+          </svg>
+        </button>
+        <h3 id="applyTitle">Join the STEM Career Path</h3>
+        <p>Tell us a bit about you. Next, you'll book a 15-minute interview.</p>
+      </div>
+      <div class="modal-body">
+        <form id="applyForm" novalidate>
+          <div class="field">
+            <label for="af-name">Full name <span class="req">*</span></label>
+            <input id="af-name" name="name" type="text" placeholder="e.g. Maya Johnson" required autocomplete="name">
+          </div>
+          <div class="field">
+            <label for="af-email">Email <span class="req">*</span></label>
+            <input id="af-email" name="email" type="email" placeholder="you@email.com" required autocomplete="email">
+          </div>
+          <div class="form-row">
+            <div class="field">
+              <label for="af-stage">Current stage <span class="req">*</span></label>
+              <select id="af-stage" name="stage" required>
+                <option value="" disabled selected>Select…</option>
+                <option>Current student</option>
+                <option>Recent graduate</option>
+                <option>Upskilling professional</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="af-track">Preferred track <span class="req">*</span></label>
+              <select id="af-track" name="track" required>
+                <option value="" disabled selected>Select…</option>
+                <option>Full Roadmap (12–18 mo)</option>
+                <option>Fast Track (8–12 wk)</option>
+                <option>Not sure yet</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="af-reason">Why are you applying? <span class="req">*</span></label>
+            <textarea id="af-reason" name="reason" placeholder="A sentence or two about your goals…"
+              required></textarea>
+          </div>
+          <div class="modal-actions">
+            <button class="btn btn-primary" type="submit">
+              Continue to interview booking
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                stroke-linejoin="round">
+                <path d="M5 12h14M13 5l7 7-7 7"></path>
+              </svg>
+            </button>
+          </div>
+          <p class="modal-foot">Already approved? <a class="js-login">Log in instead</a></p>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= LOGIN MODAL ================= -->
+  <div class="modal-overlay" id="loginModal" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+    <div class="modal modal-login" role="document">
+      <div class="modal-head">
+        <span class="eyebrow">Member sign in</span>
+        <button class="modal-close" type="button" data-close aria-label="Close dialog">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"
+            stroke-linecap="round">
+            <path d="M6 6l12 12M18 6L6 18"></path>
+          </svg>
+        </button>
+        <h3 id="loginTitle">Welcome back</h3>
+        <p>Sign in to your participant dashboard.</p>
+      </div>
+      <div class="modal-body">
+        <form id="loginForm" novalidate>
+          <div class="field">
+            <label for="lf-email">Email</label>
+            <input id="lf-email" name="email" type="email" placeholder="you@email.com" value="maya@email.com"
+              autocomplete="email">
+          </div>
+          <div class="field">
+            <label for="lf-pass">Password</label>
+            <input id="lf-pass" name="password" type="password" placeholder="••••••••" value="demo1234"
+              autocomplete="current-password">
+          </div>
+          <div class="modal-actions">
+            <button class="btn btn-primary" type="submit">Sign in →</button>
+          </div>
+          <p class="modal-foot">No account yet? <a class="js-signup">Request access</a></p>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MOCK WORKFLOW JS ================= -->
+  <script>
+    (function () {
+      var body = document.body;
+      var applyModal = document.getElementById('applyModal');
+      var loginModal = document.getElementById('loginModal');
+
+      function openModal(m) {
+        closeModals();
+        m.setAttribute('data-open', 'true');
+        body.classList.add('modal-open');
+        var first = m.querySelector('input, select, textarea');
+        if (first) setTimeout(function () { first.focus(); }, 60);
+      }
+
+      function closeModals() {
+        [applyModal, loginModal].forEach(function (m) { m.setAttribute('data-open', 'false'); });
+        body.classList.remove('modal-open');
+      }
+
+      // Subscribe / Sign Up triggers -> application modal
+      document.querySelectorAll('.js-signup').forEach(function (el) {
+        el.addEventListener('click', function (e) { e.preventDefault(); openModal(applyModal); });
+      });
+      // Login triggers -> login modal
+      document.querySelectorAll('.js-login, #loginBtn').forEach(function (el) {
+        el.addEventListener('click', function (e) { e.preventDefault(); openModal(loginModal); });
+      });
+      // Close handlers
+      document.querySelectorAll('[data-close]').forEach(function (el) {
+        el.addEventListener('click', closeModals);
+      });
+      [applyModal, loginModal].forEach(function (m) {
+        m.addEventListener('click', function (e) { if (e.target === m) closeModals(); });
+      });
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModals(); });
+
+      // Application submit -> store + go to booking page
+      document.getElementById('applyForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var fd = new FormData(this);
+        var name = (fd.get('name') || '').toString().trim();
+        var email = (fd.get('email') || '').toString().trim();
+        var reason = (fd.get('reason') || '').toString().trim();
+        if (!name || !email || !fd.get('stage') || !fd.get('track') || !reason) {
+          if (this.reportValidity) this.reportValidity();
+          return;
+        }
+        var data = { name: name, email: email, stage: fd.get('stage'), track: fd.get('track'), reason: reason };
+        try { sessionStorage.setItem('cfg_applicant', JSON.stringify(data)); } catch (err) { }
+        var qs = '?name=' + encodeURIComponent(name) + '&track=' + encodeURIComponent(data.track);
+        window.location.href = 'mock-booking.html' + qs;
+      });
+
+      // Login submit -> dashboard
+      document.getElementById('loginForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var name = 'Maya';
+        try {
+          var saved = JSON.parse(sessionStorage.getItem('cfg_applicant') || 'null');
+          if (saved && saved.name) name = saved.name.split(' ')[0];
+        } catch (err) { }
+        window.location.href = 'mock-dashboard.html?name=' + encodeURIComponent(name);
+      });
+    })();
   </script>
 
 
