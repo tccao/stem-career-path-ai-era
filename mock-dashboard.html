@@ -347,16 +347,22 @@
       display: grid;
       grid-template-rows: 0fr;
       overflow: hidden;
-      transition: grid-template-rows 0.26s ease;
+      pointer-events: none;
+      visibility: hidden;
+      transition: grid-template-rows 0.26s ease, visibility 0s linear 0.26s;
     }
 
     .acc[data-open="true"]>.acc-body {
       grid-template-rows: 1fr;
+      pointer-events: auto;
+      visibility: visible;
+      transition: grid-template-rows 0.26s ease;
     }
 
     .acc-body>.acc-inner {
       overflow: hidden;
       min-height: 0;
+      transition: padding-top 0.26s ease, padding-bottom 0.26s ease;
     }
 
     .acc-inner {
@@ -389,7 +395,6 @@
     .acc.lvl2>.acc-head {
       display: flex;
       align-items: center;
-      gap: 8px;
       padding: 8px 10px;
       border-radius: 8px;
       font-size: 0.85rem;
@@ -430,6 +435,11 @@
 
     .acc.lvl2>.acc-body>.acc-inner {
       padding: 2px 0 8px 4px;
+    }
+
+    .acc:not([data-open="true"])>.acc-body>.acc-inner {
+      padding-top: 0;
+      padding-bottom: 0;
     }
 
     /* milestone bullets */
@@ -1059,7 +1069,7 @@
       <!-- pathway progress -->
       <div class="sb-progress">
         <div class="top">
-          <span class="lab">Path A · Full Roadmap</span>
+          <span class="lab">8 Pillars - Track</span>
           <span class="pct" id="sbPct">0%</span>
         </div>
         <div class="track"><span id="sbBar" style="width:0%"></span></div>
@@ -1075,28 +1085,6 @@
           <rect x="3" y="16" width="7" height="5"></rect>
         </svg>Dashboard
       </a>
-
-      <!-- My Path -->
-      <div class="acc" data-open="false">
-        <button class="nav-item acc-head" type="button">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-            stroke-linejoin="round">
-            <path d="M9 18l6-6-6-6"></path>
-            <path d="M3 12h12"></path>
-          </svg>My Path
-          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <path d="M6 9l6 6 6-6"></path>
-          </svg>
-        </button>
-        <div class="acc-body">
-          <div class="acc-inner">
-            <a class="sub-link active">Path A · Full Roadmap</a>
-            <a class="sub-link">Path B · Fast Track</a>
-            <a class="sub-link">Readiness self-assessment</a>
-          </div>
-        </div>
-      </div>
 
       <div class="nav-section">Learn</div>
 
@@ -1216,7 +1204,7 @@
       <div class="page-head">
         <div>
           <h1 id="welcome">Welcome back, Maya 👋</h1>
-          <p>You're on <b>Path A · Full Roadmap</b>. Here's where to pick things up.</p>
+          <p>You're on <b>8 Pillars - Track</b>. Here's where to pick things up.</p>
         </div>
         <div class="access-chip">
           <span class="status"><span class="led"></span> Active</span>
