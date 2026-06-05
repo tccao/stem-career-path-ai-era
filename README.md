@@ -19,7 +19,32 @@ This project should be treated as a maintainable static web project, not just a 
 **Project Owner:** Tinh Cao  
 **Primary Reviewer:** Code For Good Leadership  
 **Future Maintainers:** Student volunteers  
-**Project Type:** Static landing page + maintainable documentation
+**Project Type:** Static landing page (V1) evolving toward a vetted-access learning platform (V2)
+
+## Project Horizons
+
+This repository covers two stages of the same initiative:
+
+- **V1 — Static landing page (current MVP).** A single `index.html` marketing page on AWS static
+  hosting. Most of this README documents V1.
+- **V2 — Vetted-access learning platform.** A standalone app (public / student / admin zones, an
+  apply → interview → donate → provision access flow, and the two learning paths) on an AWS
+  serverless stack. V2 is **fully planned** in the documents below but **not yet built**.
+
+## Planning & Architecture Documentation
+
+All planning lives in `docs/`. Read these before contributing to the V2 platform:
+
+| Document | What it covers |
+|----------|----------------|
+| [`docs/Project SRS.md`](docs/Project%20SRS.md) | Source of truth — program purpose, audiences, 8 pillars, V1 requirements |
+| [`docs/Sitemap-and-Wireframes.md`](docs/Sitemap-and-Wireframes.md) | Information architecture: sitemap, routes, low-fidelity wireframes, nav-by-role |
+| [`docs/Customer-Journey.md`](docs/Customer-Journey.md) | Personas, the access lifecycle state machine, end-to-end apply→provision→expire flow |
+| [`docs/Architecture-Design.md`](docs/Architecture-Design.md) | Build-ready AWS serverless design: role separation, audit trail, rate limiting, audit logging |
+| [`docs/Service-Tradeoff-Analysis.md`](docs/Service-Tradeoff-Analysis.md) | Board-facing cost & service justification (charges, alternatives, nonprofit credits) |
+
+> The original combined planning file, `docs/Sprint-Planning_Sitemap-and-Wireframes.md`, has been
+> **retired** — its content is split across the Sitemap, Customer-Journey, and Architecture docs above.
 
 ## MVP Deliverable
 
@@ -349,36 +374,33 @@ JavaScript should only be used for:
 
 ## Project Structure
 
-Recommended repository structure:
+Current repository structure:
 
 ```text
 stem-career-path-ai-era/
 │
-├── index.html
+├── STEM Career Path Landing Page.html   # V1 landing page (to be renamed index.html for hosting)
 ├── README.md
+├── LICENSE
 │
 ├── docs/
-│   └── project-SRS.md
+│   ├── Project SRS.md                          # source of truth
+│   ├── Sitemap-and-Wireframes.md               # V2 information architecture
+│   ├── Customer-Journey.md                     # V2 personas + access lifecycle
+│   ├── Architecture-Design.md                  # V2 AWS serverless design
+│   ├── Service-Tradeoff-Analysis.md            # V2 board-facing cost/service justification
+│   └── Sprint-Planning_Sitemap-and-Wireframes.md   # RETIRED — superseded by the three docs above
 │
 ├── assets/
 │   ├── images/
-│   └── icons/
+│   └── icons/                                  # codeforgood-logo.png
 │
 └── references/
     └── CodeForGood_index.html
 ```
 
-Future documentation may include:
-
-```text
-docs/
-├── project-overview.md
-├── design-guidelines.md
-├── content-guide.md
-├── maintenance-guide.md
-├── aws-deployment-notes.md
-└── student-onboarding.md
-```
+Future content documentation may still be added as needed (e.g., `design-guidelines.md`,
+`content-guide.md`, `maintenance-guide.md`, `aws-deployment-notes.md`, `student-onboarding.md`).
 
 ## How to Run Locally
 
@@ -571,7 +593,7 @@ This project is intentionally beginner-friendly.
 
 Before making large changes:
 
-- Read the SRS in `docs/project-SRS.md`
+- Read the SRS in `docs/Project SRS.md` (and, for the V2 platform, the planning docs listed above)
 - Review the existing Code For Good reference page
 - Keep the design simple
 - Prioritize readability over clever code
@@ -579,5 +601,6 @@ Before making large changes:
 
 ## Source of Truth
 
-The project requirements are based on the SRS document: `docs/project-SRS.md`.
+The project requirements are based on the SRS document: `docs/Project SRS.md`. The V2 platform
+direction is detailed in the planning docs listed under **Planning & Architecture Documentation**.
 
