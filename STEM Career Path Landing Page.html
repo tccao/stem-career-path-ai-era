@@ -2077,11 +2077,46 @@
       box-shadow: 0 10px 30px rgba(75, 0, 130, 0.12);
     }
 
+    /* logo centered above the pill on page load */
+    .hero-logo-top {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding-bottom: 8px;
+      max-height: 70px;
+      overflow: hidden;
+      transition: max-height 0.28s ease, opacity 0.28s ease, padding 0.28s ease;
+    }
+
+    .hero-logo-top img {
+      height: 60px;
+      width: auto;
+    }
+
+    .hero-logo-top a {
+      display: inline-flex;
+      align-items: center;
+      text-decoration: none;
+    }
+
+    .site-header.scrolled .hero-logo-top {
+      max-height: 0;
+      opacity: 0;
+      padding-bottom: 0;
+      pointer-events: none;
+    }
+
     .nav-logo {
       justify-self: start;
       display: inline-flex;
       align-items: center;
       text-decoration: none;
+      opacity: 0;
+      transition: opacity 0.28s ease;
+    }
+
+    .site-header.scrolled .nav-logo {
+      opacity: 1;
     }
 
     .nav-logo img {
@@ -2132,6 +2167,11 @@
 
     /* clear the fixed bar at the top of the hero */
     .hero {
+      padding-top: 170px;
+      transition: padding-top 0.28s ease;
+    }
+
+    body.scrolled .hero {
       padding-top: 104px;
     }
 
@@ -2194,6 +2234,13 @@
 
   <!-- ================= HEADER ================= -->
   <header class="site-header" id="siteHeader" role="banner">
+    <!-- Logo centered above nav pill on page load -->
+    <div class="hero-logo-top">
+      <a href="#top" aria-label="Code For Good home">
+        <img src="assets/icons/codeforgood-logo.png" alt="Code For Good Logo" />
+      </a>
+    </div>
+
     <div class="nav-bar" id="navBar">
       <!-- Logo (left) -->
       <a class="nav-logo" href="#top" aria-label="Code For Good home">
@@ -3094,8 +3141,13 @@
       var header = document.getElementById('siteHeader');
       if (!header) return;
       function onScroll() {
-        if (window.scrollY > 12) header.classList.add('scrolled');
-        else header.classList.remove('scrolled');
+        if (window.scrollY > 12) {
+          header.classList.add('scrolled');
+          document.body.classList.add('scrolled');
+        } else {
+          header.classList.remove('scrolled');
+          document.body.classList.remove('scrolled');
+        }
       }
       window.addEventListener('scroll', onScroll, { passive: true });
       onScroll();

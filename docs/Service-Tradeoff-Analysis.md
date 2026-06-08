@@ -5,9 +5,9 @@
 **Owner:** Tinh Cao  
 **Status:** Audited draft for leadership review  
 **Audience:** Non-technical decision-makers (board, leadership, program leads)  
-**Companion docs:** `docs/Architecture-Design.md` · `docs/Customer-Journey.md` · `docs/Sitemap-and-Wireframes.md`
+**Companion docs:** [docs/Architecture-Design.md](Architecture-Design.md) · [docs/Customer-Journey.md](Customer-Journey.md) · [docs/Sitemap-and-Wireframes.md](Sitemap-and-Wireframes.md)
 
-> Pricing and program assumptions were re-verified in **June 2026** from vendor pages. Treat all dollar figures as **planning estimates**, not vendor commitments. Confirm pricing, nonprofit eligibility, payment-processing terms, and tax/receipt language again before production launch.
+> Pricing and program assumptions were re-verified in **June 2026** from vendor pages.
 
 ---
 
@@ -23,15 +23,11 @@ The recommended setup is:
 - **Scheduling:** Cal.com or Calendly free tier, depending on whether the program needs multiple event types.
 - **Security posture:** Launch lean with Cognito, API throttling, CloudWatch alarms, IAM least privilege, audit logs, and optional WAF later if abuse risk grows.
 
-**The bottom line for the board:**
+**Executive Summary:**
 
 - **Infrastructure cost should be effectively $0 during the pilot.** The realistic AWS gross cost for a small pilot is expected to be roughly **$25–200/year without Amplify WAF**, or about **$200–400/year if Amplify WAF is enabled**. Code For Good is aiming for **$1,000 in AWS nonprofit credits ($95 one time fee at signup/renewal per $1,000. Max up to $5,000)**, which should cover the expected pilot infrastructure cost with room to spare.
 - **The main real-money decision is payment processing.** Zeffy charges nonprofits **$0 platform fees and $0 processing fees**, funded by optional donor tips. Stripe has stronger payment automation and signed webhooks, but processing fees apply unless discounted nonprofit pricing is approved.
-- **Zeffy should be the default launch choice.** Since leadership is leaning Zeffy and the program is cost-sensitive, use Zeffy first. Automate access only after the minimum contribution is confirmed through Zeffy data, API polling, Zapier, or admin review. If that automation becomes too fragile, switch the access-payment flow to Stripe.
-- **Because payment can unlock access, do not describe every payment as a pure donation without review.** If a minimum contribution grants program access, it may be a **quid pro quo contribution** or program-support payment. Receipts and public copy should be reviewed by leadership/accounting so donors are not misled about deductibility.
-- **Because the audience includes high school students, privacy needs more care.** The platform should collect the minimum information necessary, avoid serving children under 13, and require parent/guardian consent language for minors when appropriate.
-
-**Recommendation:** approve the AWS Amplify + AWS serverless stack, apply for the **$1,000 AWS nonprofit credit**, launch Zeffy-first, keep Stripe as the automation fallback, and delay Amplify WAF until the program has enough traffic or abuse risk to justify the added fixed cost.
+- **Zeffy should be the default launch choice.**
 
 ---
 
