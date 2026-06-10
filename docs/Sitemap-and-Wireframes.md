@@ -4,7 +4,7 @@
 **Doc type:** Information Architecture + Low-Fidelity Wireframes
 **Owner:** Tinh Cao
 **Status:** Draft for review
-**Source of truth:** `docs/Project SRS.md`
+**Source of truth:** `docs/Platform-SRS.md` (platform) · `docs/Project SRS.md` (Phase-0 landing page)
 **Companion docs:** `docs/Customer-Journey.md` · `docs/Architecture-Design.md`
 
 ---

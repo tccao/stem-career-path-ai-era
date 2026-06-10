@@ -4,9 +4,17 @@
 **Doc type:** Personas + Access Lifecycle + End-to-End Journey Maps
 **Owner:** Tinh Cao
 **Status:** Draft for review
-**Source of truth:** `docs/Project SRS.md`
+**Source of truth:** `docs/Platform-SRS.md` (platform) · `docs/Project SRS.md` (Phase-0 landing page)
 **Companion docs:** `docs/Sitemap-and-Wireframes.md` · `docs/Architecture-Design.md`
 **Credential model:** Email + password (resolved)
+
+> **Launch-phase note (rev. 2).** At launch, donations are fully decoupled to **Zeffy's hosted
+> platform** and there is **no Stripe integration and no receipt upload** — the `PAID_AUTO` and
+> `RECEIPT_REVIEW` states and every "Stripe webhook" interaction below belong to the **future
+> automated-payment phase** (`Architecture-Design.md` Appendix A). The launch supporter path is:
+> `DONATION_REQUIRED` → applicant donates on Zeffy → **admin confirms in the Zeffy dashboard and
+> records the reference** → admin grant → `ACTIVE`. Future-phase content is kept below for
+> continuity and is marked where it appears.
 
 ---
 
@@ -131,8 +139,9 @@ skip the gate (enforced in `docs/Architecture-Design.md`).
 | `INTERVIEW_SCHEDULED` | Calendly 15-min call booked / pending | Admin / Applicant |
 | `APPROVED_BENEFICIARY` | Passed vetting → free access | Admin |
 | `DONATION_REQUIRED` | Not eligible for free; must donate | Admin |
-| `PAID_AUTO` | Stripe webhook confirmed payment | System |
-| `RECEIPT_REVIEW` | Manual receipt uploaded; awaiting check | Applicant → Admin |
+| `DONATION_CONFIRMED` | Admin confirmed the donation in the Zeffy dashboard (**launch path**) | Admin |
+| `PAID_AUTO` | Stripe webhook confirmed payment (**future phase only**) | System |
+| `RECEIPT_REVIEW` | Manual receipt uploaded; awaiting check (**future phase only**) | Applicant → Admin |
 | `ACTIVE` | Account provisioned; can sign in | System / Admin |
 | `EXPIRED` / `REVOKED` | Access ended | System / Admin |
 | `REJECTED` | Declined at interview | Admin |
@@ -145,12 +154,12 @@ stateDiagram-v2
     INTERVIEW_SCHEDULED --> DONATION_REQUIRED: not eligible (donate)
     INTERVIEW_SCHEDULED --> REJECTED: declined
 
-    DONATION_REQUIRED --> PAID_AUTO: Stripe webhook "paid"
-    DONATION_REQUIRED --> RECEIPT_REVIEW: manual receipt uploaded
+    DONATION_REQUIRED --> DONATION_CONFIRMED: admin confirms in Zeffy (launch)
+    DONATION_REQUIRED --> PAID_AUTO: Stripe webhook "paid" (future phase)
 
     APPROVED_BENEFICIARY --> ACTIVE: provision (free)
-    PAID_AUTO --> ACTIVE: auto-grant
-    RECEIPT_REVIEW --> ACTIVE: admin verifies
+    DONATION_CONFIRMED --> ACTIVE: admin grant (launch)
+    PAID_AUTO --> ACTIVE: auto-grant (future phase)
 
     ACTIVE --> EXPIRED: window ends
     ACTIVE --> REVOKED: admin revokes
@@ -162,8 +171,10 @@ stateDiagram-v2
     REVOKED --> [*]
 ```
 
-No path reaches `ACTIVE` without either `APPROVED_BENEFICIARY` (free) or confirmed payment
-(`PAID_AUTO` or Admin-verified receipt). That two-path integrity is a core security property.
+No path reaches `ACTIVE` without either `APPROVED_BENEFICIARY` (free) or a confirmed donation —
+at launch always **admin-confirmed via the Zeffy dashboard** (`DONATION_CONFIRMED`); in the
+future phase also `PAID_AUTO` via signed webhook. That two-path integrity is a core security
+property, and at launch every grant is a human decision.
 
 ---
 
@@ -175,7 +186,7 @@ sequenceDiagram
     actor Ad as Admin (owner)
     participant Sys as Platform (AWS)
     participant Cal as Calendly (ext)
-    participant Pay as Stripe (ext)
+    participant Pay as Zeffy (ext, hosted)
     participant Mail as SES email
 
     A->>Sys: 1. Submit application (name, email, stage, track, reason)
@@ -189,13 +200,9 @@ sequenceDiagram
         Ad->>Sys: mark [APPROVED_BENEFICIARY]
     else Not eligible → donate
         Ad->>Sys: mark [DONATION_REQUIRED]
-        A->>Pay: 5. Donate via hosted Stripe Checkout
-        alt Integrated
-            Pay-->>Sys: 6a. Signed webhook "paid" [PAID_AUTO]
-        else Offline / other channel
-            A->>Sys: 6b. Upload receipt → private S3 [RECEIPT_REVIEW]
-            Ad->>Sys: verify receipt
-        end
+        A->>Pay: 5. Donate on Zeffy hosted page (link-out)
+        Ad->>Pay: 6. Confirm donation in Zeffy dashboard
+        Ad->>Sys: record reference [DONATION_CONFIRMED]
     end
 
     Sys->>Sys: 7. Provision: add email to members DB,<br/>role=student, accessBasis, duration [ACTIVE]
@@ -207,19 +214,22 @@ sequenceDiagram
 
 **Reject branch:** at step 4, **REJECTED** → optional decline / re-apply email.
 
-### 5.1 Donation & payment handling (hybrid)
+### 5.1 Donation & payment handling
 
-- **Integrated (auto):** redirect to **Stripe Checkout** (hosted page). On the
-  `checkout.session.completed` webhook (signature-verified, event-id de-duped), the system moves
-  the application `PAID_AUTO` → `ACTIVE`.
-- **Manual (fallback):** applicant uploads a receipt; stored in a **private S3 bucket**
-  (server-side encrypted, presigned upload, lifecycle auto-delete); Admin verifies → `ACTIVE`.
-  Covers donations through near-zero-fee nonprofit channels (e.g., Zeffy, PayPal Giving Fund).
-- **PCI posture:** the app **never sees card data** — all card entry happens on the processor's
-  hosted page, keeping the lightest PCI scope (SAQ-A). The platform stores only a payment
-  reference / receipt, never a card number.
-- **Edge cases (later):** refund/chargeback → optional auto-revoke; duplicate payment →
-  idempotent grant; partial/under-amount → admin review.
+- **Launch (Zeffy, decoupled):** the applicant donates on Zeffy's hosted page (the site only
+  links out); the Admin confirms the donation in the **Zeffy dashboard**, records the transaction
+  reference (`DONATION_CONFIRMED`), and grants access. No payment API, webhook, secret, or
+  receipt upload exists in our stack.
+- **Future phase (Stripe, automated — `Architecture-Design.md` Appendix A):** redirect to Stripe
+  Checkout; on the `checkout.session.completed` webhook (signature-verified, event-id de-duped),
+  the application moves `PAID_AUTO` → `ACTIVE`. A per-application tokened receipt-upload fallback
+  (`RECEIPT_REVIEW`) returns in this phase too.
+- **PCI posture (both phases):** the app **never sees card data** — all card entry happens on the
+  processor's hosted page (SAQ-A). The platform stores only a payment reference, never a card
+  number.
+- **Edge cases:** at launch, refunds/chargebacks are handled inside Zeffy by the admin; the only
+  in-app action is an audited `REVOKED` if access was already granted. Automated handling is a
+  future-phase decision.
 
 ### 5.2 Interview step (Calendly)
 
@@ -255,16 +265,17 @@ and what we can do about it.
 - **Opportunities:** Set expectations on the confirmation page (review timeline, that email is the
   channel); make the Calendly link arrive promptly; keep the form short.
 
-### Stage 3 — Unlock access  (beneficiary grant OR `/donate` → Stripe / receipt)
+### Stage 3 — Unlock access  (beneficiary grant OR `/donate` → Zeffy link-out)
 
 - **Goal:** Get over the access gate.
-- **Touchpoints:** Beneficiary approval email, or Stripe Checkout / receipt upload.
+- **Touchpoints:** Beneficiary approval email, or the Zeffy hosted donation page + the admin's
+  confirmation email.
 - **Emotion:** Relief (approved) **or** decision friction (asked to donate).
-- **Pain points:** Donation framed as a paywall can feel transactional for a nonprofit; receipt
-  path is slow (manual verify).
+- **Pain points:** Donation framed as a paywall can feel transactional for a nonprofit; the
+  admin-confirmation step means supporter access isn't instant (typically same/next day).
 - **Opportunities:** Frame the supporter path as "fund a seat" (mission language, not paywall);
-  auto-grant on Stripe webhook so paid supporters get in within seconds; keep the receipt
-  fallback for low-fee channels.
+  set the expectation on-screen ("we confirm donations within one business day"); the future
+  Stripe phase (Appendix A) buys instant auto-grant if reconciliation ever becomes a burden.
 
 ### Stage 4 — Onboard  (`/login`, `/app`, `/app/path`, readiness)
 
@@ -360,8 +371,8 @@ The journey is built so the person can trust the gate and the org can account fo
 
 - **Allowlist + human vetting** — only Admin-provisioned emails become accounts; an interview
   gates free seats.
-- **Payment isolation** — hosted checkout means no card data in the app (PCI SAQ-A); supporters
-  see a trusted Stripe page.
+- **Payment isolation** — donations live entirely on Zeffy's hosted platform (PCI SAQ-A); no
+  card data, payment API, or webhook in the app at launch.
 - **Transparent access status** — the learner always sees their status, access window, and who
   granted it on `/app/profile`.
 - **Logged decisions** — every admin action (approve / reject / provision / extend / revoke /

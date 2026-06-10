@@ -14,6 +14,11 @@
 
 **Future Maintainers:** Student volunteers
 
+> **Scope note (June 2026):** this SRS specifies **Phase 0 — the static landing page** only.
+> The vetted-access learning **platform** that the landing page's Sign Up / Donate CTAs lead to
+> is specified separately in **`docs/Platform-SRS.md`**, which is the source of truth for
+> `Architecture-Design.md`, `Customer-Journey.md`, and `Sitemap-and-Wireframes.md`.
+
 ## 1. Project Purpose
 
 The **STEM Graduates Career Path — AI Era** project is a Code For Good initiative designed to help STEM students and recent graduates prepare for careers shaped by artificial intelligence, automation, cloud platforms, and changing employer expectations.
