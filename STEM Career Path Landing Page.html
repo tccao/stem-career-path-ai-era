@@ -2061,7 +2061,7 @@
       grid-template-columns: 1fr auto 1fr;
       align-items: center;
       gap: 16px;
-      padding: 8px 12px 8px 18px;
+      padding: 8px 72px 8px 18px;
       border-radius: 999px;
       border: 1px solid transparent;
       background: transparent;
@@ -2323,7 +2323,7 @@
               </svg>
             </a>
             <!-- Donate button -->
-            <a class="btn btn-secondary" href="">
+            <a class="btn btn-secondary" href="https://www.zeffy.com/en-US/donation-form/donate-to-codeforgood" target="_blank" rel="noopener">
               Donate to Support
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
                 stroke-linejoin="round">
@@ -3033,7 +3033,7 @@
                 <path d="M5 12h14M13 5l7 7-7 7"></path>
               </svg>
             </a>
-            <a class="btn btn-secondary" id="donate" href="#donate-link">
+            <a class="btn btn-secondary" id="donate" href="https://www.zeffy.com/en-US/donation-form/donate-to-codeforgood" target="_blank" rel="noopener">
               Donate to Support
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
                 stroke-linejoin="round">
@@ -3086,7 +3086,7 @@
           <h4>Get Involved</h4>
           <ul>
             <li><a href="#signup">Sign Up</a></li>
-            <li><a href="#donate">Donate</a></li>
+            <li><a href="https://www.zeffy.com/en-US/donation-form/donate-to-codeforgood" target="_blank" rel="noopener noreferrer">Donate</a></li>
             <li><a href="#resources">Resources</a></li>
             <li><a href="#faq">FAQ</a></li>
           </ul>
@@ -3278,6 +3278,24 @@
           </div>
           <p class="modal-foot">Already approved? <a class="js-login">Log in instead</a></p>
         </form>
+
+        <!-- Shown after form submit: cal.com opened in new tab -->
+        <div id="bookingLaunched" style="display:none; text-align:center; padding: 8px 0 16px;">
+          <div style="width:64px;height:64px;border-radius:50%;background:rgba(46,162,122,0.12);color:#2ea27a;display:grid;place-items:center;margin:0 auto 18px;">
+            <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+          </div>
+          <h3 style="margin:0 0 10px;font-size:1.25rem;">Booking opened!</h3>
+          <p style="color:#5b5170;margin:0 0 24px;font-size:0.95rem;line-height:1.6;">
+            Complete your 15-minute interview on Cal.com in the new tab.<br>
+            When you're done, continue to your dashboard below.
+          </p>
+          <div class="modal-actions">
+            <a id="toDashboardBtn" href="mock-dashboard.html" class="btn btn-primary">
+              Continue to your dashboard
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><path d="M5 12h14M13 5l7 7-7 7"></path></svg>
+            </a>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -3362,7 +3380,7 @@
       });
       document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModals(); });
 
-      // Application submit -> store + go to booking page
+      // Application submit -> open real Cal.com booking in new tab, show next-step state
       document.getElementById('applyForm').addEventListener('submit', function (e) {
         e.preventDefault();
         var fd = new FormData(this);
@@ -3375,8 +3393,17 @@
         }
         var data = { name: name, email: email, stage: fd.get('stage'), track: fd.get('track'), reason: reason };
         try { sessionStorage.setItem('cfg_applicant', JSON.stringify(data)); } catch (err) { }
-        var qs = '?name=' + encodeURIComponent(name) + '&track=' + encodeURIComponent(data.track);
-        window.location.href = 'mock-booking.html' + qs;
+        // Open real Cal.com booking in a new tab
+        window.open('https://cal.com/tinhcao001', '_blank', 'noopener');
+        // Swap modal to the "booking launched" state
+        var firstName = name.split(' ')[0];
+        var dash = 'mock-dashboard.html?name=' + encodeURIComponent(firstName);
+        document.getElementById('toDashboardBtn').setAttribute('href', dash);
+        document.getElementById('applyForm').style.display = 'none';
+        document.getElementById('bookingLaunched').style.display = 'block';
+        // Update modal header copy
+        var applyTitle = document.getElementById('applyTitle');
+        if (applyTitle) applyTitle.textContent = 'Almost there, ' + firstName + '!';
       });
 
       // Login submit -> dashboard
