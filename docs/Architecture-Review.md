@@ -349,7 +349,7 @@ Fixes were applied with a bias toward the **lowest-cost structure on Amplify + A
 | # | Finding | Resolution |
 |---|---------|------------|
 | 1 | SRS doesn't authorize the platform | **New `docs/Platform-SRS.md`** (scope, scale, data handling, board asks); all design docs re-pointed to it; scope note added to `Project SRS.md` (Phase 0) |
-| 2 | Gating vs static-CDN contradiction | Curriculum moved to a **private S3 bucket served via `app-fn` gating check + short-TTL presigned GETs**; public content stays on Amplify CDN; checklist now includes a direct-URL fetch test (`Architecture-Design.md` §9.2, §16) |
+| 2 | Gating vs static-CDN contradiction | **CloudFront signed cookies** (the option flagged most consistent with §9A.3): gated curriculum sits in a **private S3 bucket behind a dedicated CloudFront distribution locked to a key group**; `app-fn` runs the gating check then **issues short-TTL signed cookies** scoped to the member's path, and the browser reads curriculum from CloudFront edge (zero Lambda per asset — keeps the read-scaling economics). Revocation latency = cookie TTL (kept short, re-checked on re-issuance). Signing key in free **SSM Parameter Store SecureString**. Public content stays on Amplify CDN; checklist adds tests that locked/expired members are refused cookies and the S3 origin is unreachable directly (`Architecture-Design.md` §9.2, §9A.3, §16) |
 | 3 | Cross-doc contradictions | **\$1,000 credit target** is canonical (the \$2,000 claim withdrawn); **no WAF at launch** (phase-2 trigger, §8.3/§14), matching the trade-off doc; **Amplify Hosting confirmed**; Calendly/Cal.com aligned |
 | 4 | Governance assumes nonexistent org | §6.3 split into **Day-1 actual** (single account, sealed root with board custodian, MFA everywhere, explicit deny on audit tampering) vs. **target state** (Organizations/SCPs, Appendix B) with a named trigger |
 | 5 | Hash chain broken/unverified | **Dropped.** Tamper-evidence = IAM append-only + CloudTrail data events + **daily incremental export to Object-Lock WORM** (§7.3) |
@@ -365,5 +365,7 @@ Fixes were applied with a bias toward the **lowest-cost structure on Amplify + A
 | 15 | Nits | `423`→`403` with reason body; scheduling vendor aligned; Secrets Manager removed (no secrets exist); X-Ray/Athena off the launch checklist |
 
 **Cost effect of the fixes:** launch bill loses its largest items (WAF ~\$300/yr, Cognito Plus,
-Secrets Manager, receipts bucket, CloudFront-for-WAF) and stays at **≈ \$25–200/yr gross → \$0 net**
-against the \$1,000 credit target — now consistent across all board-facing documents.
+Secrets Manager, receipts bucket) and stays at **≈ \$25–200/yr gross → \$0 net** against the
+\$1,000 credit target — now consistent across all board-facing documents. The curriculum CloudFront
+distribution added for signed-cookie gating carries **no WAF** and sits inside the free-tier egress
+band (~\$0); the CloudFront signing key lives in free SSM Parameter Store, not Secrets Manager.

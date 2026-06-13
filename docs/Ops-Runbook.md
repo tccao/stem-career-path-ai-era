@@ -55,8 +55,11 @@ best-effort within 1 business day (board-approved, `Platform-SRS.md` §9).
   the maintainer + board MFA devices still work; skim WAF-trigger evidence (login-failure and
   4xx patterns) against the §14 triggers in `Architecture-Design.md`.
 - **Quarterly:** run the **restore test** (§4) against the dev stack; rotate the maintainer's
-  AWS credentials; re-confirm the root custodian can locate the sealed credentials; review
-  TTL purges happened on `Applications` (rejected > 12 months should be gone).
+  AWS credentials; **rotate the CloudFront curriculum signing key** (generate a new key, add its
+  public key to the CloudFront key group, update the SSM SecureString that `app-fn` reads, then
+  retire the old key once the longest cookie TTL has elapsed); re-confirm the root custodian can
+  locate the sealed credentials; review TTL purges happened on `Applications` (rejected > 12 months
+  should be gone).
 
 ---
 
@@ -85,6 +88,7 @@ the board contact.
 |---------|-------------|
 | Grant clicked, member can't sign in | DLQ (§2.1); then Cognito user exists? `Members.status=ACTIVE`? Welcome email bounced (SES suppression list)? |
 | Student sees `403 stage_locked` wrongly | `StageLocks` + `Progress` for that `memberId#stageKey`; prerequisite chain; if judgment call → admin override (audited) |
+| Curriculum assets `403` from CloudFront for a valid member | Signed cookies present and unexpired? `app-fn` cookie issuance succeeded (gating check passed)? CloudFront key group holds the **current** public key matching the SSM private key (check after a key rotation)? Clock skew? — re-entering the stage re-issues cookies; a stale key after rotation is the usual cause |
 | Cohort can't log in (burst) | Cognito `ThrottledRequests` metric → this is the §9A.2 scenario: tell students to retry, stagger comms; consider quota increase before next cohort |
 | Welcome emails in spam | Verify DKIM/SPF/DMARC still pass (`dig`, mail-tester); SES reputation dashboard |
 | Billing alarm fired | Cost Explorer → which service; usual suspects: log retention misconfig, runaway Lambda retry loop (check error alarms together) |

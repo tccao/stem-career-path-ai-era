@@ -58,7 +58,7 @@ A small, vetted-access learning platform on AWS:
 | ID | Requirement |
 |----|-------------|
 | F1 | Public application form (`/apply`) collecting: name, email, stage, preferred track, background, links. Includes an **age/consent gate** (see §6). |
-| F2 | Admin queue: list applications by status; schedule interview (Calendly/Cal.com link); record decision (approve-beneficiary / donation-required / reject) with reason. |
+| F2 | Admin queue: list applications by status; schedule interview (Cal.com link); record decision (approve-beneficiary / donation-required / reject) with reason. |
 | F3 | Admin grant: provision a Cognito account (no self-sign-up anywhere), set access window and path; idempotent — double-clicks and retries cannot double-provision. |
 | F4 | Donation confirmation: admin records a Zeffy payment reference against an application before granting supporter access. No in-app payment processing. |
 | F5 | Member app: sign-in, dashboard, curriculum stages, proof-of-work submission (external links), private notes. |
@@ -72,7 +72,7 @@ A small, vetted-access learning platform on AWS:
 | ID | Requirement |
 |----|-------------|
 | N1 | **Cost:** gross AWS run cost ≤ \$200/year at pilot scale; net \$0 against the **\$1,000 AWS nonprofit credit target** (per `Service-Tradeoff-Analysis.md` — the single canonical credit figure). No always-on compute. Fixed-cost security add-ons (WAF, Cognito Plus) require a documented trigger before enabling. |
-| N2 | **Hosting:** AWS only; frontend on **AWS Amplify Hosting** (Code For Good's existing platform). No migration to S3+CloudFront unless a phase-2 trigger fires. |
+| N2 | **Hosting:** AWS only; the public site and SPA shell run on **AWS Amplify Hosting** (Code For Good's existing platform); no frontend migration to S3+CloudFront unless a phase-2 trigger fires. **Gated curriculum** is delivered from a separate **private-S3 + CloudFront distribution with signed-cookie access** (server-side gating, `Architecture-Design.md` §9.2) — a content-delivery component, not a frontend-hosting migration, with no WAF and free-tier egress. |
 | N3 | **Security:** server-side enforcement of roles, access windows, and gating; least-privilege IAM per function; **mandatory MFA for admin accounts**; no card data in our stack (PCI SAQ-A posture via Zeffy). |
 | N4 | **Accountability:** two audit layers (CloudTrail + application AuditLog), append-only by IAM, with a tamper-evident export. Retention ≥ 2 years. |
 | N5 | **Durability:** PITR + deletion protection on every DynamoDB table; documented restore procedure (see `Ops-Runbook.md`); RPO ≤ 24 h, RTO ≤ 1 business day (volunteer-run program; board accepts this explicitly). |
@@ -116,7 +116,7 @@ Each deferred item has a written re-entry trigger in `Architecture-Design.md` §
 
 1. The platform scope above (Phase 1), as the successor to the landing-page SRS.
 2. The data-handling and minors policy in §6.
-3. The cost envelope in N1 and the **\$1,000 nonprofit credit** application.
+3. The cost envelope in N1 and the **\$1,000 nonprofit credit** application (Need to submit by July 2026 for next Fiscal year with \$95 fee).
 4. The volunteer-run operating posture in N5/N7 (best-effort response, weekly ops checklist,
    named board contact for severe alerts — see `Ops-Runbook.md`).
 5. Day-1 governance: single AWS account; root credentials sealed with MFA and lodged with a named

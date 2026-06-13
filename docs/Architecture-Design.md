@@ -12,8 +12,9 @@ Amplify + AWS serverless**, single-maintainer operability
 
 > **Rev. 2 changes at a glance.** This revision applies every fix from the senior architecture
 > review: launch-state architecture with **no Stripe machinery** (moved to Appendix A); **3-function**
-> compute split; gated curriculum served through an authorized path (closing the §9.2/§9A.3
-> contradiction); hash chain **dropped** in favor of IAM append-only + CloudTrail data events +
+> compute split; gated curriculum served from a **private-S3 origin behind a CloudFront key group
+> via short-TTL signed cookies** issued after the gating check (closing the §9.2/§9A.3 contradiction
+> while keeping edge-cached read economics); hash chain **dropped** in favor of IAM append-only + CloudTrail data events +
 > WORM exports; **mandatory admin MFA**; PITR + deletion protection on all tables; PII-free audit
 > events with per-table retention TTLs; **WAF and Cognito Plus deferred to phase-2 triggers**
 > (aligning with `Service-Tradeoff-Analysis.md`); the **\$1,000 nonprofit credit target** as the
@@ -95,7 +96,9 @@ flowchart TB
     subgraph Data
       DDB[(DynamoDB on-demand<br/>Applications · Members ·<br/>Donations · Progress ·<br/>StageLocks · Notes<br/>PITR + deletion protection)]
       AUD[(DynamoDB AuditLog<br/>append-only by IAM)]
-      S3C[(S3: gated curriculum<br/>private · presigned GET only)]
+      S3C[(S3: gated curriculum<br/>private · CloudFront OAC only)]
+      CFC[CloudFront: curriculum dist.<br/>key group · signed-cookie auth]
+      SSM[SSM Parameter Store<br/>CloudFront signing key · SecureString]
       SQS[[SQS provisioning queue + DLQ]]
     end
 
@@ -120,7 +123,9 @@ flowchart TB
     EVB[EventBridge Scheduler] --> Lsys
     Lpub & Lapp & Lsys --> DDB
     Lpub & Lapp & Lsys -->|append| AUD
-    Lapp -->|gating check, then presigned GET| S3C
+    Lapp -->|gating check → set signed cookies| CFC
+    Lapp -->|read signing key| SSM
+    B -->|curriculum read w/ signed cookies| CFC -->|OAC| S3C
     Lsys --> SES
     CT --> CTS3
     AUD -- daily incremental export --> CTS3
@@ -128,9 +133,11 @@ flowchart TB
 ```
 
 **Read path:** the browser loads the public site and SPA shell from Amplify Hosting's managed CDN.
-**Gated content path:** curriculum lives in a **private S3 bucket**; `app-fn` checks the member's
-status, window, and `StageLocks`, then returns short-TTL presigned GETs (§9.2). **Write/API
-path:** the SPA calls API Gateway, which routes by trust boundary. **Donations:** a link-out to
+**Gated content path:** curriculum lives in a **private S3 bucket** reachable only through a
+**dedicated CloudFront distribution** locked to a CloudFront **key group**; `app-fn` checks the
+member's status, window, and `StageLocks`, then issues **short-TTL CloudFront signed cookies**
+scoped to that member's permitted path. The browser then reads curriculum **directly from
+CloudFront edge caches** — no Lambda per asset (§9.2, §9A.3). **Write/API path:** the SPA calls API Gateway, which routes by trust boundary. **Donations:** a link-out to
 Zeffy; an admin confirms in the Zeffy dashboard and clicks *Grant*, which enqueues to SQS;
 `system-fn` — the only holder of `AdminCreateUser` — provisions the account.
 
@@ -166,19 +173,19 @@ Stateless: no in-memory sessions; concurrent invocations are safe. Frontend is a
 | Need | Service | Notes |
 |------|---------|-------|
 | Static frontend hosting | **Amplify Hosting** | Resolved; managed CDN included; no S3+CloudFront migration unless §14 trigger fires |
-| Edge protection | **None at launch** — API Gateway throttling + Cognito lockout + app limits (§8) | AWS WAF is a **phase-2 trigger** (§14); avoids the \$15/mo Amplify-WAF fee + rule costs |
+| Edge protection | **No WAF at launch** — API Gateway throttling + Cognito lockout + app limits (§8); the curriculum CloudFront distribution also carries no WAF | AWS WAF is a **phase-2 trigger** (§14); avoids the \$15/mo Amplify-WAF fee + rule costs |
 | API / routing | **API Gateway HTTP API** | Cognito JWT authorizer; stage throttling |
 | Compute | **AWS Lambda** ×3 (§3) | scale-to-zero |
 | Identity, sessions, roles | **Cognito User Pool — Essentials** | groups `student`/`admin`; **admin group MFA mandatory (TOTP)**; no self-sign-up |
 | App / member data | **DynamoDB on-demand** | conditional writes; **PITR + deletion protection on every table**; TTL retention (§5) |
 | Application audit log | **DynamoDB `AuditLog`** | append-only by IAM; PII-free events; daily incremental export to WORM bucket (§7) |
-| Gated curriculum | **S3 (private)** | presigned GETs issued by `app-fn` after gating check (§9.2) |
+| Gated curriculum | **S3 (private) + dedicated CloudFront (key group)** | bucket reachable only via CloudFront OAC; `app-fn` issues short-TTL **CloudFront signed cookies** after the gating check; reads are edge-cached, zero Lambda per asset (§9.2) |
 | Async provisioning | **SQS + DLQ** | see rationale below |
 | Transactional email | **Amazon SES** | production access + SPF/DKIM/DMARC are launch checklist items (§16) |
 | Payment | **Zeffy (external, hosted)** | link-out only; no API, webhook, or secret in our stack |
 | Scheduling | **Calendly or Cal.com free tier** | decide at setup; no architectural impact (matches `Service-Tradeoff-Analysis.md`) |
 | Expiry / reminders | **EventBridge Scheduler → `system-fn`** | |
-| Secrets | **None at launch** | No third-party keys exist; Secrets Manager enters with the Stripe phase (Appendix A) |
+| Secrets | **One first-party key** — the CloudFront signing key | Held in **SSM Parameter Store SecureString** (free, KMS-encrypted), read-scoped to `app-fn` for signed-cookie signing. No *third-party* vendor secrets exist; **Secrets Manager** still enters only with the Stripe phase (Appendix A) |
 | Platform audit trail | **CloudTrail** (multi-region, log validation) → **S3 Object Lock** | data events on `AuditLog` + `Members` (§7.1) |
 | Logs / metrics / alarms | **CloudWatch** | structured JSON; alarm destinations named in `Ops-Runbook.md` |
 | Tracing | **None at launch** | X-Ray is enable-when-investigating, not a standing cost |
@@ -311,7 +318,7 @@ flowchart LR
     S -- no --> E[/access/expired/]
     S -- yes --> Z{Stage unlocked<br/>or admin override?}
     Z -- no --> LK[403 stage_locked]
-    Z -- yes --> OK[Serve / presign content]
+    Z -- yes --> OK[Serve / issue signed cookies]
 ```
 
 ### 6.2 Infrastructure roles (IAM least privilege & separation of duties)
@@ -322,7 +329,7 @@ Each Lambda gets its own execution role. The critical separation-of-duties rule 
 | Function | Can do | Cannot do |
 |----------|--------|-----------|
 | `public-fn` | `PutItem` Applications; append AuditLog | read Members; touch Cognito or SQS; any S3 access |
-| `app-fn` | read/write Applications, Members, Progress, StageLocks, Notes, Donations (key-scoped for student routes); **enqueue** to the provisioning queue; presign GETs on the curriculum bucket; append AuditLog | `AdminCreateUser` or any Cognito admin write; consume from SQS; delete or update AuditLog items |
+| `app-fn` | read/write Applications, Members, Progress, StageLocks, Notes, Donations (key-scoped for student routes); **enqueue** to the provisioning queue; **mint CloudFront signed cookies** for the curriculum distribution (read the signing key from SSM Parameter Store); append AuditLog | `AdminCreateUser` or any Cognito admin write; consume from SQS; delete or update AuditLog items; read curriculum S3 directly (only CloudFront's OAC can) |
 | `system-fn` | consume SQS; `cognito-idp:AdminCreateUser` / `AdminAddUserToGroup`; write Members; send SES; append AuditLog; run the expiry query | serve any API route; delete data; read Notes |
 
 Cross-cutting IAM rules:
@@ -330,8 +337,10 @@ Cross-cutting IAM rules:
 - **No `*` resources** — per table/index, per bucket+prefix, per key.
 - **AuditLog is append-only by policy** — every role may `dynamodb:PutItem` to `AuditLog`;
   **no role anywhere** has `UpdateItem`/`DeleteItem` on it (§7.3).
-- **No secrets at launch** — there are no third-party keys; Secrets Manager is not deployed
-  (finding 10/15: it was scoped around Stripe keys that don't exist).
+- **One first-party secret at launch** — the CloudFront signing key, held in **SSM Parameter
+  Store SecureString** (KMS-encrypted, read-scoped to `app-fn`). No *third-party* vendor keys
+  exist, so **Secrets Manager is not deployed** (finding 10/15: it had been scoped around Stripe
+  keys that don't exist; it returns only with the Stripe phase, Appendix A).
 - **Human AWS access** — see §6.3.
 
 ### 6.3 Governance & access hierarchy
@@ -498,28 +507,40 @@ duplicate SQS message fails the condition harmlessly. `version` gives optimistic
 concurrent admin edits. (`PAID_AUTO → ACTIVE` exists only in the future payment phase —
 Appendix A.)
 
-### 9.2 Content gating — now actually server-side (finding 2 resolved)
+### 9.2 Content gating — server-side via CloudFront signed cookies (finding 2 resolved)
 
 Rev. 1 contradicted itself: §9.2 promised a server-side check on every learning read while §9A.3
 served the curriculum as public static CDN content — meaning locked stages were only hidden in
-the UI. Resolved as follows, choosing the cheapest design that makes the security claim true:
+the UI. Resolved with **CloudFront signed cookies**, the option the review flagged as most
+consistent with the §9A.3 read-scaling strategy: it keeps the edge-cached economics *and* makes
+the gate a real server-side control.
 
 - **Public content** (marketing site, SPA shell, program overview) stays static on Amplify
   Hosting's CDN — cacheable, zero backend cost.
-- **Gated curriculum** (stage content, templates, walkthroughs) lives in a **private S3 bucket**,
-  never publicly readable. The SPA requests a stage through `app-fn`, which verifies JWT → group
-  → `Members.status` + window → `StageLocks` + prerequisites, then returns the content (small
-  JSON/markdown inline; larger assets as **short-TTL presigned GETs**, ~5 minutes, scoped per
-  object).
-- **Cost still stays near zero:** at pilot scale this is tens of thousands of Lambda
-  invocations a month at most — fractions of a dollar, inside the free tier. The "zero Lambda on
-  reads" optimization rev. 1 wanted was buying pennies at the price of the product's core access
-  control.
-- A leaked presigned URL expires in minutes and exposes one object; revoked/expired members fail
-  the `Members.status` check on the next stage request.
+- **Gated curriculum** (stage content, templates, walkthroughs) lives in a **private S3 bucket**
+  reachable only through a **dedicated CloudFront distribution** (origin access control; the
+  bucket itself is never publicly readable), and that distribution is locked to a **CloudFront
+  key group** — CloudFront serves an object only when the request carries valid **signed cookies**.
+- **Issuance is the gate.** When a member opens the app (and again on stage unlock / navigation),
+  `app-fn` verifies JWT → group → `Members.status` + window → `StageLocks` + prerequisites, and
+  only then **sets short-TTL CloudFront signed cookies**
+  (`CloudFront-Policy` / `-Signature` / `-Key-Pair-Id`) whose policy is **scoped to that member's
+  permitted curriculum path** (unlocked stages only). The signing key is a first-party CloudFront
+  key held in **SSM Parameter Store SecureString**, read-scoped to `app-fn` (§4, §6.2).
+- **Reads are then edge-cached with zero Lambda per asset.** The browser fetches curriculum
+  directly from CloudFront with the cookies attached; `app-fn` is touched only at cookie issuance,
+  not per object — restoring the read-scaling economics §9A.3 wanted, which a per-object
+  presigned-GET design would have surrendered (every asset read would hit Lambda).
+- **Revocation latency = cookie TTL (stated trade-off).** A member revoked or expired mid-session
+  keeps access until the cookies lapse, so the TTL is kept **short (15–30 min)** and cookies are
+  **re-issued on navigation / stage change**, where `app-fn` re-checks `Members.status` — bounding
+  revocation to one TTL window. Cookies are path-scoped per member, so a leaked cookie exposes only
+  that member's already-unlocked stages, and only until it expires.
 
-A stage stays **visible but not enterable (🔒)** until prerequisites are met. Admin override sets
-`overrideBy/At/Reason` and is audited; it can re-lock.
+A stage stays **visible but not enterable (🔒)** until prerequisites are met — its path sits
+outside the issued cookie's policy, so CloudFront refuses it; it is not merely a UI affordance.
+Admin override sets `overrideBy/At/Reason`, is audited, widens the cookie policy on the next
+issuance, and can re-lock.
 
 ### 9.3 Expiry & reminders
 
@@ -563,26 +584,29 @@ to replay.
 ### 9A.3 Read-heavy scaling
 
 - **Public content** is edge-cached on Amplify's CDN — zero backend.
-- **Auth is stateless after login** — the JWT authorizer validates against cached JWKS; Cognito
-  is touched only at login/refresh. Access-token TTL ~1 h; the per-request `Members.status` check
-  in `app-fn` bounds revocation latency for **API and curriculum** access alike (rev. 2 closes
-  the static-content bypass).
-- **Gated reads go through `app-fn`** by design (§9.2). At pilot scale this is free-tier Lambda
-  volume; per-student data keys (`memberId`) spread load — no hot partition. Eventually-consistent
-  reads for learning data.
+- **Gated curriculum is edge-cached on CloudFront** — after `app-fn` issues signed cookies once
+  per session/stage, asset reads are served from CloudFront edge with **zero Lambda per object**
+  (§9.2). This closes the rev. 1 static-content bypass *without* giving up read-scaling.
+- **Auth is stateless after login** — the JWT authorizer validates against cached JWKS; Cognito is
+  touched only at login/refresh. Access-token TTL ~1 h. Revocation latency: **API access** is
+  bounded per-request by `app-fn`'s `Members.status` check; **curriculum access** is bounded by the
+  signed-cookie TTL (kept short, re-checked at each cookie re-issuance — §9.2).
+- **`app-fn` is hit at cookie issuance, not per asset** — at pilot scale a handful of issuances per
+  member per session, free-tier Lambda volume; per-student data keys (`memberId`) spread DynamoDB
+  load — no hot partition. Eventually-consistent reads for learning data.
 - **Lambda autoscales** to the few-hundred-concurrent range trivially; reserved concurrency caps
   blast radius. Provisioned concurrency deferred.
 
-**Bottleneck ranking:** (1) Cognito sign-in burst; (2) API GW throttle sizing; (3) presigned-URL
-issuance volume if stage assets are fetched object-by-object (batch the presigns per stage
-request); (4) DynamoDB hot key only if shared content is mis-placed in Dynamo — keep shared
-content in S3. Every one is configuration, not architecture.
+**Bottleneck ranking:** (1) Cognito sign-in burst; (2) API GW throttle sizing; (3) DynamoDB hot
+key only if shared content is mis-placed in Dynamo — keep shared content in S3/CloudFront, not
+Dynamo. Signed-cookie issuance is once per session/stage (not per object), so it is not a
+read-path bottleneck. Every one is configuration, not architecture.
 
 ### 9A.4 Add only if scale demands it
 
-DAX/ElastiCache, CloudFront signed-cookie delivery for curriculum (the cheaper-at-scale evolution
-of §9.2's presigned GETs), Cognito quota increase, provisioned concurrency — all deferred behind
-§11 metrics.
+DAX/ElastiCache, a Cognito quota increase, provisioned concurrency, and CloudFront cache-policy /
+response-header tuning for the curriculum distribution — all deferred behind §11 metrics.
+(Signed-cookie curriculum delivery is already the launch design, §9.2, not a deferred item.)
 
 ---
 
@@ -593,13 +617,13 @@ of §9.2's presigned GETs), Cognito quota increase, provisioned concurrency — 
 | Allowlist + human vetting | No self-sign-up; accounts only via `system-fn` after an admin grant |
 | Two-path integrity | Conditional transitions; `ACTIVE` reachable **only** via admin grant (post-interview or post-Zeffy-confirmation) |
 | Payment isolation | Zeffy hosted; admin-entered reference only; no card data, API, webhook, or payment secret in-stack (PCI SAQ-A) |
-| Protected routes **and content** | Cognito JWT authorizer + server-side group/window/gating checks; curriculum in private S3 behind `app-fn` (§9.2) |
+| Protected routes **and content** | Cognito JWT authorizer + server-side group/window/gating checks; curriculum in private S3 behind a **CloudFront key group**, reachable only with short-TTL **signed cookies** that `app-fn` issues after the gating check (§9.2) |
 | Least privilege + separation of duties | Per-function IAM; internet-facing code cannot mint accounts (§6.2) |
 | Admin credential hardening | **Mandatory TOTP MFA** on the `admin` group and on all human AWS identities (§6.1, §6.3) |
 | Gated progression | Server-side `StageLocks`; overrides audited (§9.2) |
 | Comprehensive audit | CloudTrail (validated, WORM) + append-only PII-free AuditLog + daily WORM export (§7) |
 | Abuse limiting | API GW throttling + Cognito lockout + per-user write limits; WAF on trigger (§8) |
-| Revocable & expiring | Admin revoke + scheduled expiry; revocation reaches content access within one stage-request (§9.2) |
+| Revocable & expiring | Admin revoke + scheduled expiry; revocation reaches API access on the next request and content access within the signed-cookie TTL (kept short; re-checked at each cookie re-issuance, §9.2) |
 | Data protection & privacy | SSE at rest, TLS in transit, private buckets, retention TTLs, PII-free audit events, minors' consent gate (§5.1, `Platform-SRS.md` §6) |
 | Durability | PITR + deletion protection on all tables; tested restore procedure (`Ops-Runbook.md`) |
 
@@ -634,6 +658,7 @@ nonprofit).
 | API Gateway HTTP API | per-million requests | \$0–25/yr |
 | DynamoDB on-demand (+PITR) | requests + GB-month | \$0–15/yr |
 | S3 (curriculum, WORM exports, trail) | GB + requests | \$0–10/yr |
+| CloudFront (curriculum dist.) | GB served + requests | \$0–10/yr (free-tier egress; **no WAF**) |
 | Cognito Essentials | MAU | \$0 (≤10k MAU free) |
 | SES | per-1k emails | \$1–10/yr |
 | CloudTrail + CloudWatch | data events (~\$0.10/100k) + alarms + logs | \$5–50/yr |
@@ -642,9 +667,13 @@ nonprofit).
 | **Net after credit target** | | **\$0** |
 
 **Removed from rev. 1's launch bill:** AWS WAF (~\$300/yr — was the largest single line item,
-now phase-2), Cognito Plus (~\$0.02/MAU, phase-2), Secrets Manager (no secrets exist), X-Ray
-(enable-when-investigating), receipts bucket + lifecycle (path deleted), and the CloudFront
-distribution implied by the old WAF requirement (Amplify's managed CDN suffices).
+now phase-2), Cognito Plus (~\$0.02/MAU, phase-2), Secrets Manager (the one launch secret — the
+CloudFront signing key — lives in free SSM Parameter Store instead), X-Ray
+(enable-when-investigating), and the receipts bucket + lifecycle (path deleted). Note the
+curriculum CloudFront distribution added in §9.2 is **not** the WAF-fronting, whole-site
+CloudFront rev. 1 implied: it is a small **curriculum-only** distribution with a key group, **no
+WAF attached**, inside the free-tier egress band (~\$0). The public site still uses Amplify's
+managed CDN.
 
 ---
 
@@ -672,7 +701,6 @@ launch lean without losing the roadmap:
 | **6-function split** (Appendix B) | Second maintainer joins |
 | **AWS Organizations + SCPs** (§6.3 target) | Second board custodian named, or program exits pilot |
 | **Stripe hosted Checkout + webhooks** (Appendix A) | Admin donation-reconciliation effort > ~2 h/month, or board approves fee trade-off (`Service-Tradeoff-Analysis.md` §6.7.1) |
-| **CloudFront signed cookies for curriculum** | Curriculum read volume makes per-request Lambda presigning a measurable cost line |
 | **App Runner / Fargate + Aurora** | Always-warm or relational needs; same codebase migrates — trust boundaries, audit layers, and throttling carry over unchanged |
 
 ---
@@ -709,9 +737,13 @@ launch lean without losing the roadmap:
 - [ ] DynamoDB tables with conditional-write transitions; idempotent admin grant
       (`APPROVED → ACTIVE` conditional); **PITR + deletion protection + TTL retention on every
       table**; `Members.byStatusAccessEnds` GSI (PK `status`, SK `accessEndsAt`).
-- [ ] **Gated curriculum in a private S3 bucket**, served only via `app-fn` gating check +
-      short-TTL presigned GETs; verified by an integration test: a `locked` stage and an
-      `EXPIRED` member both receive `403` **and cannot fetch content bytes by any direct URL**.
+- [ ] **Gated curriculum in a private S3 bucket fronted by a dedicated CloudFront distribution**
+      (OAC; bucket not publicly readable) locked to a **CloudFront key group**; `app-fn` issues
+      short-TTL **signed cookies** scoped to the member's permitted path only after the gating
+      check, with the signing key in **SSM Parameter Store SecureString**. Verified by integration
+      tests: (a) a `locked` stage and an `EXPIRED` member are **refused cookies** (`403` + reason);
+      (b) curriculum is **not fetchable from CloudFront without valid signed cookies**; (c) the S3
+      origin is **not reachable directly** (only via CloudFront OAC).
 - [ ] Server-side enforcement of role, window, and stage gating (client never decides); `403` +
       reason body for locked stages.
 - [ ] **AuditLog** append-only (no Update/Delete in any IAM policy), **PII-free event schema**,

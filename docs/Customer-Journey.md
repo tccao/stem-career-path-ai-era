@@ -136,7 +136,7 @@ skip the gate (enforced in `docs/Architecture-Design.md`).
 | State | Meaning | Set by |
 |-------|---------|--------|
 | `SUBMITTED` | Basic form received; in admin queue | Applicant |
-| `INTERVIEW_SCHEDULED` | Calendly 15-min call booked / pending | Admin / Applicant |
+| `INTERVIEW_SCHEDULED` | Cal.com 15-min call booked / pending | Admin / Applicant |
 | `APPROVED_BENEFICIARY` | Passed vetting → free access | Admin |
 | `DONATION_REQUIRED` | Not eligible for free; must donate | Admin |
 | `DONATION_CONFIRMED` | Admin confirmed the donation in the Zeffy dashboard (**launch path**) | Admin |
@@ -149,7 +149,7 @@ skip the gate (enforced in `docs/Architecture-Design.md`).
 ```mermaid
 stateDiagram-v2
     [*] --> SUBMITTED: applicant submits form
-    SUBMITTED --> INTERVIEW_SCHEDULED: admin sends Calendly link
+    SUBMITTED --> INTERVIEW_SCHEDULED: admin sends Cal.com link
     INTERVIEW_SCHEDULED --> APPROVED_BENEFICIARY: eligible (free)
     INTERVIEW_SCHEDULED --> DONATION_REQUIRED: not eligible (donate)
     INTERVIEW_SCHEDULED --> REJECTED: declined
@@ -185,13 +185,13 @@ sequenceDiagram
     actor A as Applicant
     actor Ad as Admin (owner)
     participant Sys as Platform (AWS)
-    participant Cal as Calendly (ext)
+    participant Cal as Cal.com (ext)
     participant Pay as Zeffy (ext, hosted)
     participant Mail as SES email
 
     A->>Sys: 1. Submit application (name, email, stage, track, reason)
     Sys-->>Ad: enters queue [SUBMITTED]
-    Ad->>Mail: 2. Email Calendly link
+    Ad->>Mail: 2. Email Cal.com link
     Mail-->>A: 15-min call invite
     A->>Cal: 3. Self-book 15-min call [INTERVIEW_SCHEDULED]
     Ad->>Ad: 4. Eligibility decision
@@ -231,12 +231,12 @@ sequenceDiagram
   in-app action is an audited `REVOKED` if access was already granted. Automated handling is a
   future-phase decision.
 
-### 5.2 Interview step (Calendly)
+### 5.2 Interview step (Cal.com)
 
-After the form, the Admin sends a **Calendly free-tier booking link** by email; the applicant
+After the form, the Admin sends a **Cal.com free-tier booking link** by email; the applicant
 self-books a 15-minute call against the Admin's open blocks. The call decides beneficiary
 eligibility vs. donor path. To save admin time, the call can be **required only on the
-donor/borderline path** and skipped for clearly eligible beneficiaries. Calendly holds only
+donor/borderline path** and skipped for clearly eligible beneficiaries. Cal.com holds only
 scheduling data; no program PII flows through it.
 
 ---
@@ -255,15 +255,15 @@ and what we can do about it.
 - **Opportunities:** Lead with eligibility clarity ("free for eligible beneficiaries, donation
   unlocks a seat otherwise"); show both tracks side by side so visitors self-identify.
 
-### Stage 2 — Apply & vet  (`/apply` → `/apply/submitted`, Calendly)
+### Stage 2 — Apply & vet  (`/apply` → `/apply/submitted`, Cal.com)
 
 - **Goal:** Request access and prove I'm a fit.
-- **Touchpoints:** Application form, "Application received" page, Calendly email, 15-min call.
+- **Touchpoints:** Application form, "Application received" page, Cal.com email, 15-min call.
 - **Emotion:** Hopeful, a little exposed (sharing background/reason).
 - **Pain points:** Waiting with no status; not knowing what happens next; interview-scheduling
   friction.
 - **Opportunities:** Set expectations on the confirmation page (review timeline, that email is the
-  channel); make the Calendly link arrive promptly; keep the form short.
+  channel); make the Cal.com link arrive promptly; keep the form short.
 
 ### Stage 3 — Unlock access  (beneficiary grant OR `/donate` → Zeffy link-out)
 

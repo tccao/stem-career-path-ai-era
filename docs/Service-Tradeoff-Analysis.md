@@ -88,11 +88,11 @@ Assumptions: 501(c)(3), first pilot app, Code For Good already hosted on AWS Amp
 | Compute | AWS Lambda, low request volume | **$0–10** |
 | API | API Gateway HTTP API, low request volume | **$0–25** |
 | Database | DynamoDB, small table size and low read/write volume | **$0–15** |
-| Storage | S3 for receipts/log exports, small files | **$0–10** |
+| Storage & content delivery | S3 (gated curriculum + log exports) + a curriculum CloudFront distribution, small files / free-tier egress | **$0–10** |
 | Email | Amazon SES at low transactional volume | **$1–10** |
 | Audit/monitoring | CloudWatch + CloudTrail, basic configuration | **$5–50** |
 | Scheduling | Cal.com or Calendly free tier | **$0** |
-| Secrets / EventBridge / SQS | Small usage | **$0–10** |
+| Parameter Store / EventBridge / SQS | Small usage (CloudFront signing key in free SSM SecureString — no Secrets Manager at launch) | **$0–10** |
 | **Subtotal — lean pilot** | Without Amplify WAF | **≈ $25–200/year** |
 | **AWS nonprofit credit target** | Conservative planning assumption | **−$1,000/year** |
 | **Expected net infrastructure cost** | Pilot scale | **$0** |
@@ -174,7 +174,7 @@ Leadership action items:
 | Netlify | Easy deploys; free/paid tiers | Friendly developer workflow | Another vendor; build/runtime limits; less AWS audit cohesion | Fine, but not better here |
 | Vercel | Excellent frontend DX | Great for Next.js | Hobby plan restrictions and paid per-seat model for org use | Avoid unless app specifically needs Vercel features |
 
-**Verdict.** Since the organization is already on Amplify, use Amplify Hosting for this pilot. Do not migrate to S3 + CloudFront unless WAF cost or hosting scale makes that worthwhile later.
+**Verdict.** Since the organization is already on Amplify, use Amplify Hosting for the public site and SPA shell this pilot. Do not migrate the *frontend* to S3 + CloudFront unless WAF cost or hosting scale makes that worthwhile later. **Note:** the **gated curriculum** is a separate matter — it is delivered from a small **private-S3 + CloudFront distribution with signed-cookie access**, so the access gate is enforced server-side rather than only in the UI (`Architecture-Design.md` §9.2). That is a content-delivery component with **no WAF** and free-tier egress (~$0), **not** a frontend-hosting migration.
 
 ---
 
@@ -461,9 +461,6 @@ Because high school students may be minors, the platform should follow these rul
 |------|------------|--------|------------|
 | AWS credit is lower than expected or delayed | Medium | Low–Medium | Plan with conservative $1,000 assumption; gross pilot cost remains manageable |
 | Amplify WAF enabled too early | Medium | Medium | Delay WAF until needed; use API throttling and monitoring first |
-| Zeffy automation is not real-time enough | Medium | **Low** | Access model is human-vetted and latency-tolerant; poll the read-only API every few minutes. Provisioning pipeline is trigger-agnostic, so moving to Stripe signed webhooks later is an additive ingress adapter, not a rebuild (§6.7.1) |
-| Zeffy native webhooks assumed but unavailable | Medium | Medium | Treat native push webhooks as **roadmap, not shipped** (June 2026); design on **polling + Zapier** and re-verify against the API before granting access (§6.7.1) |
-| Payment tied to access creates receipt/tax confusion | Medium | High | Use leadership-approved quid pro quo / benefit disclosure language |
 | Minor participation creates privacy/consent risk | Medium | High | Age-band check, guardian consent for minors, no under-13 collection without review |
 | AWS complexity overwhelms student volunteers | Medium | Medium | Use Amplify for frontend, serverless managed services, IaC, and clear runbooks |
 | Cost spike from bug or abuse | Low–Medium | Medium | Budget alarms, API throttling, CloudWatch alerts, rate limits |
@@ -477,7 +474,7 @@ Because high school students may be minors, the platform should follow these rul
 1. **Approve AWS Amplify Hosting + AWS serverless backend** for the pilot.
 2. **Apply for the $1,000 AWS Nonprofit Credit** and use that as the conservative planning assumption.
 3. **Launch Zeffy-first** for the **one-time** minimum contribution (no recurring billing in the pilot) because it preserves the full payment amount for the nonprofit — a choice that survives the event-flow pressure-test (§6.7.1).
-4. **Implement automatic access carefully:** drive provisioning from **scheduled polling of Zeffy's read-only API (or a Zapier trigger)**, and **re-verify the payment against the API before** activating the Cognito entitlement. Treat native Zeffy webhooks as roadmap, not shipped (§6.7.1).
+4. **Implement automatic access carefully:** Verify the payment on **Zeffy** before activating the Cognito entitlement.
 5. **Add Stripe, then PayPal, later — only when a trigger is met** (recurring billing, instant-activation UX, reconciliation outgrowing volunteers, or Zeffy brittleness; §6.7.1). Each is an additive ingress adapter feeding the **same** trigger-agnostic SQS → `provisioning-fn` pipeline, so it is a configuration step, not an architectural rewrite.
 6. **Do not enable Amplify WAF at launch** unless there is a known threat. Start with Cognito, API Gateway throttling, IAM least privilege, CloudWatch alarms, and CloudTrail.
 7. **Add minor/privacy safeguards** before accepting high school applicants.
@@ -495,7 +492,7 @@ Because high school students may be minors, the platform should follow these rul
 | Email | Amazon SES | **$1–10/year** |
 | Monitoring/audit | CloudWatch + CloudTrail | **$5–50/year** |
 | Optional WAF | Defer at launch | **$0 initially**; can add later |
-| Scheduling | Cal.com or Calendly free tier | **$0** |
+| Scheduling | Cal.com (free for single person; $12/month for teams) | **$0** |
 | Payment processor | Zeffy preferred | **$0 to nonprofit** |
 | AWS nonprofit credit target | Conservative planning assumption | **−$1,000/year** |
 | **Expected net infrastructure cost** | With credit | **$0** |
