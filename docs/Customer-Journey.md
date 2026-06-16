@@ -8,13 +8,17 @@
 **Companion docs:** `docs/Sitemap-and-Wireframes.md` · `docs/Architecture-Design.md`
 **Credential model:** Email + password (resolved)
 
-> **Launch-phase note (rev. 2).** At launch, donations are fully decoupled to **Zeffy's hosted
-> platform** and there is **no Stripe integration and no receipt upload** — the `PAID_AUTO` and
-> `RECEIPT_REVIEW` states and every "Stripe webhook" interaction below belong to the **future
-> automated-payment phase** (`Architecture-Design.md` Appendix A). The launch supporter path is:
-> `DONATION_REQUIRED` → applicant donates on Zeffy → **admin confirms in the Zeffy dashboard and
-> records the reference** → admin grant → `ACTIVE`. Future-phase content is kept below for
-> continuity and is marked where it appears.
+> **Launch-phase note (rev. 3).** At launch, donations stay on **Zeffy's hosted platform** (no
+> Stripe, no receipt upload — the `PAID_AUTO` and `RECEIPT_REVIEW` states and every "Stripe
+> webhook" interaction below belong to the **future** automated-payment phase,
+> `Architecture-Design.md` Appendix A). **Supporters now self-serve without an interview:** the
+> applicant donates on the Zeffy hosted page, `system-fn` **polls Zeffy's read-only Payments API**
+> on a short schedule, verifies the payment and matches it to the application **by email**
+> (idempotent on the Zeffy payment ID), and **auto-grants access within minutes** —
+> `DONATION_REQUIRED` → `DONATION_CONFIRMED` (set by **system**, not an admin) → `ACTIVE`. The
+> old **admin-confirm-in-dashboard** path remains as a manual fallback when the email match fails.
+> **Beneficiaries are unchanged** — still admin-granted after the interview. Future-phase content
+> is kept below and marked where it appears.
 
 ---
 
@@ -105,8 +109,8 @@ journey
       Eligibility decision: 2: Applicant, Admin
     section Unlock access
       Beneficiary - free grant: 5: Applicant, Admin
-      Supporter - donate & confirm: 3: Applicant, Admin
-      Account provisioned: 5: Admin
+      Supporter - donate, auto-unlock: 3: Applicant
+      Account provisioned: 5: System
     section Onboard
       First sign-in (email + password): 4: Student
       Pick or receive path: 4: Student
@@ -139,7 +143,7 @@ skip the gate (enforced in `docs/Architecture-Design.md`).
 | `INTERVIEW_SCHEDULED` | Cal.com 15-min call booked / pending | Admin / Applicant |
 | `APPROVED_BENEFICIARY` | Passed vetting → free access | Admin |
 | `DONATION_REQUIRED` | Not eligible for free; must donate | Admin |
-| `DONATION_CONFIRMED` | Admin confirmed the donation in the Zeffy dashboard (**launch path**) | Admin |
+| `DONATION_CONFIRMED` | Payment verified against Zeffy's read-only API — auto by `system-fn` poll (matched by email), or admin-confirmed in the dashboard as fallback (**launch path**) | System / Admin |
 | `PAID_AUTO` | Stripe webhook confirmed payment (**future phase only**) | System |
 | `RECEIPT_REVIEW` | Manual receipt uploaded; awaiting check (**future phase only**) | Applicant → Admin |
 | `ACTIVE` | Account provisioned; can sign in | System / Admin |
@@ -149,16 +153,17 @@ skip the gate (enforced in `docs/Architecture-Design.md`).
 ```mermaid
 stateDiagram-v2
     [*] --> SUBMITTED: applicant submits form
-    SUBMITTED --> INTERVIEW_SCHEDULED: admin sends Cal.com link
+    SUBMITTED --> INTERVIEW_SCHEDULED: admin sends Cal.com link (beneficiary track)
+    SUBMITTED --> DONATION_REQUIRED: choose to fund a seat (self-serve, no interview)
     INTERVIEW_SCHEDULED --> APPROVED_BENEFICIARY: eligible (free)
     INTERVIEW_SCHEDULED --> DONATION_REQUIRED: not eligible (donate)
     INTERVIEW_SCHEDULED --> REJECTED: declined
 
-    DONATION_REQUIRED --> DONATION_CONFIRMED: admin confirms in Zeffy (launch)
+    DONATION_REQUIRED --> DONATION_CONFIRMED: system-fn verifies Zeffy payment via poll (admin fallback)
     DONATION_REQUIRED --> PAID_AUTO: Stripe webhook "paid" (future phase)
 
     APPROVED_BENEFICIARY --> ACTIVE: provision (free)
-    DONATION_CONFIRMED --> ACTIVE: admin grant (launch)
+    DONATION_CONFIRMED --> ACTIVE: auto-provision (launch)
     PAID_AUTO --> ACTIVE: auto-grant (future phase)
 
     ACTIVE --> EXPIRED: window ends
@@ -171,10 +176,13 @@ stateDiagram-v2
     REVOKED --> [*]
 ```
 
-No path reaches `ACTIVE` without either `APPROVED_BENEFICIARY` (free) or a confirmed donation —
-at launch always **admin-confirmed via the Zeffy dashboard** (`DONATION_CONFIRMED`); in the
-future phase also `PAID_AUTO` via signed webhook. That two-path integrity is a core security
-property, and at launch every grant is a human decision.
+No path reaches `ACTIVE` without either `APPROVED_BENEFICIARY` (free, admin-granted after the
+interview) or a **confirmed donation**. At launch the confirmation is **server-side**: `system-fn`
+verifies the payment against Zeffy's read-only API before `DONATION_CONFIRMED` → `ACTIVE` (admin
+dashboard-confirm remains a fallback); the future phase adds `PAID_AUTO` via signed webhook. That
+two-path integrity is the core security property: a **beneficiary** grant is a human decision, a
+**supporter** grant is a machine decision **gated on a verified payment** — never on an unverified
+client signal.
 
 ---
 
@@ -189,37 +197,44 @@ sequenceDiagram
     participant Pay as Zeffy (ext, hosted)
     participant Mail as SES email
 
-    A->>Sys: 1. Submit application (name, email, stage, track, reason)
-    Sys-->>Ad: enters queue [SUBMITTED]
-    Ad->>Mail: 2. Email Cal.com link
-    Mail-->>A: 15-min call invite
-    A->>Cal: 3. Self-book 15-min call [INTERVIEW_SCHEDULED]
-    Ad->>Ad: 4. Eligibility decision
+    A->>Sys: 1. Submit application (name, email, stage, track, age/consent)
+    Sys-->>A: application received [SUBMITTED]
 
-    alt Beneficiary (free)
+    alt Beneficiary (free) — vetted
+        Sys-->>Ad: enters admin queue
+        Ad->>Mail: 2. Email Cal.com link
+        Mail-->>A: 15-min call invite
+        A->>Cal: 3. Self-book 15-min call [INTERVIEW_SCHEDULED]
+        Ad->>Ad: 4. Eligibility decision
         Ad->>Sys: mark [APPROVED_BENEFICIARY]
-    else Not eligible → donate
-        Ad->>Sys: mark [DONATION_REQUIRED]
-        A->>Pay: 5. Donate on Zeffy hosted page (link-out)
-        Ad->>Pay: 6. Confirm donation in Zeffy dashboard
-        Ad->>Sys: record reference [DONATION_CONFIRMED]
+    else Supporter (fund a seat) — self-serve, no interview
+        Sys-->>A: 5. show Donate (Zeffy) link [DONATION_REQUIRED]
+        A->>Pay: 6. Donate on Zeffy hosted page (link-out)
+        loop scheduled reconcile poll
+            Sys->>Pay: 7. Poll read-only Payments API, verify and match by email
+        end
+        Sys->>Sys: record Zeffy payment ref [DONATION_CONFIRMED]
     end
 
-    Sys->>Sys: 7. Provision: add email to members DB,<br/>role=student, accessBasis, duration [ACTIVE]
-    Sys->>Mail: notify approved
-    Mail-->>A: sign-in instructions
-    A->>Sys: 8. Sign in /login (email + password) → /app
-    Note over A,Sys: 9. Valid until end condition → [EXPIRED] (/access/expired)<br/>or [REVOKED] by admin
+    Sys->>Sys: 8. Provision: Cognito user (temp password, force-change)<br/>and Members row, role=student, accessBasis, duration [ACTIVE]
+    Sys->>Mail: notify approved, with first-sign-in instructions
+    Mail-->>A: welcome (temp password / set-password link)
+    A->>Sys: 9. First sign-in → set new password and MFA → /app
+    Note over A,Sys: 10. Valid until end → [EXPIRED] (/access/expired)<br/>or [REVOKED] (admin, or auto on refund/chargeback)
 ```
 
 **Reject branch:** at step 4, **REJECTED** → optional decline / re-apply email.
 
 ### 5.1 Donation & payment handling
 
-- **Launch (Zeffy, decoupled):** the applicant donates on Zeffy's hosted page (the site only
-  links out); the Admin confirms the donation in the **Zeffy dashboard**, records the transaction
-  reference (`DONATION_CONFIRMED`), and grants access. No payment API, webhook, secret, or
-  receipt upload exists in our stack.
+- **Launch (Zeffy, self-serve auto-grant):** the applicant donates on Zeffy's hosted page (the
+  site only links out). `system-fn` **polls Zeffy's read-only Payments API** on a short schedule,
+  verifies the payment, and **matches it to the application by email** (idempotent on the Zeffy
+  payment ID); on a match it records the reference (`DONATION_CONFIRMED`) and **auto-provisions
+  access within minutes** — no interview, no admin step. If the email doesn't match (typo or a
+  different donor email), it falls back to **admin confirm-in-dashboard**. The Zeffy **read-only
+  API key** lives in SSM Parameter Store (SecureString); there is still **no webhook, no card
+  data, and no receipt upload** in our stack.
 - **Future phase (Stripe, automated — `Architecture-Design.md` Appendix A):** redirect to Stripe
   Checkout; on the `checkout.session.completed` webhook (signature-verified, event-id de-duped),
   the application moves `PAID_AUTO` → `ACTIVE`. A per-application tokened receipt-upload fallback
@@ -227,9 +242,11 @@ sequenceDiagram
 - **PCI posture (both phases):** the app **never sees card data** — all card entry happens on the
   processor's hosted page (SAQ-A). The platform stores only a payment reference, never a card
   number.
-- **Edge cases:** at launch, refunds/chargebacks are handled inside Zeffy by the admin; the only
-  in-app action is an audited `REVOKED` if access was already granted. Automated handling is a
-  future-phase decision.
+- **Edge cases:** refunds/chargebacks are processed inside Zeffy; the reconcile poll detects a
+  reversed/refunded payment and triggers an **audited auto-`REVOKED`** if access was already
+  granted (an admin can also revoke manually). Because supporter access is self-serve, the
+  **age/consent gate runs at `/apply` *before* the donate step** (under-13 blocked; 13–17 guardian
+  consent) — the interview no longer backstops eligibility for supporters.
 
 ### 5.2 Interview step (Cal.com)
 
@@ -268,14 +285,15 @@ and what we can do about it.
 ### Stage 3 — Unlock access  (beneficiary grant OR `/donate` → Zeffy link-out)
 
 - **Goal:** Get over the access gate.
-- **Touchpoints:** Beneficiary approval email, or the Zeffy hosted donation page + the admin's
-  confirmation email.
+- **Touchpoints:** Beneficiary approval email, or the Zeffy hosted donation page + an automatic
+  welcome email with first-sign-in instructions.
 - **Emotion:** Relief (approved) **or** decision friction (asked to donate).
 - **Pain points:** Donation framed as a paywall can feel transactional for a nonprofit; the
-  admin-confirmation step means supporter access isn't instant (typically same/next day).
+  reconcile poll makes supporter access **near-instant (minutes), not literally instant**.
 - **Opportunities:** Frame the supporter path as "fund a seat" (mission language, not paywall);
-  set the expectation on-screen ("we confirm donations within one business day"); the future
-  Stripe phase (Appendix A) buys instant auto-grant if reconciliation ever becomes a burden.
+  set the expectation on-screen ("access unlocks automatically a few minutes after your
+  donation"); the future Stripe phase (Appendix A) buys **seconds-level** auto-grant if minutes
+  ever proves too slow or reconciliation outgrows the poll.
 
 ### Stage 4 — Onboard  (`/login`, `/app`, `/app/path`, readiness)
 
@@ -369,10 +387,13 @@ as **external links** (GitHub / URL / Loom / LinkedIn), not files the platform h
 
 The journey is built so the person can trust the gate and the org can account for every decision:
 
-- **Allowlist + human vetting** — only Admin-provisioned emails become accounts; an interview
-  gates free seats.
-- **Payment isolation** — donations live entirely on Zeffy's hosted platform (PCI SAQ-A); no
-  card data, payment API, or webhook in the app at launch.
+- **Allowlist + verified entry** — no anonymous sign-up: a **beneficiary** account requires an
+  admin grant after the interview; a **supporter** account requires a **payment verified
+  server-side against Zeffy's read-only API**. Every account is tied to an application and (for
+  supporters) a confirmed payment.
+- **Payment isolation** — card entry happens only on Zeffy's hosted pages (PCI SAQ-A); our stack
+  holds **no card data and no webhook**, only a **read-only API key** (in SSM) used to *verify*
+  donations plus an auto-captured/admin-entered payment reference.
 - **Transparent access status** — the learner always sees their status, access window, and who
   granted it on `/app/profile`.
 - **Logged decisions** — every admin action (approve / reject / provision / extend / revoke /
@@ -387,9 +408,12 @@ The journey is built so the person can trust the gate and the org can account fo
    does not yet show. Next pass should add `/apply/interview`, `/apply/donate`, `/apply/receipt`
    states/sub-screens, plus an Admin donation/receipt review view and a public
    *Donate-to-access* screen distinct from the general `/donate` link.
-2. **Interview always-required vs. donor-only** — skip the call for clearly eligible
-   beneficiaries to save admin time? (§5.2)
+2. **Interview for supporters — resolved:** supporters **self-serve with no interview** (access
+   is gated on a server-verified donation, not a call); the interview remains the **beneficiary**
+   eligibility gate. Whether to also skip the call for clearly-eligible beneficiaries stays an
+   admin-time option (§5.2).
 3. **Re-application cooldown** — allowed, and after how long? (§8)
 4. **Notifications ownership** — approval/expiry emails fully automated (SES) vs. manual by owner.
-5. **Refund/chargeback handling** — auto-revoke vs. admin review (§5.1 edge cases).
+5. **Refund/chargeback handling — resolved (launch):** the reconcile poll triggers an audited
+   auto-`REVOKED` on a detected refund/chargeback; manual admin revoke remains available (§5.1).
 ```

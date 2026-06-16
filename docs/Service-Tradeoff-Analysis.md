@@ -22,7 +22,7 @@ The recommended setup is:
 
 - **Frontend:** AWS Amplify Hosting, because Code For Good is already hosted on Amplify.
 - **Backend:** AWS serverless services — Amazon Cognito, AWS Lambda, API Gateway, DynamoDB, SES, CloudWatch, and CloudTrail.
-- **Donation / access payment:** **Zeffy at launch as a standalone hosted donation platform — fully decoupled.** The site's *Donate* button links out to a Zeffy form; Zeffy holds donor and card data. There is **no payment API and no webhook in our stack.** Access is **granted by an admin** — after the interview (beneficiaries) or after an admin confirms the donation in Zeffy (supporters). Automated Stripe/PayPal webhooks are a documented **future** option (§6.7.1), added only when triggers are met.
+- **Donation / access payment:** **Zeffy at launch as a hosted donation platform.** The site's *Donate* button links out to a Zeffy form; Zeffy holds donor and card data. Our stack adds **only a read-only API poll** to *verify* donations — **no webhook, no card data.** Beneficiaries are **granted by an admin** after the interview; **supporters self-serve** — the verified-donation poll auto-grants access within minutes (admin confirm is the fallback). Automated Stripe/PayPal webhooks (seconds-level) are a documented **future** option (§6.7.1), added only when triggers are met.
 - **Scheduling:** Cal.com or Calendly free tier, depending on whether the program needs multiple event types.
 - **Security posture:** Launch lean with Cognito, API throttling, CloudWatch alarms, IAM least privilege, audit logs, and optional WAF later if abuse risk grows.
 
@@ -30,7 +30,7 @@ The recommended setup is:
 
 - **Infrastructure cost should be effectively $0 during the pilot.** The realistic AWS gross cost for a small pilot is expected to be roughly **$25–200/year without Amplify WAF**, or about **$200–400/year if Amplify WAF is enabled**. Code For Good is aiming for **$1,000 in AWS nonprofit credits ($95 one time fee at signup/renewal per $1,000. Max up to $5,000)**, which should cover the expected pilot infrastructure cost with room to spare.
 - **The main real-money decision is payment processing.** Zeffy charges nonprofits **$0 platform fees and $0 processing fees**, funded by optional donor tips. Stripe has stronger payment automation and signed webhooks, but processing fees apply unless discounted nonprofit pricing is approved.
-- **Event-flow (webhook) integration is where Stripe leads — but it barely moves this decision.** For a *one-time, human-vetted, latency-tolerant* access model, instant payment-driven activation has low marginal value, so the launch build skips payment integration entirely: donations live on Zeffy, and an admin grants access. The price is a little **manual admin reconciliation** (confirm the donation, click grant), not engineering. The architecture's queue-decoupled provisioning means a later Stripe/PayPal phase is a **trigger swap, not a rebuild** (§6.7.1).
+- **Event-flow (webhook) integration is where Stripe leads — but it barely moves this decision.** For a *one-time, latency-tolerant* access model, *instant* (seconds) payment activation has low marginal value, so the launch build uses **Zeffy's read-only API poll** to auto-grant supporters within minutes — **$0 fees, no webhook**. The price is **owning a small polling/idempotency adapter** rather than leasing Stripe's signed webhooks. The architecture's queue/trigger-decoupled provisioning means a later Stripe/PayPal phase is a **trigger swap, not a rebuild** (§6.7.1).
 - **Zeffy should be the default launch choice**, and it survives the event-flow pressure-test (§6.7.1).
 
 ---
@@ -242,11 +242,11 @@ This is the most important service decision because it affects both money and us
 
 #### Recommended launch flow with Zeffy
 
-1. User applies or signs up for the program.
+1. User applies for the program (age/consent collected up front).
 2. App creates a pending application record in DynamoDB.
-3. For supporters, the site shows a **Donate** button that links out to a **Zeffy hosted form**. Zeffy holds donor and card data; **nothing flows back into the app automatically.**
-4. An **admin reconciles manually**: confirms the donation in the Zeffy dashboard, then grants access in the admin console, which provisions the Cognito entitlement. Beneficiaries are granted the same way after the interview — independent of any payment.
-5. All grants are logged for audit; the app stores only an admin-entered payment reference, **never card data.**
+3. For supporters, the site shows a **Donate** button that links out to a **Zeffy hosted form**. Zeffy holds donor and card data.
+4. `system-fn` **polls Zeffy's read-only API**, verifies the donation, matches it to the application **by email**, and **auto-grants access within minutes** (provisioning the Cognito entitlement). Beneficiaries are granted by an admin after the interview. **Admin dashboard-confirm** remains a fallback when the email doesn't match.
+5. All grants are logged for audit; the app stores only a payment **reference** (auto-captured or admin-entered), **never card data.**
 
 #### When to switch to Stripe
 
@@ -258,23 +258,27 @@ If a minimum payment unlocks program access, the payment may not be a plain unre
 
 > "Your contribution supports Code For Good's STEM Career Path program. If your contribution provides access to program services, the tax-deductible amount may be limited to the amount paid above the fair market value of benefits received. Please consult your tax advisor."
 
-**Verdict.** **Launch with Zeffy as a standalone hosted donation platform — fully decoupled** (the
-*Donate* button links out; no payment API or webhook in our stack). Access is **admin-granted** after
-the interview (beneficiaries) or after an admin confirms the donation in Zeffy (supporters). This
-preserves every dollar and, per the pressure-test in §6.7.1, costs only a little manual reconciliation
-because access is already human-vetted. **Add Stripe, then PayPal, later when needed** on the §6.7.1
-triggers — each is an additive ingress into the same provisioning pipeline.
+**Verdict.** **Launch with Zeffy as a hosted donation platform.** The *Donate* button links out; our
+stack adds **only a read-only API poll** to verify donations (no webhook, no card data).
+Beneficiaries are **admin-granted** after the interview; **supporters are auto-granted** within
+minutes once the poll verifies their donation (admin confirm is the fallback). This preserves every
+dollar and, per the pressure-test in §6.7.1, costs only a small polling/idempotency adapter. **Add
+Stripe, then PayPal, later** on the §6.7.1 triggers — each an additive ingress into the same
+provisioning pipeline.
 
 ---
 
 ### 6.7.1 Webhook & event-flow integration — pressure-testing the Zeffy-first call
 
-> **Launch decision (June 2026): donations are fully decoupled.** Leadership chose to use Zeffy as a
-> **standalone hosted platform** — the *Donate* button links out, and **an admin grants access
-> manually** after confirming the donation. So at launch **none of the integration options below are
-> built.** This section is retained because it (a) records *why* skipping payment-driven automation is
-> sound for this product, and (b) is the playbook for the **future** phase, if/when automated
-> activation is needed.
+> **Launch decision (rev. — June 2026): self-serve supporters via Zeffy's read-only API poll.**
+> Donations stay on Zeffy's **hosted** platform (the *Donate* button links out; Zeffy holds all
+> card/donor data). To remove the interview wait for supporters, the launch build now includes the
+> **polling ingress adapter** described below: `system-fn` polls Zeffy's **read-only Payments API**,
+> verifies the donation, matches it to the application by email, and **auto-grants access within
+> minutes** — still **$0 fees, no webhook, no card data** (only a read-only API key). Admin
+> dashboard-confirm remains a manual fallback. **Native webhooks (Stripe) are still *not* built** —
+> they remain the future seconds-level upgrade. The rest of this section records *why* this is the
+> sound choice and is the playbook for that future phase.
 
 You asked specifically how easy it is to wire **event flows** — payment confirmation, and the email
 confirmations that follow — into the rest of the platform, and whether that ease should change the
@@ -474,7 +478,7 @@ Because high school students may be minors, the platform should follow these rul
 1. **Approve AWS Amplify Hosting + AWS serverless backend** for the pilot.
 2. **Apply for the $1,000 AWS Nonprofit Credit** and use that as the conservative planning assumption.
 3. **Launch Zeffy-first** for the **one-time** minimum contribution (no recurring billing in the pilot) because it preserves the full payment amount for the nonprofit — a choice that survives the event-flow pressure-test (§6.7.1).
-4. **Implement automatic access carefully:** Verify the payment on **Zeffy** before activating the Cognito entitlement.
+4. **Implement automatic access carefully:** `system-fn` **polls Zeffy's read-only API and verifies the payment** (matched by email, idempotent on the payment ID) before activating the Cognito entitlement; a detected refund auto-revokes.
 5. **Add Stripe, then PayPal, later — only when a trigger is met** (recurring billing, instant-activation UX, reconciliation outgrowing volunteers, or Zeffy brittleness; §6.7.1). Each is an additive ingress adapter feeding the **same** trigger-agnostic SQS → `provisioning-fn` pipeline, so it is a configuration step, not an architectural rewrite.
 6. **Do not enable Amplify WAF at launch** unless there is a known threat. Start with Cognito, API Gateway throttling, IAM least privilege, CloudWatch alarms, and CloudTrail.
 7. **Add minor/privacy safeguards** before accepting high school applicants.

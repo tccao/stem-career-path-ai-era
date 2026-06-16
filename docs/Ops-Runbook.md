@@ -27,6 +27,8 @@ best-effort within 1 business day (board-approved, `Platform-SRS.md` §9).
 |-------|----------|---------|
 | API 5xx rate, Lambda errors/throttles | Normal | Maintainer |
 | SQS DLQ depth > 0 (a grant failed) | Normal | Maintainer |
+| Zeffy reconcile-poll failure / error spike | Normal | Maintainer |
+| Supporter donation unmatched > 24 h (email-mismatch backlog) | Normal | Maintainer |
 | Login-failure spike | Normal | Maintainer |
 | SES bounce/complaint rate | Normal | Maintainer |
 | Billing budget threshold (set at \$10/mo gross) | **Severe** | Maintainer + board contact |
@@ -48,6 +50,9 @@ best-effort within 1 business day (board-approved, `Platform-SRS.md` §9).
 5. **SES health:** bounce rate < 5%, complaint rate < 0.1%.
 6. **Admin queue hygiene:** no application stuck in `SUBMITTED`/`INTERVIEW_SCHEDULED` older than
    2 weeks without a note.
+7. **Donations reconciling?** The Zeffy reconcile poll's last run < 1 h and error-free; no
+   supporter donation older than ~24 h sitting **unmatched** (email mismatch) without a manual
+   confirm.
 
 ## 3. Monthly / quarterly
 
@@ -57,7 +62,9 @@ best-effort within 1 business day (board-approved, `Platform-SRS.md` §9).
 - **Quarterly:** run the **restore test** (§4) against the dev stack; rotate the maintainer's
   AWS credentials; **rotate the CloudFront curriculum signing key** (generate a new key, add its
   public key to the CloudFront key group, update the SSM SecureString that `app-fn` reads, then
-  retire the old key once the longest cookie TTL has elapsed); re-confirm the root custodian can
+  retire the old key once the longest cookie TTL has elapsed); **rotate the Zeffy read-only API
+  key** (issue a new key in Zeffy, update the SSM SecureString that `system-fn` reads, revoke the
+  old key); re-confirm the root custodian can
   locate the sealed credentials; review TTL purges happened on `Applications` (rejected > 12 months
   should be gone).
 
@@ -86,7 +93,9 @@ the board contact.
 
 | Symptom | First moves |
 |---------|-------------|
-| Grant clicked, member can't sign in | DLQ (§2.1); then Cognito user exists? `Members.status=ACTIVE`? Welcome email bounced (SES suppression list)? |
+| Grant clicked, member can't sign in | DLQ (§2.1); then Cognito user exists? `Members.status=ACTIVE`? Welcome email bounced (SES suppression list)? First-login temp password expired (re-issue via Cognito)? |
+| Supporter donated but got no access | Reconcile poll: did it run / error? `Donations` for their `zeffyPaymentId`; **email match** to an `Applications` row (a typo / different donor email is the usual cause) → admin dashboard-confirm + grant; verify `ACTIVE` + audit event |
+| Refund / chargeback came in | Confirm the poll flipped the `Donations` row to `refunded` and **auto-`REVOKED`** the member; if not, revoke manually (audited) and check why the poll missed it |
 | Student sees `403 stage_locked` wrongly | `StageLocks` + `Progress` for that `memberId#stageKey`; prerequisite chain; if judgment call → admin override (audited) |
 | Curriculum assets `403` from CloudFront for a valid member | Signed cookies present and unexpired? `app-fn` cookie issuance succeeded (gating check passed)? CloudFront key group holds the **current** public key matching the SSM private key (check after a key rotation)? Clock skew? — re-entering the stage re-issues cookies; a stale key after rotation is the usual cause |
 | Cohort can't log in (burst) | Cognito `ThrottledRequests` metric → this is the §9A.2 scenario: tell students to retry, stagger comms; consider quota increase before next cohort |

@@ -3,7 +3,7 @@
 **Project:** STEM Graduates Career Path — AI Era (Code For Good)
 **Doc type:** Build-ready architecture & security design (AWS serverless)
 **Owner:** Tinh Cao
-**Status:** Rev. 2 — review findings resolved (see `docs/Architecture-Review.md`, resolution log)
+**Status:** Rev. 4 — AWS Well-Architected review findings applied (`docs/Well-Architected-Review.md`); self-serve supporter access (Zeffy read-only poll) added in Rev. 3
 **Source of truth:** `docs/Platform-SRS.md` (platform) · `docs/Project SRS.md` (Phase-0 landing page)
 **Companion docs:** `docs/Sitemap-and-Wireframes.md` · `docs/Customer-Journey.md` ·
 `docs/Service-Tradeoff-Analysis.md` · `docs/Ops-Runbook.md`
@@ -19,6 +19,27 @@ Amplify + AWS serverless**, single-maintainer operability
 > events with per-table retention TTLs; **WAF and Cognito Plus deferred to phase-2 triggers**
 > (aligning with `Service-Tradeoff-Analysis.md`); the **\$1,000 nonprofit credit target** as the
 > single canonical figure; and §6.3 split into Day-1 actual vs. target governance.
+
+> **Rev. 3 change — self-serve supporter access without an interview.** Supporters now donate on
+> Zeffy and are **auto-provisioned within minutes**: `system-fn` polls Zeffy's **read-only Payments
+> API** on a schedule, verifies the payment, matches it to the application **by email** (idempotent
+> on the Zeffy payment ID), and grants access — `DONATION_REQUIRED` → `DONATION_CONFIRMED`
+> (set by **system**) → `ACTIVE`; admin dashboard-confirm remains a fallback. First sign-in uses a
+> Cognito **temporary password** (force-change) + MFA setup — **no password is stored in our
+> database** (Cognito holds the credential). The age/consent gate moves **before** the donate step;
+> refunds/chargebacks trigger an audited auto-`REVOKED`. Still **$0 fees, no webhook, no card
+> data** — the only addition is a **read-only Zeffy API key** in SSM. Stripe (seconds-level
+> activation) stays the Appendix A upgrade.
+
+> **Rev. 4 change — Well-Architected hardening.** Applied the review's prose corrections:
+> **MFA REQUIRED pool-wide** (TOTP admins / email-OTP students — corrects the per-group phrasing),
+> **signed-cookie cross-domain topology** (§9.2), **explicit CloudWatch log-retention**, **SAM** as
+> the IaC tool with **canary deploy + alarm rollback**, **arm64/Graviton** Lambdas, a
+> **customer-managed KMS CMK** on `AuditLog` + the WORM bucket (pending board cost sign-off),
+> **CORS lockdown + `public-fn` input validation**, **Object Lock set at bucket creation**, a
+> **`system-fn` async on-failure DLQ**, a stated **single-region DR posture**, **Cost Anomaly
+> Detection**, and an explicit **Sustainability** section (§12.1). Findings + status:
+> `docs/Well-Architected-Review.md`.
 
 ---
 
@@ -45,11 +66,14 @@ Design principles:
    accounts.
 6. **Everything privileged is audited** — two audit layers (platform + application), append-only
    by IAM, tamper-evident via WORM export (§7).
-7. **Payment & card data never touch the app** — donations run entirely on **Zeffy's hosted
-   platform**; the site links out, Zeffy holds donor and card data, and access is always granted
-   by an admin. There is **no payment API, webhook, or payment secret anywhere in the launch
-   stack.** Automated Stripe Checkout + signed webhooks is a documented future phase
-   (**Appendix A**), not part of this build.
+7. **Card data never touches the app; access is granted only on a verified basis** — donations run
+   on **Zeffy's hosted platform** (the site links out; Zeffy holds donor and card data, PCI
+   SAQ-A). **Beneficiaries** are admin-granted after the interview; **supporters self-serve** —
+   `system-fn` **polls Zeffy's read-only Payments API** to *verify* the donation, then
+   auto-provisions (matched by email, idempotent on the Zeffy payment ID). There is **no payment
+   webhook and no card data** in the stack; the only payment secret is a **read-only Zeffy API
+   key** (SSM SecureString) used solely to verify donations. Automated Stripe Checkout + signed
+   webhooks remains a documented future phase (**Appendix A**) for seconds-level activation.
 8. **Idempotent state transitions** — conditional writes so retries, double-clicks, or duplicate
    async messages can't double-provision or skip the gate (§9, §9A).
 9. **Sized for the real team** — one maintainer, zero current users. Anything that exists only to
@@ -66,70 +90,104 @@ Design principles:
 
 ## 2. Architecture at a glance (launch state)
 
-This diagram shows **what is actually deployed at launch** — nothing else. The future
-automated-payment ingress lives in Appendix A only.
+These two views show **what is actually deployed at launch** — nothing else (the future
+automated-payment ingress lives in Appendix A only): **(A)** the runtime **request & data flow**,
+and **(B)** the **trust zones** and the IAM seams between them. Colour groups nodes by trust /
+function; numbered edges ①–⑤ trace a member session. The AWS Well-Architected review of this
+design lives in `docs/Well-Architected-Review.md`.
+
+**Figure 2A — request & data flow.**
+
+```mermaid
+flowchart LR
+    classDef ext fill:#f5f5f5,stroke:#9e9e9e,color:#424242,stroke-dasharray:4 4
+
+    B["🌐 Browser SPA"]
+
+    subgraph CDN["Edge — cached"]
+      AMP["Amplify Hosting<br/>public site + SPA shell"]
+      CFC["CloudFront<br/>curriculum · signed-cookie auth · no WAF"]
+    end
+
+    GW["API Gateway HTTP API<br/>Cognito JWT authorizer<br/>stage + per-route throttling"]
+    Lpub["public-fn"]
+    Lapp["app-fn"]
+    Lsys["system-fn"]
+    COG["Cognito User Pool · Essentials<br/>MFA required (TOTP admin / email-OTP student)"]
+    SQS[["SQS provisioning queue + DLQ"]]
+    EVB["EventBridge Scheduler"]
+    DDB[("DynamoDB on-demand<br/>app + member tables")]
+    S3C[("S3 — gated curriculum<br/>private")]
+    SSM["SSM Param Store<br/>CloudFront signing key"]
+    SES["Amazon SES"]
+    ZEF["Zeffy (hosted)<br/>donations + read-only API"]:::ext
+    CAL["Calendly / Cal.com"]:::ext
+
+    B -->|"① site + SPA (HTTPS)"| AMP
+    B -. Donate link-out .-> ZEF
+    B -. Book interview .-> CAL
+    B -->|"② API (HTTPS)"| GW
+    GW --> Lpub
+    GW --> Lapp
+    Lapp -->|verify JWT/group/window| COG
+    Lapp -->|"③ gate ok → Set-Cookie"| B
+    Lapp -->|read signing key| SSM
+    B -->|"④ curriculum + signed cookies"| CFC
+    CFC -->|OAC| S3C
+    Lapp -->|"⑤ enqueue grant"| SQS
+    SQS --> Lsys
+    EVB -->|reconcile poll + expiry sweep| Lsys
+    Lsys -. poll read-only API · verify payment .-> ZEF
+    Lsys -->|read Zeffy API key| SSM
+    Lsys -->|AdminCreateUser| COG
+    Lsys --> SES
+    SES -.->|welcome / expiry mail| B
+    Lpub --> DDB
+    Lapp --> DDB
+    Lsys --> DDB
+```
+
+**Figure 2B — trust zones & IAM seams.** The same components, grouped by trust boundary, with the
+three IAM invariants that hold the security model together.
 
 ```mermaid
 flowchart TB
-    subgraph Client
-      B[Browser SPA]
+    classDef untrust fill:#ffebee,stroke:#c62828,color:#b71c1c
+    classDef trust   fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20
+    classDef sys     fill:#fce4ec,stroke:#ad1457,color:#880e4f
+    classDef data    fill:#f1f8e9,stroke:#558b2f,color:#33691e
+    classDef audit   fill:#eceff1,stroke:#37474f,color:#263238
+
+    subgraph Z0["Zone 0 · Unauthenticated internet"]
+      Lpub["public-fn — POST /apply only<br/>smallest blast radius"]:::untrust
+    end
+    subgraph Z1["Zone 1 · Authenticated humans (JWT)"]
+      Lapp["app-fn — student + admin routes<br/>in-handler group check<br/>mints signed cookies · enqueues grants"]:::trust
+    end
+    subgraph Z2["Zone 2 · System (no internet ingress)"]
+      Lsys["system-fn — SOLE holder of AdminCreateUser<br/>provision · expiry · SES<br/>Zeffy read-only reconcile poll → verify payment"]:::sys
+    end
+    subgraph Z3["Zone 3 · Data (least-privilege, key-scoped)"]
+      DDB[("App + member tables<br/>PITR + deletion protection")]:::data
+      S3C[("Curriculum S3 — OAC-only")]:::data
+    end
+    subgraph Z4["Zone 4 · Immutable audit"]
+      AUD[("AuditLog — append-only by IAM")]:::audit
+      CT["CloudTrail data events"]:::audit
+      WORM[("S3 WORM — Object Lock")]:::audit
     end
 
-    subgraph Frontend["Frontend — AWS Amplify Hosting"]
-      AMP[Amplify Hosting<br/>public site + SPA shell<br/>served via managed CDN]
-    end
+    INV["Key IAM invariants<br/>1 · internet-facing code (Z0/Z1) cannot mint accounts — only Z2 holds AdminCreateUser<br/>2 · no role may Update/Delete AuditLog<br/>3 · curriculum S3 reachable only via CloudFront OAC<br/>4 · supporter access requires a server-verified Zeffy payment — never a client signal"]
 
-    subgraph API["API tier"]
-      GW[API Gateway HTTP API<br/>Cognito JWT authorizer<br/>stage throttling]
-    end
-
-    subgraph Compute["Lambda — one codebase, 3 trust boundaries"]
-      Lpub[public-fn<br/>POST /apply]
-      Lapp[app-fn<br/>/app/* and /admin/*]
-      Lsys[system-fn<br/>provisioning + expiry]
-    end
-
-    subgraph Identity
-      COG[Cognito User Pool · Essentials<br/>groups: student / admin<br/>admin MFA mandatory]
-    end
-
-    subgraph Data
-      DDB[(DynamoDB on-demand<br/>Applications · Members ·<br/>Donations · Progress ·<br/>StageLocks · Notes<br/>PITR + deletion protection)]
-      AUD[(DynamoDB AuditLog<br/>append-only by IAM)]
-      S3C[(S3: gated curriculum<br/>private · CloudFront OAC only)]
-      CFC[CloudFront: curriculum dist.<br/>key group · signed-cookie auth]
-      SSM[SSM Parameter Store<br/>CloudFront signing key · SecureString]
-      SQS[[SQS provisioning queue + DLQ]]
-    end
-
-    subgraph Audit["Audit & observability"]
-      CT[CloudTrail<br/>mgmt + data events]
-      CTS3[(S3 audit bucket<br/>Object Lock WORM)]
-      CW[CloudWatch Logs / Alarms<br/>→ Ops-Runbook contacts]
-    end
-
-    subgraph Ext["External (no integration, link-out / dashboard only)"]
-      ZEF[Zeffy hosted donations]
-      CAL[Calendly / Cal.com]
-      SES[Amazon SES]
-    end
-
-    B -->|HTTPS| AMP
-    B -->|HTTPS API| GW
-    B -. Donate link-out .-> ZEF
-    GW --> Lpub & Lapp
-    Lapp --> COG
-    Lapp -->|enqueue grant| SQS --> Lsys --> COG
-    EVB[EventBridge Scheduler] --> Lsys
-    Lpub & Lapp & Lsys --> DDB
-    Lpub & Lapp & Lsys -->|append| AUD
-    Lapp -->|gating check → set signed cookies| CFC
-    Lapp -->|read signing key| SSM
-    B -->|curriculum read w/ signed cookies| CFC -->|OAC| S3C
-    Lsys --> SES
-    CT --> CTS3
-    AUD -- daily incremental export --> CTS3
-    Compute -. structured logs .-> CW
+    Lpub ==>|PutItem Applications only| DDB
+    Lapp ==>|read/write key-scoped| DDB
+    Lapp ==>|enqueue grant — cannot mint| Lsys
+    Lsys ==>|write Members| DDB
+    Lpub -->|append| AUD
+    Lapp -->|append| AUD
+    Lsys -->|append| AUD
+    CT --> WORM
+    AUD -->|daily export| WORM
 ```
 
 **Read path:** the browser loads the public site and SPA shell from Amplify Hosting's managed CDN.
@@ -154,7 +212,7 @@ is the *target* shape if a second maintainer joins — kept in Appendix B — bu
 |----------|---------|----------------|-----|
 | `public-fn` | `POST /apply`, public reads | Unauthenticated internet | Application intake only; smallest blast radius |
 | `app-fn` | `/app/*`, `/admin/*` (JWT-authorized) | Authenticated humans | Student + admin routes; the **group claim check** (`student` vs `admin`) is enforced in the handler on every request (§6.1); enqueues grants; **cannot** create Cognito users |
-| `system-fn` | SQS (provisioning) + EventBridge Scheduler (expiry) | System, no internet ingress | **Sole holder of `cognito-idp:AdminCreateUser`**; provisioning, expiry sweep, SES sends |
+| `system-fn` | SQS (provisioning) + EventBridge Scheduler (reconcile poll + expiry) | System, no internet ingress | **Sole holder of `cognito-idp:AdminCreateUser`**; provisioning; **Zeffy read-only reconcile poll → verify donation → auto-provision supporters** (matched by email, idempotent on Zeffy payment ID); expiry sweep; SES sends |
 
 > **Why this split and not six.** The one security-critical separation is that **internet-facing
 > code cannot mint accounts** — that's preserved: `app-fn` can only enqueue, `system-fn` has no
@@ -166,6 +224,13 @@ Stateless: no in-memory sessions; concurrent invocations are safe. Frontend is a
 **Amplify Hosting** (resolved — it is Code For Good's existing platform; see
 `Service-Tradeoff-Analysis.md` §6.2), using relative asset paths.
 
+**Runtime & consumers:** functions run on a **pinned arm64/Graviton runtime** (~20% cheaper and
+faster; small bundles bound cold starts — provisioned concurrency stays deferred, §9A.4).
+`system-fn`'s SQS consumer uses **partial batch response** (`ReportBatchItemFailures`) and a
+sensible **reserved concurrency** so one poison message can't re-drive a whole batch and a burst
+can't throttle it into redelivery storms. Its **async (EventBridge) invocations have an on-failure
+destination/DLQ** so a failed expiry/reconcile run is visible, not silent (§11).
+
 ---
 
 ## 4. AWS service mapping (launch)
@@ -174,22 +239,23 @@ Stateless: no in-memory sessions; concurrent invocations are safe. Frontend is a
 |------|---------|-------|
 | Static frontend hosting | **Amplify Hosting** | Resolved; managed CDN included; no S3+CloudFront migration unless §14 trigger fires |
 | Edge protection | **No WAF at launch** — API Gateway throttling + Cognito lockout + app limits (§8); the curriculum CloudFront distribution also carries no WAF | AWS WAF is a **phase-2 trigger** (§14); avoids the \$15/mo Amplify-WAF fee + rule costs |
-| API / routing | **API Gateway HTTP API** | Cognito JWT authorizer; stage throttling |
-| Compute | **AWS Lambda** ×3 (§3) | scale-to-zero |
-| Identity, sessions, roles | **Cognito User Pool — Essentials** | groups `student`/`admin`; **admin group MFA mandatory (TOTP)**; no self-sign-up |
+| API / routing | **API Gateway HTTP API** | Cognito JWT authorizer; stage + per-route throttling; **CORS locked to the Amplify origin(s)**; HTTP API has **no built-in request validation** — `public-fn` validates `/apply` input in code; **access logging on** |
+| Compute | **AWS Lambda** ×3 (§3) — pinned runtime, **arm64/Graviton** | scale-to-zero; ~20% cheaper + faster; small bundles bound cold starts |
+| Identity, sessions, roles | **Cognito User Pool — Essentials** | groups `student`/`admin`; **MFA REQUIRED pool-wide** (TOTP admins / email-OTP students; no SMS); no self-sign-up |
 | App / member data | **DynamoDB on-demand** | conditional writes; **PITR + deletion protection on every table**; TTL retention (§5) |
 | Application audit log | **DynamoDB `AuditLog`** | append-only by IAM; PII-free events; daily incremental export to WORM bucket (§7) |
 | Gated curriculum | **S3 (private) + dedicated CloudFront (key group)** | bucket reachable only via CloudFront OAC; `app-fn` issues short-TTL **CloudFront signed cookies** after the gating check; reads are edge-cached, zero Lambda per asset (§9.2) |
 | Async provisioning | **SQS + DLQ** | see rationale below |
 | Transactional email | **Amazon SES** | production access + SPF/DKIM/DMARC are launch checklist items (§16) |
-| Payment | **Zeffy (external, hosted)** | link-out only; no API, webhook, or secret in our stack |
+| Payment / access verification | **Zeffy (external, hosted) + read-only Payments API** | Card entry on Zeffy (SAQ-A); `system-fn` **polls the read-only API to verify supporter donations** and auto-provision (matched by email, idempotent on Zeffy payment ID). **No webhook, no card data.** Read-only API key in SSM SecureString |
 | Scheduling | **Calendly or Cal.com free tier** | decide at setup; no architectural impact (matches `Service-Tradeoff-Analysis.md`) |
-| Expiry / reminders | **EventBridge Scheduler → `system-fn`** | |
-| Secrets | **One first-party key** — the CloudFront signing key | Held in **SSM Parameter Store SecureString** (free, KMS-encrypted), read-scoped to `app-fn` for signed-cookie signing. No *third-party* vendor secrets exist; **Secrets Manager** still enters only with the Stripe phase (Appendix A) |
+| Expiry / reminders / donation reconcile | **EventBridge Scheduler → `system-fn`** | one schedule drives the Zeffy reconcile poll (verify donations) + expiry sweep + SES reminders |
+| Secrets | **Two keys** — CloudFront signing key (first-party) + **Zeffy read-only API key** (third-party) | Both in **SSM Parameter Store SecureString** (free, KMS-encrypted): signing key read-scoped to `app-fn`; Zeffy key read-scoped to `system-fn`. The Zeffy key is **read-only** (low blast radius, manual quarterly rotation — `Ops-Runbook.md`), so **Secrets Manager** is still not needed; it enters only with the Stripe phase (Appendix A) |
 | Platform audit trail | **CloudTrail** (multi-region, log validation) → **S3 Object Lock** | data events on `AuditLog` + `Members` (§7.1) |
-| Logs / metrics / alarms | **CloudWatch** | structured JSON; alarm destinations named in `Ops-Runbook.md` |
+| Encryption (KMS) | **AWS-managed keys** for most stores; **customer-managed CMK** for `AuditLog` + the WORM bucket | the CMK key policy denies the maintainer key-administration, completing the "ultimate authority controls *access*, never the ability to erase the record" SoD (§6.3, §7). ~\$1/mo per CMK — the one item needing **board cost sign-off** |
+| Logs / metrics / alarms | **CloudWatch** | structured JSON; **explicit log-group retention set in IaC** (≈30–90 d app logs; longer for trail) — never the default never-expire; **Cost Anomaly Detection** alongside the budget alarm; destinations in `Ops-Runbook.md` |
 | Tracing | **None at launch** | X-Ray is enable-when-investigating, not a standing cost |
-| IaC | **AWS SAM** or **CDK** | one stack per environment (§13) |
+| IaC | **AWS SAM** (chosen; §13) | one stack per environment; templated PITR / deletion-protection / TTL / log-retention; canary deploy with alarm rollback |
 
 > **Why keep SQS at launch (decided, not assumed).** The producer is one admin clicking *Grant* a
 > few dozen times per cohort, so a synchronous call would work. SQS stays because it costs
@@ -238,18 +304,21 @@ state-machine writes use conditional expressions (idempotency + optimistic locki
 | `grantedBy`, `grantedAt` | string | audit linkage |
 | GSI `byStatusAccessEnds` | **PK `status`, SK `accessEndsAt`** | expiry sweep queries `status = ACTIVE AND accessEndsAt <= now` — a real key-condition query, not a scan (fixes review finding 12) |
 
-**`Donations`** — admin-entered payment references only; **never** card data, **no Stripe fields
-at launch** (the `stripeEventId` idempotency design moves to Appendix A with the rest of the
-payment phase).
+**`Donations`** — payment references only; **never** card data. At launch records are written by
+the **Zeffy reconcile poll** (or by an admin via the dashboard fallback); **no Stripe fields** (the
+`stripeEventId` idempotency design stays in Appendix A).
 
 | Attribute | Type | Notes |
 |-----------|------|-------|
 | `donationId` (PK) | string (ULID) | |
-| `applicationId` | string | links to the access request |
+| `applicationId` | string | links to the access request (matched by email at reconcile) |
 | `provider` | string | `zeffy` \| `manual` |
-| `reference` | string | Zeffy transaction reference, entered by the admin from the Zeffy dashboard |
-| `amount`, `currency` | | optional, for impact reporting |
-| `confirmedBy`, `confirmedAt` | string | the admin confirmation that justified the grant |
+| `zeffyPaymentId` | string | Zeffy's payment ID — **idempotency key**; dedupes repeated poll cycles |
+| `reference` | string | Zeffy transaction reference (auto-captured by the poll, or admin-entered) |
+| `amount`, `currency` | | verified ≥ access threshold before grant; also impact reporting |
+| `status` | string | `confirmed` \| `refunded` (a `refunded` poll result triggers auto-`REVOKED`) |
+| `confirmedBy`, `confirmedAt` | string | `system` (poll) or the admin (fallback) |
+| GSI `byZeffyPaymentId` | PK `zeffyPaymentId` | dedupe / refund lookup |
 
 **`Progress`** — proof-of-work submissions (deliverables = external links).
 
@@ -296,9 +365,15 @@ payment phase).
 
 - **Source of truth:** Cognito User Pool **groups** — `student`, `admin`. Group membership is set
   at provisioning and is the only thing that grants role.
-- **Admin MFA is mandatory** (TOTP), enforced at the pool level for the `admin` group — resolved
-  from "optional/recommended" (review finding 7). The admin credential can grant, revoke, and
-  read everything; it does not get to be single-factor while we budget for anything else.
+- **MFA is mandatory for every account.** Cognito MFA is a **pool-level** setting (`REQUIRED`)
+  with no per-group mode, so requiring it pool-wide is both the buildable option and a security
+  upgrade over admin-only MFA (corrects the earlier "admin-group MFA" phrasing — Well-Architected
+  review §2.1). **Admins** enrol **TOTP**; **students** use **email-OTP** (Cognito email-message
+  MFA via the in-stack SES domain — low friction, ≈\$0; fall back to TOTP if email-OTP is
+  unavailable on the chosen tier/region). **SMS MFA is not used** (toll-fraud + per-message cost).
+  Admin-created users complete MFA enrolment (an `MFA_SETUP` challenge) on first sign-in alongside
+  setting their password. The admin credential never gets to be single-factor while we budget for
+  anything else.
 - **Token:** API Gateway HTTP API uses a **Cognito JWT authorizer**; the access token carries
   `cognito:groups`. `app-fn` re-verifies the group claim per route (defense in depth — and the
   mechanism that lets one function serve both areas safely, §3).
@@ -330,17 +405,18 @@ Each Lambda gets its own execution role. The critical separation-of-duties rule 
 |----------|--------|-----------|
 | `public-fn` | `PutItem` Applications; append AuditLog | read Members; touch Cognito or SQS; any S3 access |
 | `app-fn` | read/write Applications, Members, Progress, StageLocks, Notes, Donations (key-scoped for student routes); **enqueue** to the provisioning queue; **mint CloudFront signed cookies** for the curriculum distribution (read the signing key from SSM Parameter Store); append AuditLog | `AdminCreateUser` or any Cognito admin write; consume from SQS; delete or update AuditLog items; read curriculum S3 directly (only CloudFront's OAC can) |
-| `system-fn` | consume SQS; `cognito-idp:AdminCreateUser` / `AdminAddUserToGroup`; write Members; send SES; append AuditLog; run the expiry query | serve any API route; delete data; read Notes |
+| `system-fn` | consume SQS; `cognito-idp:AdminCreateUser` / `AdminAddUserToGroup`; write Members & Donations; **read the Zeffy read-only API key from SSM**; send SES; append AuditLog; run the expiry query + **Zeffy reconcile poll** | serve any API route; delete audit data; read Notes; read the CloudFront signing key |
 
 Cross-cutting IAM rules:
 
 - **No `*` resources** — per table/index, per bucket+prefix, per key.
 - **AuditLog is append-only by policy** — every role may `dynamodb:PutItem` to `AuditLog`;
   **no role anywhere** has `UpdateItem`/`DeleteItem` on it (§7.3).
-- **One first-party secret at launch** — the CloudFront signing key, held in **SSM Parameter
-  Store SecureString** (KMS-encrypted, read-scoped to `app-fn`). No *third-party* vendor keys
-  exist, so **Secrets Manager is not deployed** (finding 10/15: it had been scoped around Stripe
-  keys that don't exist; it returns only with the Stripe phase, Appendix A).
+- **Two secrets at launch, both in SSM SecureString** — the CloudFront signing key (first-party,
+  read-scoped to `app-fn`) and the **Zeffy read-only API key** (third-party, read-scoped to
+  `system-fn`). Both KMS-encrypted. The Zeffy key is **read-only** (low blast radius, manual
+  rotation per `Ops-Runbook.md`), so **Secrets Manager is still not deployed** — it returns only
+  with the Stripe phase (Appendix A), whose write-capable, rotated keys justify it.
 - **Human AWS access** — see §6.3.
 
 ### 6.3 Governance & access hierarchy
@@ -355,7 +431,7 @@ existed. It is now split honestly.
 |---------|----------------|
 | AWS account | **One** account; the platform is its only workload |
 | Root credentials | Sealed: hardware/TOTP MFA on root, credentials + MFA recovery lodged with a **named board custodian** (not the website admin). Root is never used for operations. This single step gives the board real, revocable ultimate authority today |
-| Website admin (the maintainer) | A dedicated IAM identity (or Identity Center user) with **MFA required**, scoped to the app's resources; **no ability to disable CloudTrail or delete the audit buckets** (explicit deny policy) |
+| Website admin (the maintainer) | A dedicated IAM identity (or Identity Center user) with **MFA required**, scoped to the app's resources; **no ability to disable CloudTrail, delete the audit buckets, or administer the audit KMS CMK key policy** (explicit deny) |
 | Application admin | Cognito `admin` group, acting only through `app-fn`, MFA mandatory, every action audited |
 | Machine | Per-function least-privilege roles (§6.2) |
 | Billing | Billing alerts (budget threshold) delivered to **both** the maintainer and the board contact (`Ops-Runbook.md`) |
@@ -393,7 +469,10 @@ flowchart LR
   two tables whose silent modification would matter most; per-event cost is negligible at pilot
   volume).
 - **Log-file integrity validation ON**; delivered to a dedicated S3 bucket with **Object Lock
-  (WORM)**, SSE, block-public, restrictive bucket policy; lifecycle to Glacier.
+  (WORM) + versioning set at bucket creation** (Object Lock cannot be retrofit), **SSE-KMS using a
+  customer-managed CMK whose key policy the maintainer cannot administer** (so the audit record
+  can't be silently re-encrypted or destroyed), block-public, restrictive bucket policy; lifecycle
+  to Glacier. The `AuditLog` table uses the same CMK.
 - **Streamed to CloudWatch Logs** for metric filters/alarms (root usage, IAM changes, any
   `AuditLog` delete attempt, trail delivery failure).
 
@@ -471,6 +550,8 @@ HTTP API **stage-level throttling**: steady rate/burst sized from expected cohor
 (e.g., 50 rps / 100 burst for the pilot — revisit per §9A.2), well under account defaults. This
 caps total spend and shields Lambda concurrency no matter what the internet does. Tighter
 **per-route throttles** on the abuse-prone routes: `POST /apply` and the auth-adjacent routes.
+**API Gateway access logging** is enabled to CloudWatch (separate from Lambda logs) — the cleanest
+source of the abuse evidence the §8.3/§14 WAF trigger relies on.
 
 ### 8.2 Layer 2 — application level (per-user / per-action)
 
@@ -480,8 +561,12 @@ caps total spend and shields Lambda concurrency no matter what the internet does
   abusable writes (deliverable submission, note spam). 429 over budget. Reads need no per-user
   limit (§9A.3).
 - **`/apply` abuse:** server-side dedupe via `Applications.byEmail` + the per-route throttle +
-  a honeypot field. Worst case, junk applications cost one DynamoDB write each and sit in a
-  human-reviewed queue — annoying, not dangerous, and TTL-purged.
+  a honeypot field + **strict input validation in `public-fn`** (size/shape/age-gate — HTTP API
+  has no built-in request validation). Worst case, junk applications cost one DynamoDB write each
+  and sit in a human-reviewed queue — annoying, not dangerous, and TTL-purged. **Residual risk
+  (explicitly accepted):** `/apply` is the sole unauthenticated write path and holds minors' PII;
+  with no WAF at launch this is accepted under the compensating controls above, and `/apply` + the
+  donate funnel are **first in line** for the §14 WAF trigger.
 
 ### 8.3 Phase 2 — AWS WAF (when triggered)
 
@@ -501,11 +586,21 @@ client never decides eligibility.
 
 ### 9.1 Idempotent transitions
 
-Each transition is a conditional `UpdateItem`. The security-critical one at launch is the **admin
-grant**: `APPROVED → ACTIVE` runs only `if status = 'APPROVED'`. A double-click, a retry, or a
-duplicate SQS message fails the condition harmlessly. `version` gives optimistic locking on
-concurrent admin edits. (`PAID_AUTO → ACTIVE` exists only in the future payment phase —
-Appendix A.)
+Each transition is a conditional `UpdateItem`. Two security-critical grants exist at launch:
+
+- **Beneficiary grant** (`APPROVED_BENEFICIARY → ACTIVE`) — admin-initiated, runs only
+  `if status = 'APPROVED_BENEFICIARY'`. A double-click, retry, or duplicate SQS message fails the
+  condition harmlessly.
+- **Supporter auto-grant** (`DONATION_REQUIRED → DONATION_CONFIRMED → ACTIVE`) — driven by the
+  **Zeffy reconcile poll**, never by a client. `system-fn` verifies the payment against Zeffy's
+  read-only API, matches it to the application **by email**, and writes the `Donations` row with a
+  **conditional put on `zeffyPaymentId`** (`attribute_not_exists`) so repeated poll cycles and
+  redeliveries are no-ops. Provisioning is the same idempotent `PutItem Members` with
+  `attribute_not_exists(memberId)` used everywhere. A **refunded** payment seen on a later poll
+  transitions `ACTIVE → REVOKED` conditionally.
+
+`version` gives optimistic locking on concurrent admin edits. (`PAID_AUTO → ACTIVE` via signed
+webhook remains a future-phase transition — Appendix A.)
 
 ### 9.2 Content gating — server-side via CloudFront signed cookies (finding 2 resolved)
 
@@ -536,18 +631,27 @@ the gate a real server-side control.
   **re-issued on navigation / stage change**, where `app-fn` re-checks `Members.status` — bounding
   revocation to one TTL window. Cookies are path-scoped per member, so a leaked cookie exposes only
   that member's already-unlocked stages, and only until it expires.
+- **Domain & cookie topology (required).** Signed cookies reach the curriculum distribution only
+  if they share a registrable parent domain. Deploy Amplify, API Gateway, and the curriculum
+  CloudFront under **one parent** — e.g. `app.` / `api.` / `cdn.example.org` — and set cookies
+  `Domain=.example.org; Secure; SameSite=None; HttpOnly; Path=<scoped prefix>`. `SameSite=None` is
+  required because the curriculum host differs from the app host; without it the gate **silently
+  fails in the browser** (every gated fetch 403s) while passing unit tests. Verify with a real
+  cross-host browser fetch (§16).
 
 A stage stays **visible but not enterable (🔒)** until prerequisites are met — its path sits
 outside the issued cookie's policy, so CloudFront refuses it; it is not merely a UI affordance.
 Admin override sets `overrideBy/At/Reason`, is audited, widens the cookie policy on the next
 issuance, and can re-lock.
 
-### 9.3 Expiry & reminders
+### 9.3 Expiry, reminders & donation reconcile
 
 `system-fn` on EventBridge Scheduler queries `Members.byStatusAccessEnds`
 (`status = ACTIVE AND accessEndsAt <= now` — a key-condition query, finding 12), transitions due
 members to `EXPIRED` (conditional), and sends SES reminders ahead of window close. Expired
-sessions land on `/access/expired`.
+sessions land on `/access/expired`. **On the same schedule**, `system-fn` runs the **Zeffy
+reconcile poll** (§9.1): it verifies new donations against the read-only API and auto-provisions
+matched supporters, and auto-`REVOKED`s any donation it finds refunded or charged back.
 
 ---
 
@@ -561,6 +665,7 @@ donations are entirely external. Three failure modes, re-validated for rev. 2:
 | Operation | Duplicate trigger | Guard |
 |-----------|-------------------|-------|
 | Admin grant | Double-click, two admins, retry | Conditional `APPROVED → ACTIVE`; `version` lock. Second attempt no-ops |
+| Supporter auto-grant (Zeffy poll) | Overlapping poll cycles, re-seen payment | `Donations` conditional put on `zeffyPaymentId` (`attribute_not_exists`); then `PutItem Members` with `attribute_not_exists(memberId)`; refund seen later → conditional `ACTIVE → REVOKED` |
 | SQS → `system-fn` | At-least-once redelivery | `PutItem` Members with `attribute_not_exists(memberId)`; `UsernameExistsException` treated as success; dedupe key = `applicationId` |
 | Deliverable submit / stage advance | Resubmit, retry | Conditional writes on `Progress`/`StageLocks`; advancing twice no-ops |
 | Audit append | Worker retry | `eventId` derived deterministically from `action+targetId+requestId`, conditional-put |
@@ -614,12 +719,13 @@ response-header tuning for the curriculum distribution — all deferred behind �
 
 | Property | How it's enforced |
 |----------|-------------------|
-| Allowlist + human vetting | No self-sign-up; accounts only via `system-fn` after an admin grant |
-| Two-path integrity | Conditional transitions; `ACTIVE` reachable **only** via admin grant (post-interview or post-Zeffy-confirmation) |
-| Payment isolation | Zeffy hosted; admin-entered reference only; no card data, API, webhook, or payment secret in-stack (PCI SAQ-A) |
+| Allowlist + verified entry | No public sign-up; accounts only via `system-fn` — beneficiaries after an **admin grant**, supporters after a **server-verified Zeffy donation** (read-only API poll). Every account ties to an application (+ payment for supporters) |
+| Two-path integrity | Conditional transitions; `ACTIVE` reachable **only** via (a) admin grant after the interview [beneficiary] or (b) **server-side payment verification** against Zeffy's read-only API [supporter] — never from an unverified client signal |
+| Payment isolation | Card entry only on Zeffy (PCI SAQ-A); in-stack holds **no card data, no webhook** — only a **read-only API key** (SSM) to verify donations + a payment reference |
+| Refund/chargeback safety | Reconcile poll detects a refunded/charged-back payment → **audited auto-`REVOKED`** if access was granted (§9.1, §9.3) |
 | Protected routes **and content** | Cognito JWT authorizer + server-side group/window/gating checks; curriculum in private S3 behind a **CloudFront key group**, reachable only with short-TTL **signed cookies** that `app-fn` issues after the gating check (§9.2) |
 | Least privilege + separation of duties | Per-function IAM; internet-facing code cannot mint accounts (§6.2) |
-| Admin credential hardening | **Mandatory TOTP MFA** on the `admin` group and on all human AWS identities (§6.1, §6.3) |
+| Account hardening | **MFA REQUIRED for every account** (TOTP admins / email-OTP students) and on all human AWS identities (§6.1, §6.3) |
 | Gated progression | Server-side `StageLocks`; overrides audited (§9.2) |
 | Comprehensive audit | CloudTrail (validated, WORM) + append-only PII-free AuditLog + daily WORM export (§7) |
 | Abuse limiting | API GW throttling + Cognito lockout + per-user write limits; WAF on trigger (§8) |
@@ -633,8 +739,9 @@ response-header tuning for the curriculum distribution — all deferred behind �
 
 - **Structured JSON logs** to CloudWatch (one event per line). X-Ray off by default.
 - **Alarms — each with a named destination** (full routing table in `Ops-Runbook.md`):
-  - *Maintainer (ops alias):* 5xx rate, Lambda errors/throttles, **SQS DLQ depth > 0**, login-failure
-    spikes, SES bounce-rate.
+  - *Maintainer (ops alias):* 5xx rate, Lambda errors/throttles, **SQS DLQ depth > 0**, **`system-fn`
+    async on-failure DLQ depth > 0** (expiry/reconcile), **Zeffy reconcile-poll errors /
+    unmatched-donation backlog**, login-failure spikes, SES bounce-rate.
   - *Maintainer + board contact:* root-account usage, CloudTrail delivery failure or tampering,
     any `AuditLog` delete attempt, **billing over budget threshold**.
 - **Operating cadence:** this is a one-person, best-effort program — response is the **weekly
@@ -675,14 +782,41 @@ CloudFront rev. 1 implied: it is a small **curriculum-only** distribution with a
 WAF attached**, inside the free-tier egress band (~\$0). The public site still uses Amplify's
 managed CDN.
 
+**Cost guardrails.** Beyond the \$10/mo budget alarm (`Ops-Runbook.md`), **AWS Cost Anomaly
+Detection** (free) runs on the account to catch a runaway-retry or misconfig spike days before a
+monthly threshold would. Explicit CloudWatch log-group retention (§13) closes the one realistic
+unplanned-cost leak.
+
+### 12.1 Sustainability (Well-Architected pillar 6)
+
+The architecture scores well on sustainability almost by construction — worth stating explicitly:
+**scale-to-zero serverless** means no idle compute drawing power between cohorts; **managed
+services at high multi-tenant utilisation** (Lambda, DynamoDB on-demand, Cognito, SES) are more
+carbon-efficient per unit of work than an always-on server; **edge caching** of curriculum avoids
+redundant origin compute and data movement; **data-minimisation + retention TTLs** keep the
+stored-data footprint small. The one concrete lever is **arm64/Graviton** (§3/§4) — more
+performance per watt than x86 — already adopted.
+
 ---
 
 ## 13. Environments, IaC & deployment
 
-- **IaC:** AWS SAM or CDK; one stack per environment (`dev`, `prod`); no click-ops in prod.
-  Table definitions include **PITR + deletion protection + TTL attributes** in the template.
-- **CI/CD:** GitHub → build → deploy; least-privilege deploy role; manual approval to prod.
-- **Frontend:** SPA build → Amplify Hosting; relative asset paths.
+- **IaC:** **AWS SAM** (chosen over CDK for a single maintainer — less abstraction, first-class
+  serverless deploy/rollback); one stack per environment (`dev`, `prod`); no click-ops in prod.
+  Templated: **PITR + deletion protection + TTL** on tables; **explicit CloudWatch log-group
+  retention** (≈30–90 d app logs, longer for trail) so nothing defaults to never-expire; the
+  **WORM audit bucket created with Object Lock + versioning at creation** (Object Lock cannot be
+  retrofit); **Lambda runtime pinned, arm64/Graviton**; a **`system-fn` async on-failure
+  destination/DLQ**.
+- **CI/CD:** GitHub → build → deploy; least-privilege deploy role; manual approval to prod;
+  **canary/linear Lambda deployment with automatic rollback on a CloudWatch alarm** (SAM
+  `DeploymentPreference`) — cheap blast-radius insurance for a solo maintainer.
+- **Frontend:** SPA build → Amplify Hosting; relative asset paths; **custom domain under the
+  shared parent** (§9.2 cookie topology).
+- **Disaster recovery (stated posture):** **single-region** deployment; PITR is **in-region**
+  (RPO ≤ 24 h, RTO ≤ 1 business day, board-accepted). A regional outage waits on AWS recovery; an
+  optional **cross-region copy of the WORM export + periodic DynamoDB backup** buys true
+  off-region durability if the board later wants it.
 - **Single-maintainer friendliness:** one repo, clear module boundaries; the 3-function split
   lives in the deploy template, not the day-to-day editing experience. Operations live in
   `Ops-Runbook.md`, written for a student volunteer.
@@ -700,7 +834,7 @@ launch lean without losing the roadmap:
 | **Cognito Plus** (adaptive auth) | Same evidence class as WAF, or board mandate |
 | **6-function split** (Appendix B) | Second maintainer joins |
 | **AWS Organizations + SCPs** (§6.3 target) | Second board custodian named, or program exits pilot |
-| **Stripe hosted Checkout + webhooks** (Appendix A) | Admin donation-reconciliation effort > ~2 h/month, or board approves fee trade-off (`Service-Tradeoff-Analysis.md` §6.7.1) |
+| **Stripe hosted Checkout + webhooks** (Appendix A) | Seconds-level activation becomes a hard requirement, **the Zeffy read-only poll proves brittle** (missed/late payments, Beta-API changes), recurring billing is introduced, or the board approves the fee trade-off (`Service-Tradeoff-Analysis.md` §6.7.1) |
 | **App Runner / Fargate + Aurora** | Always-warm or relational needs; same codebase migrates — trust boundaries, audit layers, and throttling carry over unchanged |
 
 ---
@@ -715,10 +849,12 @@ launch lean without losing the roadmap:
 5. ~~Admin MFA~~ — **resolved:** mandatory (§6.1).
 6. **Audit retention window** — ≥ 2 years adopted; confirm against donor/grant reporting
    obligations and record in `/admin/settings`.
-7. **Refund/chargeback at launch** — handled inside Zeffy by the admin; the only in-app action is
-   an audited `REVOKED` if access was already granted. Revisit with the Stripe phase.
+7. ~~Refund/chargeback at launch~~ — **resolved:** the Zeffy reconcile poll triggers an audited
+   auto-`REVOKED` on a detected refund/chargeback; manual admin revoke remains. Revisit automation
+   depth with the Stripe phase.
 8. **Admin "view as student"** — if built, it is an audited, read-only mode.
-9. **Interview always-required vs donor-only** — process choice; no architectural impact.
+9. ~~Interview always-required vs donor-only~~ — **resolved:** supporters self-serve with **no
+   interview** (gated on a server-verified donation); the interview remains the beneficiary gate.
 10. **Minors policy** — `Platform-SRS.md` §6 sets under-13 exclusion + 13–17 guardian consent;
     awaiting board ratification.
 
@@ -727,13 +863,27 @@ launch lean without losing the roadmap:
 ## 16. Build checklist (acceptance criteria — launch state)
 
 - [ ] Cognito user pool, Essentials tier; groups `student`/`admin`; **no self-sign-up**;
-      **mandatory TOTP MFA for the `admin` group**.
+      **MFA REQUIRED pool-wide** (TOTP admins / email-OTP students; no SMS); admin-created users
+      complete MFA enrolment on first sign-in.
 - [ ] API Gateway HTTP API with Cognito JWT authorizer; stage throttling + per-route throttles on
       `/apply` and auth routes.
 - [ ] **Three** Lambda functions (`public-fn`, `app-fn`, `system-fn`), each with a least-privilege
       execution role; only `system-fn` holds `AdminCreateUser`.
-- [ ] Donations fully decoupled to **Zeffy hosted** (link-out; no payment API/webhook/secret);
-      grants flow admin → SQS → `system-fn`.
+- [ ] Donations on **Zeffy hosted** (link-out; **no webhook, no card data**); supporter grants
+      flow via the **`system-fn` Zeffy read-only reconcile poll → verify → auto-provision**
+      (admin → SQS → `system-fn` remains the beneficiary/fallback path).
+- [ ] **Self-serve supporter path:** `/apply` runs the **age/consent gate before** the Donate
+      (Zeffy) link-out; the **reconcile poll** verifies donations against Zeffy's read-only API,
+      **matches by email**, writes `Donations` with a **conditional put on `zeffyPaymentId`**, and
+      **auto-provisions** within minutes; **admin dashboard-confirm** is the email-mismatch
+      fallback. Verified by tests: (a) a matching paid donation auto-grants `ACTIVE`; (b) repeated
+      poll cycles for the same payment are no-ops; (c) a refunded payment auto-`REVOKED`s.
+- [ ] **First-login credential:** `system-fn` creates the Cognito user with a **temporary
+      password** (`AdminCreateUser`, `FORCE_CHANGE_PASSWORD`), delivered by the SES welcome email;
+      first sign-in forces **password change + MFA setup**. **No password is stored in any
+      DynamoDB table** (Cognito holds the credential; `Members` holds the account record).
+- [ ] **Zeffy read-only API key** in SSM SecureString, **read-scoped to `system-fn`** only;
+      rotation procedure in `Ops-Runbook.md`.
 - [ ] DynamoDB tables with conditional-write transitions; idempotent admin grant
       (`APPROVED → ACTIVE` conditional); **PITR + deletion protection + TTL retention on every
       table**; `Members.byStatusAccessEnds` GSI (PK `status`, SK `accessEndsAt`).
@@ -744,22 +894,31 @@ launch lean without losing the roadmap:
       tests: (a) a `locked` stage and an `EXPIRED` member are **refused cookies** (`403` + reason);
       (b) curriculum is **not fetchable from CloudFront without valid signed cookies**; (c) the S3
       origin is **not reachable directly** (only via CloudFront OAC).
+- [ ] **Custom domains under one parent** for Amplify / API Gateway / curriculum CloudFront
+      (e.g. `app.` / `api.` / `cdn.<parent>`); signed cookies set `Domain=.<parent>; Secure;
+      SameSite=None; HttpOnly`. Integration test: a real cross-host browser fetch of a curriculum
+      object succeeds with cookies and 403s without them.
 - [ ] Server-side enforcement of role, window, and stage gating (client never decides); `403` +
       reason body for locked stages.
 - [ ] **AuditLog** append-only (no Update/Delete in any IAM policy), **PII-free event schema**,
       PITR on, **daily incremental export to the Object-Lock bucket**.
 - [ ] **CloudTrail** multi-region, log validation on, data events on `AuditLog` + `Members`,
       delivered to the Object-Lock bucket.
-- [ ] `/apply` includes the **age/consent gate** (`Platform-SRS.md` §6) + honeypot + email dedupe.
+- [ ] `/apply` includes the **age/consent gate** (`Platform-SRS.md` §6) + honeypot + email dedupe
+      + **strict server-side input validation**; HTTP API **CORS locked to the Amplify origin**.
 - [ ] **SES production access approved; SPF + DKIM + DMARC configured** on the sending domain;
       bounce/complaint notifications routed to the ops alias.
 - [ ] EventBridge-scheduled expiry + SES reminders; `/access/expired` reached on lapse.
-- [ ] CloudWatch alarms wired to the `Ops-Runbook.md` routing table, incl. DLQ depth,
-      login-failure spikes, AuditLog delete attempts, billing budget; billing alert reaches the
-      **board contact**.
+- [ ] CloudWatch alarms wired to the `Ops-Runbook.md` routing table, incl. SQS DLQ depth,
+      **`system-fn` async on-failure DLQ depth**, **reconcile-poll errors / unmatched-donation
+      backlog**, login-failure spikes, AuditLog delete attempts, billing budget (+ **Cost Anomaly
+      Detection**); billing alert reaches the **board contact**.
 - [ ] Day-1 governance in place: root sealed (MFA, board custodian), maintainer identity
       MFA-required with explicit deny on CloudTrail/audit-bucket tampering (§6.3).
-- [ ] IaC (SAM/CDK) per environment; least-privilege deploy role; prod approval gate.
+- [ ] IaC (**SAM**) per environment; least-privilege deploy role; prod approval gate; **canary
+      deploy with alarm rollback**. Templated: **explicit log-group retention**, **arm64 runtime**,
+      **`system-fn` async on-failure DLQ**, **WORM bucket Object Lock + versioning at creation**,
+      **customer-managed KMS CMK on `AuditLog` + WORM bucket**.
 - [ ] **Restore procedure tested once** (table → PITR restore → verify) and recorded in
       `Ops-Runbook.md`.
 - [ ] Dry-run cohort passes the end-to-end acceptance flow (`Platform-SRS.md` §10).
@@ -768,8 +927,10 @@ launch lean without losing the roadmap:
 
 ## Appendix A — Future phase: automated payments (Stripe)
 
-**Not in the launch build.** Everything in this appendix activates only on the §14 trigger and a
-board decision on processing fees (`Service-Tradeoff-Analysis.md` §6.7.1).
+**Not in the launch build.** Launch self-serve supporters are handled by the **Zeffy read-only
+reconcile poll** (§9.1) — $0 fees, near-instant (minutes). Everything in this appendix (Stripe,
+**seconds-level** webhook activation) activates only on the §14 trigger and a board decision on
+processing fees (`Service-Tradeoff-Analysis.md` §6.7.1).
 
 Design (preserved from rev. 1, unchanged in substance): Stripe hosted Checkout (PCI SAQ-A);
 `POST /webhooks/stripe` handled by a dedicated `webhook-fn` that verifies the **Stripe
