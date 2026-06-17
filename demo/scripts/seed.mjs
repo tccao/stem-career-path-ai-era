@@ -1,6 +1,6 @@
-// Seed demo data: one admin account (users/admins table + demo credential), a provisioned
-// student, sample applications across lifecycle states, and the real curriculum. Idempotent:
-// safe to re-run (skips sample apps if already seeded).
+// Seed demo data: one admin account (users/admins table + demo credential), two provisioned
+// students (one per learning path), sample applications across lifecycle states, and the real
+// curriculum. Idempotent: safe to re-run (skips sample apps if already seeded).
 //
 //   npm run db:create   # ensure tables
 //   npm run db:seed
@@ -14,7 +14,8 @@ import * as lc from '../src/services/lifecycle.mjs';
 import { seedCurriculum } from './seed-curriculum.mjs';
 
 const ADMIN = { email: 'admin@codeforgood.us', password: 'admin1234', memberId: 'admin-001' };
-const DEMO_STUDENT = { email: 'student@codeforgood.us', password: 'student1234' };
+const STUDENT_B = { email: 'student@codeforgood.us', password: 'student1234' }; // fast track
+const STUDENT_A = { email: 'roadmap@codeforgood.us', password: 'student1234' }; // full roadmap
 
 const ignoreExists = (e) => {
   if (e?.name === 'ConditionalCheckFailedException') return null;
@@ -51,6 +52,20 @@ const applicant = (email, fullName, over = {}) => ({
   ...over,
 });
 
+// Provision an ACTIVE student and attach a demo login credential.
+async function provisionStudent(email, fullName, track, password) {
+  const app = await lc.submitApplication(applicant(email, fullName, { preferredTrack: track }));
+  await lc.scheduleInterview(app.applicationId, { actorId: ADMIN.memberId, interviewAt: 't' });
+  await lc.approveBeneficiary(app.applicationId, { actorId: ADMIN.memberId });
+  const { memberId } = await lc.provision(app.applicationId, { actorId: ADMIN.memberId });
+  await demoAuth.putCredential({
+    email,
+    memberId,
+    role: 'student',
+    passwordHash: hashPassword(password),
+  });
+}
+
 async function seedSampleApplications() {
   const already = await appsRepo.findByEmail('maya@student.edu');
   if (already.length) {
@@ -58,6 +73,7 @@ async function seedSampleApplications() {
     return;
   }
 
+  // Queue states for the admin dashboard
   await lc.submitApplication(applicant('maya@student.edu', 'Maya Chen', { stage: 'current_student' }));
   await lc.submitApplication(applicant('jordan@student.edu', 'Jordan Blake'));
 
@@ -76,18 +92,9 @@ async function seedSampleApplications() {
   const sam = await lc.submitApplication(applicant('sam@student.edu', "Sam O'Connor"));
   await lc.requireDonation(sam.applicationId, { actorId: ADMIN.memberId });
 
-  const lee = await lc.submitApplication(
-    applicant(DEMO_STUDENT.email, 'Lee Nakamura', { preferredTrack: 'fast_track' }),
-  );
-  await lc.scheduleInterview(lee.applicationId, { actorId: ADMIN.memberId, interviewAt: 't' });
-  await lc.approveBeneficiary(lee.applicationId, { actorId: ADMIN.memberId });
-  const { memberId } = await lc.provision(lee.applicationId, { actorId: ADMIN.memberId });
-  await demoAuth.putCredential({
-    email: DEMO_STUDENT.email,
-    memberId,
-    role: 'student',
-    passwordHash: hashPassword(DEMO_STUDENT.password),
-  });
+  // Two provisioned students, one per learning path (for the student dashboard)
+  await provisionStudent(STUDENT_B.email, 'Lee Nakamura', 'fast_track', STUDENT_B.password);
+  await provisionStudent(STUDENT_A.email, 'Ava Okafor', 'full_roadmap', STUDENT_A.password);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
@@ -97,8 +104,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const c = await seedCurriculum();
   console.log(`  curriculum: ${c.pillars} pillars + ${c.weeks} fast-track weeks seeded`);
   console.log('\nSeed complete.');
-  console.log('  Admin login:    ' + ADMIN.email + ' / ' + ADMIN.password);
-  console.log('  Student login:  ' + DEMO_STUDENT.email + ' / ' + DEMO_STUDENT.password);
+  console.log('  Admin login:             ' + ADMIN.email + ' / ' + ADMIN.password);
+  console.log('  Student (fast track):    ' + STUDENT_B.email + ' / ' + STUDENT_B.password);
+  console.log('  Student (full roadmap):  ' + STUDENT_A.email + ' / ' + STUDENT_A.password);
 }
 
-export { seedAdmin, seedSampleApplications, ADMIN, DEMO_STUDENT };
+export { seedAdmin, seedSampleApplications, ADMIN, STUDENT_A, STUDENT_B };

@@ -6,22 +6,24 @@ import authRouter from './auth.mjs';
 import publicRouter from './public.mjs';
 import adminRouter from './admin.mjs';
 import contentRouter from './content.mjs';
+import appRouter from './app.mjs';
 
 const router = Router();
 
 // Version discovery / liveness for this API version.
 router.get('/', (req, res) => {
-  res.json({ version: 'v1', status: 'ok', resources: ['/auth', '/applications', '/admin', '/curriculum'] });
+  res.json({ version: 'v1', status: 'ok', resources: ['/auth', '/applications', '/admin', '/app', '/curriculum'] });
 });
 
 router.get('/health', (req, res) => {
   res.json({ version: 'v1', status: 'ok' });
 });
 
-// Trust zones (Arch section 3): public intake, authed admin, public curriculum reads.
+// Trust zones (Arch section 3): public intake, authed admin, authed student, public curriculum.
 router.use('/auth', authRouter);
 router.use('/applications', publicRouter);
 router.use('/admin', adminRouter);
+router.use('/app', appRouter);
 router.use('/curriculum', contentRouter);
 
 export default router;

@@ -6,9 +6,9 @@ design from [`../docs/Architecture-Design.md`](../docs/Architecture-Design.md) a
 **local cloud**, so the data-access code here is the same code the future Lambdas run — only
 the endpoint URL differs.
 
-Built in phases, each tested: table schema → state machine → admin dashboard → real curriculum.
-Decisions are recorded in [`docs/ADR-001`](docs/ADR-001-demo-tech-stack.md) (stack) and
-[`docs/ADR-002`](docs/ADR-002-local-cloud-emulator.md) (local cloud).
+Built in phases, each tested: schema → state machine → admin dashboard → real curriculum →
+student app. Decisions are recorded in [`docs/ADR-001`](docs/ADR-001-demo-tech-stack.md) (stack)
+and [`docs/ADR-002`](docs/ADR-002-local-cloud-emulator.md) (local cloud).
 
 ---
 
@@ -23,19 +23,23 @@ cp .env.example .env                 # endpoint defaults to MiniStack (http://lo
 
 npm run cloud:up                     # start MiniStack (DynamoDB/Cognito/SQS/S3/SES on :4566)
 npm run db:create                    # create the 9 tables
-npm run db:seed                      # admin + sample applications + real curriculum
+npm run db:seed                      # admin + students + sample applications + real curriculum
 npm start                            # http://localhost:3000
 ```
 
-Then open **http://localhost:3000/admin.html** and sign in:
+Two dashboards, seeded logins:
 
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | `admin@codeforgood.us` | `admin1234` |
-| Student | `student@codeforgood.us` | `student1234` |
+| App | URL | Login |
+|-----|-----|-------|
+| **Admin** | http://localhost:3000/admin.html | `admin@codeforgood.us` / `admin1234` |
+| **Student** (fast track) | http://localhost:3000/app.html | `student@codeforgood.us` / `student1234` |
+| **Student** (full roadmap) | http://localhost:3000/app.html | `roadmap@codeforgood.us` / `student1234` |
 
-The admin dashboard shows the applications queue, lets you drive each application through the
-state machine (schedule interview → approve → **provision**), and manage members (extend / revoke).
+The **admin** dashboard drives each application through the state machine
+(schedule interview → approve → **provision**) and manages members (extend / revoke).
+The **student** dashboard shows that member's learning path (8 pillars or the 4-week fast track)
+with a progress bar and **server-side stage gating** — submit a deliverable to complete a stage
+and unlock the next.
 
 > **No Docker?** Use the official DynamoDB Local jar instead (covers the database; auth/SQS/S3
 > stay simulated). Run the jar on port 8000, set `AWS_ENDPOINT_URL=http://localhost:8000` in
@@ -58,20 +62,18 @@ breaking v1 clients (see `src/app.mjs` and `src/routes/v1/`).
 | GET | `/api/v1/admin/overview` | admin | counts by lifecycle status |
 | GET | `/api/v1/admin/applications?status=` | admin | review queue |
 | GET | `/api/v1/admin/applications/:id` | admin | application + audit trail |
-| POST | `/api/v1/admin/applications/:id/schedule-interview` | admin | → INTERVIEW_SCHEDULED |
-| POST | `/api/v1/admin/applications/:id/approve` | admin | → APPROVED_BENEFICIARY |
-| POST | `/api/v1/admin/applications/:id/require-donation` | admin | → DONATION_REQUIRED |
-| POST | `/api/v1/admin/applications/:id/confirm-donation` | admin | → DONATION_CONFIRMED |
-| POST | `/api/v1/admin/applications/:id/reject` | admin | → REJECTED |
-| POST | `/api/v1/admin/applications/:id/request-info` | admin | audited note (no status change) |
-| POST | `/api/v1/admin/applications/:id/provision` | admin | → ACTIVE + create member (idempotent) |
+| POST | `/api/v1/admin/applications/:id/{schedule-interview,approve,require-donation,confirm-donation,reject,request-info,provision}` | admin | drive the state machine |
 | GET | `/api/v1/admin/members` | admin | provisioned students |
-| POST | `/api/v1/admin/members/:id/extend` | admin | extend access window |
-| POST | `/api/v1/admin/members/:id/revoke` | admin | → REVOKED |
+| POST | `/api/v1/admin/members/:id/{extend,revoke}` | admin | manage access window |
+| GET | `/api/v1/app/profile` | student | current member (ACTIVE + in-window required) |
+| GET | `/api/v1/app/path` | student | the member's path with per-stage gating state |
+| POST | `/api/v1/app/stages/:stageKey/submit` | student | submit deliverable → complete (gated) |
+| GET | `/api/v1/app/progress` | student | raw progress records |
 | GET | `/api/v1/curriculum[/:pathKey]` | public | the seeded curriculum |
 
-Admin routes require `Authorization: Bearer <token>` with the `admin` role — **enforced
-server-side** (401 unauth, 403 wrong role), never trusted from the client.
+Guards are enforced **server-side**, never trusted from the client: admin routes require the
+`admin` role (401/403); student routes require the `student` role **and** an ACTIVE, in-window
+member (403 `access_expired`); submitting a locked stage is rejected (403 `stage_locked`).
 
 ---
 
@@ -83,14 +85,17 @@ demo/
   src/
     config.mjs                # endpoint-driven config (one var switches jar/MiniStack/AWS)
     db/ client.mjs tables.mjs # SDK client + the 9 table schemas (Arch §5.1)
-    repositories/             # applications, members, audit, demoAuth, content
-    services/ lifecycle.mjs   # the server-enforced state machine (Arch §9)
+    repositories/             # applications, members, audit, demoAuth, content, progress
+    services/ lifecycle.mjs   # server-enforced application/member state machine (Arch §9)
+              student.mjs     # path assembly + server-side sequential stage gating
               auth.mjs        # demo auth shim (Cognito stand-in) + route guards
-    routes/v1/                # versioned API: auth, public, admin, content
+    routes/v1/                # versioned API: auth, public(apply), admin, app(student), content
     content/curriculum.json   # real curriculum extracted from ../references/*.pdf
-  public/admin.html           # admin dashboard (single file, CFG identity)
+  public/
+    admin.html                # admin dashboard (applications + members)
+    app.html                  # student dashboard (learning path + gated progress)
   scripts/                    # create-tables, seed, seed-curriculum
-  test/                       # node:test suites (schema, lifecycle, admin-api, curriculum)
+  test/                       # node:test suites (43 tests)
   docs/                       # ADR-001 (stack), ADR-002 (local cloud)
 ```
 
@@ -102,10 +107,11 @@ demo/
 npm test          # requires a local endpoint up (MiniStack or the jar) + AWS_ENDPOINT_URL set
 ```
 
-34 integration tests run against a **real local DynamoDB engine** (not a mock), covering:
-table schema + GSIs + conditional-write idempotency; every state-machine transition, illegal
-transitions, idempotent provisioning, and the PII-free audit guarantee; the admin API incl.
-the 401/403 role guard and the full apply→provision flow over HTTP; and the seeded curriculum.
+**43 integration tests** run against a **real local DynamoDB engine** (not a mock): table schema
++ GSIs + conditional-write idempotency; every state-machine transition, illegal transitions,
+idempotent provisioning, PII-free audit; the admin API incl. the 401/403 role guard and the full
+apply→provision flow; the seeded curriculum; and the student app incl. role/access guards and the
+stage-gating logic (submit unlocks next; locked stage → 403).
 
 > **Test ownership note.** The database, state machine, and API suites run anywhere a DynamoDB
 > endpoint is reachable. The deeper MiniStack-only integrations (real Cognito, the SQS
@@ -121,15 +127,15 @@ the 401/403 role guard and the full apply→provision flow over HTTP; and the se
 | DynamoDB Local jar **or** MiniStack DynamoDB | DynamoDB on-demand (PITR, deletion protection, TTL) |
 | Auth shim (`services/auth.mjs`, HMAC token) | Cognito User Pool — groups `student`/`admin`, MFA required |
 | In-process `provision()` | SQS → `system-fn` (sole holder of `AdminCreateUser`) |
-| `Curriculum` table / `curriculum.json` | Private S3 + CloudFront signed cookies (gated content, Arch §9.2) |
+| `Curriculum` table + student `path`/`progress` gating | Private S3 + CloudFront signed cookies (gated content, Arch §9.2) |
 | `AuditLog` table (append-only, PII-free) | DynamoDB AuditLog + CloudTrail data events + WORM export (Arch §7) |
 | `DemoAuth` table | (none — production has no password store; Cognito holds credentials) |
 
 **Demo-only deviations (intentional — see ADRs):** auth is a shim, not Cognito (no MFA, lockout,
 or refresh); provisioning runs in-process rather than across the SQS trust seam; curriculum is a
-DB read rather than CloudFront-gated bytes; `listMembers`/`overview` use a scan + per-status
-queries (fine at pilot scale). MiniStack can supply the real Cognito/SQS/S3/SES later with no
-application-code change — only the endpoint differs.
+DB read and stage completion is self-attested rather than CloudFront-gated bytes with admin
+deliverable-verification; list endpoints use scans (fine at pilot scale). MiniStack can supply the
+real Cognito/SQS/S3/SES later with no application-code change — only the endpoint differs.
 
 ---
 

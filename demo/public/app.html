@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Code For Good · My Learning Path (Demo)</title>
+  <style>
+    :root {
+      --cfg-purple:#6a0dad; --cfg-purple-dark:#4b0082; --cfg-lavender:#b19cd9;
+      --bg:#f7f4fb; --card:#fff; --line:#e7e0f0; --ink:#2d2d2d; --muted:#6b6577;
+      --ok:#1b8a4b; --warn:#b26a00;
+    }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:var(--bg); color:var(--ink); }
+    .topbar { display:flex; align-items:center; justify-content:space-between; padding:14px 22px; color:#fff;
+      background:linear-gradient(90deg,var(--cfg-purple-dark),var(--cfg-purple)); }
+    .topbar .brand { font-weight:700; } .topbar .brand small { display:block; font-weight:400; opacity:.85; font-size:.72rem; }
+    .topbar .who { font-size:.85rem; opacity:.95; margin-right:10px; }
+    .topbar button { background:rgba(255,255,255,.15); color:#fff; border:1px solid rgba(255,255,255,.35); border-radius:6px; padding:6px 12px; cursor:pointer; }
+    .wrap { max-width:900px; margin:22px auto; padding:0 18px; }
+    .hidden { display:none !important; }
+    .login-card { max-width:380px; margin:8vh auto; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:28px; box-shadow:0 6px 24px rgba(75,0,130,.08); }
+    .login-card h1 { font-size:1.25rem; margin:0 0 4px; color:var(--cfg-purple-dark); }
+    .login-card p { margin:0 0 18px; color:var(--muted); font-size:.9rem; }
+    label { display:block; font-size:.8rem; color:var(--muted); margin:12px 0 5px; }
+    input { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:.95rem; }
+    .btn { background:var(--cfg-purple); color:#fff; border:none; border-radius:8px; padding:10px 16px; font-size:.9rem; cursor:pointer; }
+    .btn:hover { background:var(--cfg-purple-dark); } .btn:disabled { opacity:.5; cursor:not-allowed; }
+    .hint { font-size:.78rem; color:var(--muted); margin-top:10px; }
+
+    .hero { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px 22px; margin-bottom:18px; }
+    .hero h1 { margin:0 0 2px; font-size:1.3rem; color:var(--cfg-purple-dark); }
+    .hero .meta { color:var(--muted); font-size:.85rem; }
+    .bar { height:10px; background:#efe9f8; border-radius:999px; margin-top:14px; overflow:hidden; }
+    .bar > i { display:block; height:100%; background:linear-gradient(90deg,var(--cfg-lavender),var(--cfg-purple)); width:0; transition:width .4s; }
+    .barlabel { font-size:.76rem; color:var(--muted); margin-top:6px; }
+
+    .stage { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:12px; }
+    .stage.locked { opacity:.6; }
+    .stage.active { border-color:var(--cfg-lavender); box-shadow:0 3px 14px rgba(106,13,173,.08); }
+    .stage .head { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .stage .head h3 { margin:0; font-size:1rem; color:var(--ink); }
+    .stage .desc { color:var(--muted); font-size:.86rem; margin:8px 0 0; }
+    .badge { font-size:.7rem; padding:4px 10px; border-radius:999px; white-space:nowrap; }
+    .badge.active { background:#efe6fb; color:var(--cfg-purple-dark); }
+    .badge.locked { background:#eee; color:var(--muted); }
+    .badge.complete { background:#e3f5ea; color:var(--ok); }
+    ul.items { margin:10px 0 0; padding-left:18px; } ul.items li { font-size:.83rem; color:#4a4458; margin:3px 0; }
+    .submit { margin-top:14px; display:flex; gap:8px; }
+    .submit input { flex:1; }
+    .done { margin-top:12px; font-size:.82rem; color:var(--ok); }
+    .done a { color:var(--cfg-purple); }
+    .toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--cfg-purple-dark); color:#fff; padding:10px 18px; border-radius:8px; font-size:.85rem; opacity:0; transition:opacity .2s; }
+    .toast.show { opacity:1; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">Code For Good <small>My learning path — V2 demo</small></div>
+    <div id="session" class="hidden"><span class="who" id="who"></span><button id="logoutBtn">Log out</button></div>
+  </div>
+
+  <div id="login" class="wrap">
+    <div class="login-card">
+      <h1>Student sign in</h1>
+      <p>Demo authentication (stands in for Cognito).</p>
+      <label for="email">Email</label>
+      <input id="email" type="email" value="student@codeforgood.us" />
+      <label for="password">Password</label>
+      <input id="password" type="password" value="student1234" />
+      <div style="margin-top:16px;"><button class="btn" id="loginBtn" style="width:100%;">Sign in</button></div>
+      <div class="hint" id="loginMsg"></div>
+      <div class="hint">Fast track: <b>student@codeforgood.us</b> · Full roadmap: <b>roadmap@codeforgood.us</b> · pw <b>student1234</b></div>
+    </div>
+  </div>
+
+  <div id="app" class="wrap hidden">
+    <div class="hero">
+      <h1 id="heroTitle">My path</h1>
+      <div class="meta" id="heroMeta"></div>
+      <div class="bar"><i id="bar"></i></div>
+      <div class="barlabel" id="barLabel"></div>
+    </div>
+    <div id="stages"></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script type="module">
+    const API = '/api/v1';
+    let token = sessionStorage.getItem('cfg_student_token') || null;
+    const $ = (id) => document.getElementById(id);
+    const toast = (m) => { const t=$('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2400); };
+    const esc = (s) => String(s).replace(/[&<>"]/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+    async function api(path,{method='GET',body}={}) {
+      const res = await fetch(API+path,{ method, headers:{'content-type':'application/json',...(token?{authorization:`Bearer ${token}`}:{})}, body: body?JSON.stringify(body):undefined });
+      const json = await res.json().catch(()=>({}));
+      if (res.status===401) { logout(); throw new Error('unauthorized'); }
+      if (!res.ok) throw Object.assign(new Error(json.message||json.error||res.statusText),{code:json.error,status:res.status});
+      return json;
+    }
+
+    async function login() {
+      $('loginMsg').textContent='';
+      try {
+        const r = await api('/auth/login',{method:'POST',body:{email:$('email').value,password:$('password').value}});
+        if (r.user.role !== 'student') { $('loginMsg').textContent='This login is not a student account.'; return; }
+        token=r.token; sessionStorage.setItem('cfg_student_token',token);
+        showApp(r.user);
+      } catch(e){ $('loginMsg').textContent='Sign-in failed: '+e.message; }
+    }
+    function logout(){ token=null; sessionStorage.removeItem('cfg_student_token'); $('app').classList.add('hidden'); $('session').classList.add('hidden'); $('login').classList.remove('hidden'); }
+
+    async function showApp(user){
+      $('login').classList.add('hidden'); $('app').classList.remove('hidden'); $('session').classList.remove('hidden');
+      try {
+        const me = await api('/app/profile');
+        $('who').textContent = (me.member.fullName||me.member.email)+' · '+(me.member.accessBasis||'student');
+        await loadPath();
+      } catch(e){
+        if (e.code==='access_expired') { $('stages').innerHTML=`<div class="stage"><b>Access expired.</b><div class="desc">Your learning window has ended or access was revoked. Contact Code For Good to renew.</div></div>`; $('heroTitle').textContent='Access expired'; }
+        else toast('Error: '+e.message);
+      }
+    }
+
+    async function loadPath(){
+      const v = await api('/app/path');
+      $('heroTitle').textContent = v.meta.title;
+      $('heroMeta').textContent = `${v.meta.duration} · ${v.completed}/${v.total} stages complete`;
+      $('bar').style.width = v.progressPct+'%';
+      $('barLabel').textContent = v.progressPct+'% complete';
+      $('stages').innerHTML = v.stages.map(renderStage).join('');
+      v.stages.forEach((s)=>{ const f=$('form-'+s.stageKey); if(f) f.onsubmit=(e)=>{ e.preventDefault(); submit(s.stageKey, $('url-'+s.stageKey).value); }; });
+    }
+
+    function renderStage(s){
+      const badge = s.state==='complete' ? '<span class="badge complete">✓ Complete</span>'
+        : s.state==='active' ? '<span class="badge active">● In progress</span>'
+        : '<span class="badge locked">🔒 Locked</span>';
+      const items = (s.items||[]).map(i=>`<li>${esc(i)}</li>`).join('');
+      let foot = '';
+      if (s.state==='active') foot = `<form class="submit" id="form-${s.stageKey}">
+          <input id="url-${s.stageKey}" type="url" placeholder="Paste your deliverable URL (GitHub, Loom, live demo…)" required />
+          <button class="btn" type="submit">Submit & complete</button></form>`;
+      else if (s.state==='complete' && s.deliverableUrl) foot = `<div class="done">✓ Submitted: <a href="${esc(s.deliverableUrl)}" target="_blank" rel="noopener">${esc(s.deliverableUrl)}</a></div>`;
+      return `<div class="stage ${s.state}">
+        <div class="head"><h3>${esc(s.title)}</h3>${badge}</div>
+        ${s.description?`<p class="desc">${esc(s.description)}</p>`:''}
+        ${items?`<ul class="items">${items}</ul>`:''}
+        ${foot}</div>`;
+    }
+
+    async function submit(stageKey, url){
+      try { await api(`/app/stages/${stageKey}/submit`,{method:'POST',body:{deliverableUrl:url}}); toast('Stage complete — next unlocked'); await loadPath(); }
+      catch(e){ toast('Error: '+e.message); }
+    }
+
+    $('loginBtn').onclick=login;
+    $('password').addEventListener('keydown',(e)=>{ if(e.key==='Enter') login(); });
+    $('logoutBtn').onclick=logout;
+    if (token) api('/auth/me').then(r=>showApp(r.user)).catch(()=>logout());
+  </script>
+</body>
+</html>
