@@ -1,0 +1,327 @@
+{
+  "generatedFrom": [
+    "references/STEM_Graduate_Career_Roadmap_2026_v2.pdf",
+    "references/CodeForGood_4Week_FastTrack_PromptLikeAPro.pdf"
+  ],
+  "note": "Extracted from the Code For Good reference PDFs. Pillar descriptions are faithful condensations of each pillar’s intro; milestones and fast-track days are taken from the source.",
+  "paths": {
+    "A_full_roadmap": {
+      "key": "A_full_roadmap",
+      "title": "Full Roadmap — 8 Pillars",
+      "duration": "12–18 months",
+      "pillars": [
+        {
+          "n": 1,
+          "key": "pillar1",
+          "title": "Build AI-Augmented Skills",
+          "description": "The most in-demand STEM graduates aren't those who know the most code — they're the ones who work with AI tools to produce 10x the output. Every employer now expects new hires to use AI productively from day one.",
+          "milestones": [
+            "Install and use GitHub Copilot free tier (available to students via GitHub Education Pack)",
+            "Learn the SCALE Framework — apply it to every prompt you write from day",
+            "Learn the basics of LLM concepts: tokens, context windows, temperature, system prompts",
+            "Set up Claude, ChatGPT, and Gemini — understand their strengths for different tasks",
+            "Study token economics: what tokens cost in money, latency, and carbon emissions",
+            "Use AI tools to accelerate every homework/project — document token usage and cost",
+            "Learn to write effective system prompts for repeated tasks (code review, debugging, test writing)",
+            "Build one small automation using an AI API (OpenAI, Anthropic, or Gemini API)",
+            "Explore LangChain or LlamaIndex for chaining AI calls together"
+          ]
+        },
+        {
+          "n": 2,
+          "key": "pillar2",
+          "title": "Build a Portfolio of Real Projects",
+          "description": "Your GPA tells employers what you were taught; your portfolio tells them what you can actually do. Where every applicant claims 'strong AI skills,' a deployed project is the proof that stands out.",
+          "milestones": [
+            "Deployed: It must be live at a URL (not just running on your laptop). Use Vercel, Railway, Render, or HuggingFace Spaces — all have free tiers.",
+            "Documented: A clear README explaining: the problem, your approach, tech stack, token optimization decisions, and how to run it.",
+            "Functional: It actually works. A broken demo is worse than no demo.",
+            "Original: Not a tutorial clone. Solve a real problem, even a small one.",
+            "Measurable: Includes at least one metric — cost per query, response time, accuracy rate, or number of active users. VIDEO MODULE 3: Build Your First AI Portfolio Project in a Weekend (5 min) > How to pick a problem that is small enough to finish and real enough to impress > The documentation template that gets your README noticed on GitHub > How to add a token usage dashboard so your project shows cost-awareness 2.3 Phase-by-Phase Roadmap",
+            "Create a polished GitHub profile: professional photo, bio, pinned repos, README profile",
+            "Set up a free personal domain using GitHub Pages or Vercel (yourname.dev",
+            "Choose your primary tech stack and commit to it for your first 2 projects",
+            "Star and study 5 open-source AI projects in your area — learn how they structure code"
+          ]
+        },
+        {
+          "n": 3,
+          "key": "pillar3",
+          "title": "Enter the Gig Economy — Starting Week 3",
+          "description": "Freelancing is more than extra money — it's proof of real client work, business communication skills, and a track record no internship can replicate. You start in Week 3.",
+          "milestones": [
+            "Create profiles on: Upwork, Fiverr, and Contra (takes about 2-3 hours total) (Account Setup)",
+            "Write a compelling bio focused on specific services — be specific, not generic Bad: 'I am a CS student who loves coding.' Good: 'I build Python automation scripts and AI chatbots for small businesses.'",
+            "Set your initial rate low to build reviews: $15-25/hr on Upwork, $25-50 per project on Fiverr",
+            "Complete your profile 100% — incomplete profiles are filtered out by platform algorithms",
+            "On Fiverr: create 3 specific gigs with clear deliverables before applying anywhere",
+            "On Upwork: apply to 5 jobs per day in your niche. Write custom proposals — never use templates (First Client)",
+            "On Fiverr: create gigs tied to exactly what you are learning that week (e.g., 'I will build a Python web scraper')",
+            "On Contra: set up a project portfolio page — it functions as a mini portfolio site",
+            "Reach out to 5 local small businesses (restaurant, salon, real estate agent) — offer a small automation or AI chatbot for $50-100"
+          ]
+        },
+        {
+          "n": 4,
+          "key": "pillar4",
+          "title": "Build a Personal Brand & Network Online",
+          "description": "Your personal brand answers 'who are you professionally, and why should I care?' In a sea of identical degrees, a visible online presence is what makes recruiters reach out to you.",
+          "milestones": [
+            "Upgrade your LinkedIn profile completely: professional headshot, headline that says what you do, about section that tells a story",
+            "Add all projects, skills, and any work/volunteer experience",
+            "Connect with 50 people you already know: professors, classmates, family friends in tech",
+            "Follow 20 thought leaders in your target field and engage with their posts (comment thoughtfully) Month 2",
+            "Post your first LinkedIn article: 'What I learned building my first AI app' or 'My journey learning [X]' (Content Start)",
+            "Commit to posting 1x per week — even short posts (3-5 paragraphs) about what you are working on",
+            "Post format that works: Problem you faced → How you solved it → Key lesson learned",
+            "Cross-post to dev.to or Hashnode for additional visibility in the developer community",
+            "Document your gig profile setup as a post — authenticity outperforms polish Month 2-3"
+          ]
+        },
+        {
+          "n": 5,
+          "key": "pillar5",
+          "title": "Target the Hidden Job Market via Micro-Internships",
+          "description": "The hidden job market is the 70–80% of jobs never publicly posted — filled through referrals, direct outreach, and niche platforms. Micro-internships are short paid sprints that open those doors.",
+          "milestones": [
+            "Sign up for Parker Dewey (the leading micro-internship platform) and complete your profile (Discovery)",
+            "Sign up for Forage — complete 1 free virtual experience program from a company you like",
+            "Browse Wellfound (formerly AngelList Talent) for early-stage startup roles",
+            "Make a list of 20 startups in your area of interest from Crunchbase or Product Hunt Month 1",
+            "Complete 2-3 Forage virtual experience programs — these are used by companies to pre-screen candidates (Applications)",
+            "Apply to 3-5 Parker Dewey projects per week — write custom applications for each",
+            "Identify 5 startups on your list that you would love to work for and research them deeply",
+            "Draft a 'cold outreach' message template to founders (see script below) Month 2-3",
+            "Send cold outreach LinkedIn messages to 10 startup founders or engineering leads per week (Direct Outreach)"
+          ]
+        },
+        {
+          "n": 6,
+          "key": "pillar6",
+          "title": "Stack Certifications Strategically",
+          "description": "Certifications don't replace skills or projects, but they're a powerful signal of competence when you lack years of experience. The right certs, strategically chosen, get you past the screen.",
+          "milestones": [
+            "Priority 1: AWS Certified Cloud Practitioner (entry level, 1-2 months prep, $100 exam) (Dev Focus)",
+            "Priority 2: Meta Front-End or Back-End Developer Certificate (Coursera, 6-8 months, $50/month)",
+            "Priority 3: GitHub Actions or Kubernetes basics (free certs, high demand in DevOps roles)",
+            "Bonus: Google Project Management Certificate (for dev lead / product roles) Data Science",
+            "Priority 1: Google Data Analytics Certificate (Coursera, 6 months, $50/month) (Analytics Focus)",
+            "Priority 2: Databricks Certified Data Analyst Associate (free exam voucher often available)",
+            "Priority 3: Tableau Desktop Specialist or Microsoft Power BI Data Analyst",
+            "Bonus: AWS Certified Machine Learning — Specialty (advanced, but very high-paying) Information Systems",
+            "Priority 1: Google Project Management Certificate — signals business + tech bridge (Business + Tech)"
+          ]
+        },
+        {
+          "n": 7,
+          "key": "pillar7",
+          "title": "Master the Tools Industry Actually Uses",
+          "description": "Universities teach programming concepts; industry hires people who know specific tools. This pillar closes the gap between what you learn in class and what you need on day one.",
+          "milestones": [
+            "Go beyond basic 'git add/commit/push' — learn: branching, merging, rebasing, cherry-pick (Git Mastery)",
+            "Learn GitFlow (feature branches, develop branch, release branches) — this",
+            "Practice submitting pull requests and reviewing others' code on GitHub",
+            "Complete the free 'Learn Git Branching' interactive tutorial (learngitbranching.js.org)",
+            "Set up a clean, consistent commit message practice (Conventional Commits format)",
+            "Master SQL beyond basic SELECT: JOINs, GROUP BY, window functions, CTEs, subqueries (SQL + Data Tools)",
+            "Practice on real datasets using Mode Analytics (free), Kaggle, or SQLZoo",
+            "Learn at least one BI tool: Power BI (free desktop version) or Tableau Public (free)",
+            "Connect SQL to Python using pandas + SQLAlchemy — this combo is used in 80% of data roles"
+          ]
+        },
+        {
+          "n": 8,
+          "key": "pillar8",
+          "title": "Solve Real Problems in Communities You Care About",
+          "description": "The most overlooked career accelerator is also the most fulfilling: using your skills to solve real problems for real people in communities you're already part of.",
+          "milestones": [
+            "Make a list of communities you are part of: cultural student organizations, sports teams, religious groups, local nonprofits, campus departments, (Identify Needs) neighborhood associations",
+            "For each community, ask: 'What process is slow, broken, or done manually that I could automate?'",
+            "Common opportunities: event scheduling, volunteer coordination, donation tracking, communication, waitlist management, resource directories, tutoring matching",
+            "Pick ONE community and ONE specific problem to solve first Month 2-3",
+            "Have a 30-minute meeting with the community leader to understand the exact pain point (Build & Deploy)",
+            "Build the simplest possible version that actually works — do not over- engineer Example: A Google Form + Apps Script automation might be all they need",
+            "Deploy it and get it being actively used by at least 10 people",
+            "Measure something: time saved, signups increased, errors reduced — whatever is relevant Month 4-6",
+            "Write a case study: the problem, your solution, the outcome with numbers (Document & Expand) Example: 'Reduced volunteer scheduling time from 3 hours to 20 minutes for [Organization]'"
+          ]
+        }
+      ]
+    },
+    "B_fast_track": {
+      "key": "B_fast_track",
+      "title": "4-Week Fast Track — Prompt Like a Pro",
+      "duration": "4 weeks (~60 hours)",
+      "weeks": [
+        {
+          "week": 1,
+          "key": "wk1",
+          "focus": "LLM Foundations + Token Economics",
+          "days": [
+            {
+              "day": 1,
+              "topic": "Token Mechanics",
+              "deliverable": "Read: OpenAI tokenizer docs + tiktoken library Exercise: Count tokens in 5 prompts you wrote before — see the waste"
+            },
+            {
+              "day": 2,
+              "topic": "LLM Parameters",
+              "deliverable": "Study: temperature, top_p, max_tokens, stop sequences Exercise: Run same prompt at temp=0 vs temp=1 — document the difference"
+            },
+            {
+              "day": 3,
+              "topic": "Context Windows",
+              "deliverable": "Study: Context window limits (GPT-4o: 128K, Claude 3.5: 200K, Gemini 1.5: 1M) Learn: What happens when context overflows — silent truncation is dangerous"
+            },
+            {
+              "day": 4,
+              "topic": "Model Selection",
+              "deliverable": "Study: When to use GPT-4o-mini vs GPT-4o vs o3 vs Claude Haiku vs Sonnet Key insight: Do NOT use the most powerful model for simple tasks"
+            },
+            {
+              "day": 5,
+              "topic": "Prompt Basics",
+              "deliverable": "Study: Zero-shot, one-shot, few-shot prompting — when each applies Learn: System prompts vs user prompts vs assistant prefill"
+            },
+            {
+              "day": 6,
+              "topic": "Environmental Audit",
+              "deliverable": "Read: 'The Real Carbon Cost of an AI Token' (ditchcarbon.com) Calculate: Estimate the CO2 cost of your last week of AI usage"
+            },
+            {
+              "day": 7,
+              "topic": "Week 1 Project",
+              "deliverable": "Build: A Python token counter that analyzes any prompt and reports: token count, estimated cost at GPT-4o rates, estimated CO2 equivalent, and a wasteful pattern flag"
+            }
+          ]
+        },
+        {
+          "week": 2,
+          "key": "wk2",
+          "focus": "Prompt Like a Pro + Scale Thinking",
+          "days": [
+            {
+              "day": 8,
+              "topic": "SCALE Framework",
+              "deliverable": "Study the SCALE framework above — memorize it Exercise: Take 5 prompts you have written before. Re-write each using SCALE"
+            },
+            {
+              "day": 9,
+              "topic": "Token Optimization",
+              "deliverable": "Apply all 10 optimization techniques from this handbook Exercise: Take a bloated prompt (50+ tokens) and compress it to under 20 tokens without losing output quality"
+            },
+            {
+              "day": 10,
+              "topic": "Idempotency & Fault",
+              "deliverable": "Study: What idempotency means in distributed systems Tolerance (Wikipedia + Martin Fowler blog) Read: 'Designing for failure' — AWS Well-Architected Framework (free online)"
+            },
+            {
+              "day": 11,
+              "topic": "Scale Prompting",
+              "deliverable": "Exercise: Prompt for code that processes a 1MB file. Then extend the same prompt for 1TB. Document: What changes in the prompt? What new constraints appear?"
+            },
+            {
+              "day": 12,
+              "topic": "Model Selection Lab",
+              "deliverable": "Run the same complex coding task on: GPT-4o-mini, GPT-4o, Claude Haiku, Claude Sonnet Compare: Output quality, token count, cost, and latency"
+            },
+            {
+              "day": 13,
+              "topic": "Anti-Pattern Audit",
+              "deliverable": "Review 10 pieces of code you or AI has generated before Identify: Which anti-patterns are present? No error handling? No scale constraints? No idempotency?"
+            },
+            {
+              "day": 14,
+              "topic": "Week 2 Capstone",
+              "deliverable": "Build: A prompt engineering audit tool — Python script that takes a prompt as input and flags: missing scale requirements, missing error handling, missing output format spec, estimated token waste"
+            }
+          ]
+        },
+        {
+          "week": 3,
+          "key": "wk3",
+          "focus": "Build & Deploy a Real Project",
+          "days": [
+            {
+              "day": 15,
+              "topic": "Architecture Design",
+              "deliverable": "Apply SCALE framework to design your project — document all 5 questions Draw architecture diagram (Excalidraw — free)"
+            },
+            {
+              "day": 16,
+              "topic": "Core Build",
+              "deliverable": "Use SCALE-optimized prompts exclusively — no lazy junior prompts Build core data processing logic with AI assistance"
+            },
+            {
+              "day": 17,
+              "topic": "Idempotency + Scale",
+              "deliverable": "Implement idempotency — checkpoint files or database state tracking Test: Run the pipeline twice on the same input. Verify no duplicate processing."
+            },
+            {
+              "day": 18,
+              "topic": "Error Handling +",
+              "deliverable": "Add structured logging (Python: structlog or loguru) Logging Implement retry logic with exponential backoff"
+            },
+            {
+              "day": 19,
+              "topic": "Token Audit",
+              "deliverable": "Run your AI session logs through the token counter you built in Week 1 Document: How many tokens did this project use? At what cost?"
+            },
+            {
+              "day": 20,
+              "topic": "Deploy",
+              "deliverable": "Deploy to Railway or Render (free tier) Set up GitHub Actions for automated testing on every commit (CI/CD)"
+            },
+            {
+              "day": 21,
+              "topic": "Share",
+              "deliverable": "Post on LinkedIn: 'Week 3 of Code For Good fast track. I built [project]. Here is the thing I learned about prompting for production code that no one was teaching me.'"
+            }
+          ]
+        },
+        {
+          "week": 4,
+          "key": "wk4",
+          "focus": "Market-Ready — Brand, Gigs, Interviews",
+          "days": [
+            {
+              "day": 22,
+              "topic": "LinkedIn Profile",
+              "deliverable": "Rewrite your LinkedIn headline: not 'CS Student' but 'AI- Augmented Developer | Enterprise Prompt Engineering | Distributed Systems'"
+            },
+            {
+              "day": 23,
+              "topic": "Certification Fast-",
+              "deliverable": "Pick ONE: AWS Cloud Practitioner (exam: $100, 1-2 weeks Track prep) OR Google Data Analytics Certificate (Coursera, 4-6 weeks) OR Databricks Associate (free exam voucher)"
+            },
+            {
+              "day": 24,
+              "topic": "Gig Economy Setup",
+              "deliverable": "Create profiles on Upwork and Contra Your niche: 'I build token-optimized AI pipelines and prompt engineering workflows for businesses'"
+            },
+            {
+              "day": 25,
+              "topic": "Interview Prep —",
+              "deliverable": "Study: The 5 prompt engineering questions hiring managers Technical now ask (see box below) Practice: Answer 'How would you optimize this prompt for production?' live without notes"
+            },
+            {
+              "day": 26,
+              "topic": "Direct Outreach",
+              "deliverable": "Identify 10 startups building AI products (Product Hunt, Wellfound, Y Combinator list) Send 10 cold LinkedIn messages using the template from the Daily Outreach Plan"
+            },
+            {
+              "day": 27,
+              "topic": "Freelance First",
+              "deliverable": "Write your first Upwork proposal for a relevant gig Proposal Apply SCALE thinking to the proposal itself — understand their scale, their constraints, their output needs"
+            },
+            {
+              "day": 28,
+              "topic": "Program Complete",
+              "deliverable": "Record a 5-minute Loom: 'Here is what I built and learned in 4 weeks at Code For Good' Post on LinkedIn: Full reflection — what you can now do that you could not 4 weeks ago"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "cfg-v2-demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local, runnable demo of the Code For Good V2 vetted-access learning platform. Mimics the production AWS serverless design against a local cloud (MiniStack) or the DynamoDB Local jar.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.mjs",
+    "db:create": "node scripts/create-tables.mjs",
+    "db:seed": "node scripts/seed.mjs",
+    "db:reset": "node scripts/create-tables.mjs --reset",
+    "cloud:up": "docker compose -f docker-compose.yml up -d",
+    "cloud:down": "docker compose -f docker-compose.yml down",
+    "test": "node --test --test-concurrency=1"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.700.0",
+    "@aws-sdk/lib-dynamodb": "^3.700.0",
+    "express": "^4.21.2",
+    "ulid": "^2.3.0"
+  }
+}
