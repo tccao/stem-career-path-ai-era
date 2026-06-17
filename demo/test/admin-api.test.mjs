@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { freshTables } from './_setup.mjs';
 import { createApp } from '../src/app.mjs';
 import { seedAdmin, ADMIN } from '../scripts/seed.mjs';
+import { seedCurriculum } from '../scripts/seed-curriculum.mjs';
 import { createToken } from '../src/services/auth.mjs';
 
 let server;
@@ -13,6 +14,7 @@ let base;
 before(async () => {
   await freshTables();
   await seedAdmin();
+  await seedCurriculum();
   server = createApp().listen(0);
   await new Promise((r) => server.once('listening', r));
   base = `http://127.0.0.1:${server.address().port}`;
@@ -165,5 +167,52 @@ describe('Phase 3 · admin API', () => {
     assert.equal(r.status, 200);
     r = await api(`/api/v1/admin/members/${memberId}/revoke`, { method: 'POST', headers: bearer(tok) });
     assert.equal(r.status, 409);
+  });
+
+  test('admin can inspect member learning progress', async () => {
+    const tok = await adminToken();
+    const { body: app } = await createApplication();
+    const id = app.applicationId;
+    await api(`/api/v1/admin/applications/${id}/schedule-interview`, { method: 'POST', headers: bearer(tok), body: {} });
+    await api(`/api/v1/admin/applications/${id}/approve`, { method: 'POST', headers: bearer(tok) });
+    const { memberId } = await (await api(`/api/v1/admin/applications/${id}/provision`, { method: 'POST', headers: bearer(tok) })).json();
+
+    const r = await api(`/api/v1/admin/members/${memberId}/progress`, { headers: bearer(tok) });
+    assert.equal(r.status, 200);
+    const j = await r.json();
+    assert.equal(j.member.memberId, memberId);
+    assert.equal(j.path.pathKey, 'B_fast_track');
+    assert.equal(j.path.stageUnits.length, 28);
+    assert.equal(j.path.activeStage.stageKey, 'wk1-day1');
+  });
+
+  test('admin can unlock, lock, and restore automatic gating for a milestone', async () => {
+    const tok = await adminToken();
+    const { body: app } = await createApplication();
+    const id = app.applicationId;
+    await api(`/api/v1/admin/applications/${id}/schedule-interview`, { method: 'POST', headers: bearer(tok), body: {} });
+    await api(`/api/v1/admin/applications/${id}/approve`, { method: 'POST', headers: bearer(tok) });
+    const { memberId } = await (await api(`/api/v1/admin/applications/${id}/provision`, { method: 'POST', headers: bearer(tok) })).json();
+
+    let r = await api(`/api/v1/admin/members/${memberId}/stages/wk1-day3/unlocked`, { method: 'POST', headers: bearer(tok) });
+    assert.equal(r.status, 200);
+    let j = await r.json();
+    let day3 = j.path.stageUnits.find((s) => s.stageKey === 'wk1-day3');
+    assert.equal(day3.state, 'active');
+    assert.equal(day3.lockOverride, 'unlocked');
+
+    r = await api(`/api/v1/admin/members/${memberId}/stages/wk1-day3/locked`, { method: 'POST', headers: bearer(tok) });
+    assert.equal(r.status, 200);
+    j = await r.json();
+    day3 = j.path.stageUnits.find((s) => s.stageKey === 'wk1-day3');
+    assert.equal(day3.state, 'locked');
+    assert.equal(day3.lockOverride, 'locked');
+
+    r = await api(`/api/v1/admin/members/${memberId}/stages/wk1-day3/auto`, { method: 'POST', headers: bearer(tok) });
+    assert.equal(r.status, 200);
+    j = await r.json();
+    day3 = j.path.stageUnits.find((s) => s.stageKey === 'wk1-day3');
+    assert.equal(day3.state, 'locked');
+    assert.equal(day3.lockOverride, null);
   });
 });

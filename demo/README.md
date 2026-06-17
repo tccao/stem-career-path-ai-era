@@ -38,8 +38,8 @@ Two dashboards, seeded logins:
 The **admin** dashboard drives each application through the state machine
 (schedule interview → approve → **provision**) and manages members (extend / revoke).
 The **student** dashboard shows that member's learning path (8 pillars or the 4-week fast track)
-with a progress bar and **server-side stage gating** — submit a deliverable to complete a stage
-and unlock the next.
+with a progress bar and **server-side stage gating** — fast-track students complete one day at a
+time, while full-roadmap students complete one pillar at a time.
 
 > **No Docker?** Use the official DynamoDB Local jar instead (covers the database; auth/SQS/S3
 > stay simulated). Run the jar on port 8000, set `AWS_ENDPOINT_URL=http://localhost:8000` in
@@ -64,10 +64,12 @@ breaking v1 clients (see `src/app.mjs` and `src/routes/v1/`).
 | GET | `/api/v1/admin/applications/:id` | admin | application + audit trail |
 | POST | `/api/v1/admin/applications/:id/{schedule-interview,approve,require-donation,confirm-donation,reject,request-info,provision}` | admin | drive the state machine |
 | GET | `/api/v1/admin/members` | admin | provisioned students |
+| GET | `/api/v1/admin/members/:id/progress` | admin | inspect a student's gated progress |
+| POST | `/api/v1/admin/members/:id/stages/:stageKey/{locked,unlocked,auto}` | admin | override or restore milestone gating |
 | POST | `/api/v1/admin/members/:id/{extend,revoke}` | admin | manage access window |
 | GET | `/api/v1/app/profile` | student | current member (ACTIVE + in-window required) |
 | GET | `/api/v1/app/path` | student | the member's path with per-stage gating state |
-| POST | `/api/v1/app/stages/:stageKey/submit` | student | submit deliverable → complete (gated) |
+| POST | `/api/v1/app/stages/:stageKey/submit` | student | submit deliverable → complete one gated day/pillar |
 | GET | `/api/v1/app/progress` | student | raw progress records |
 | GET | `/api/v1/curriculum[/:pathKey]` | public | the seeded curriculum |
 
@@ -107,11 +109,11 @@ demo/
 npm test          # requires a local endpoint up (MiniStack or the jar) + AWS_ENDPOINT_URL set
 ```
 
-**43 integration tests** run against a **real local DynamoDB engine** (not a mock): table schema
+**46 integration tests** run against a **real local DynamoDB engine** (not a mock): table schema
 + GSIs + conditional-write idempotency; every state-machine transition, illegal transitions,
 idempotent provisioning, PII-free audit; the admin API incl. the 401/403 role guard and the full
 apply→provision flow; the seeded curriculum; and the student app incl. role/access guards and the
-stage-gating logic (submit unlocks next; locked stage → 403).
+stage-gating logic (submit unlocks next day/pillar; locked stage → 403).
 
 > **Test ownership note.** The database, state machine, and API suites run anywhere a DynamoDB
 > endpoint is reachable. The deeper MiniStack-only integrations (real Cognito, the SQS

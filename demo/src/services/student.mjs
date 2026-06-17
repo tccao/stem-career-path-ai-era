@@ -1,4 +1,4 @@
-// Student curriculum service. Assembles the member's path (A = 8 pillars, B = 4 weeks) from
+// Student curriculum service. Assembles the member's path (A = 8 pillars, B = 4 weeks / 28 days) from
 // the Curriculum table, joined with Progress, and computes server-side sequential gating: a
 // stage is `active` only when every prior stage is `complete` — otherwise `locked`. The gate
 // is enforced here on read AND on submit (Arch §9.2 — the client never decides eligibility).
@@ -8,6 +8,7 @@
 
 import * as content from '../repositories/content.mjs';
 import * as progressRepo from '../repositories/progress.mjs';
+import * as stageLocksRepo from '../repositories/stageLocks.mjs';
 import * as audit from '../repositories/audit.mjs';
 
 export class StageLockedError extends Error {
@@ -37,16 +38,128 @@ function orderStages(pathKey, items) {
         items: s.milestones,
       }));
   }
-  return stages
-    .sort((a, b) => a.week - b.week)
-    .map((s) => ({
-      stageKey: s.stageKey,
-      order: s.week,
+  return stages.sort((a, b) => a.week - b.week);
+}
+
+function requirementList(deliverable = '') {
+  const text = String(deliverable).trim();
+  if (!text) return [];
+  const labels = [
+    'Key insight',
+    'Pick ONE',
+    'Set up',
+    'Read',
+    'Exercise',
+    'Study',
+    'Learn',
+    'Calculate',
+    'Build',
+    'Apply',
+    'Draw',
+    'Use',
+    'Implement',
+    'Test',
+    'Add',
+    'Logging',
+    'Run',
+    'Document',
+    'Deploy',
+    'Post',
+    'Rewrite',
+    'Create',
+    'Practice',
+    'Identify',
+    'Send',
+    'Write',
+    'Record',
+    'Compare',
+    'Review',
+  ];
+  const labelPattern = labels.map((l) => l.replace(/\s/g, '\\s+')).join('|');
+  const colonPattern = new RegExp(`\\b(${labelPattern})\\b:`, 'g');
+  const startPattern = new RegExp(`^(${labelPattern})\\b:?`);
+  const matches = [...text.matchAll(colonPattern)].map((match) => ({ index: match.index }));
+  if (!matches.length) return [text];
+  if (matches[0].index !== 0 && startPattern.test(text)) matches.unshift({ index: 0 });
+
+  return matches
+    .map((match, i) => text.slice(match.index, matches[i + 1]?.index ?? text.length).trim())
+    .filter(Boolean);
+}
+
+function dayStageKey(weekKey, day) {
+  return `${weekKey}-day${day}`;
+}
+
+function withSequentialState(units, byStage, byLock) {
+  let priorAllComplete = true;
+  return units.map((s) => {
+    const p = byStage.get(s.stageKey);
+    const lock = byLock.get(s.stageKey);
+    const isComplete = p?.state === 'complete';
+    const state = isComplete
+      ? 'complete'
+      : lock?.state === 'locked'
+        ? 'locked'
+        : lock?.state === 'unlocked'
+          ? 'active'
+          : priorAllComplete
+            ? 'active'
+            : 'locked';
+    priorAllComplete = priorAllComplete && isComplete;
+    return {
+      ...s,
+      state,
+      lockOverride: lock?.state || null,
+      lockUpdatedAt: lock?.updatedAt || null,
+      deliverableUrl: p?.deliverableUrl || null,
+      completedAt: p?.verifiedAt || null,
+    };
+  });
+}
+
+function weekState(days) {
+  if (days.every((d) => d.state === 'complete')) return 'complete';
+  if (days.some((d) => ['complete', 'active'].includes(d.state))) return 'active';
+  return 'locked';
+}
+
+function fastTrackView(weeks, byStage, byLock) {
+  const orderedWeeks = weeks.sort((a, b) => a.week - b.week);
+  const dayUnits = orderedWeeks.flatMap((week) =>
+    (week.days || []).map((d) => ({
+      stageKey: dayStageKey(week.stageKey, d.day),
+      order: d.day,
+      kind: 'day',
+      weekKey: week.stageKey,
+      week: week.week,
+      weekTitle: `Week ${week.week} · ${week.focus}`,
+      title: `Day ${d.day} - ${d.topic}`,
+      topic: d.topic,
+      description: d.deliverable,
+      requirements: requirementList(d.deliverable),
+    })),
+  );
+  const days = withSequentialState(dayUnits, byStage, byLock);
+  const stages = orderedWeeks.map((week) => {
+    const weekDays = days.filter((d) => d.weekKey === week.stageKey);
+    const completed = weekDays.filter((d) => d.state === 'complete').length;
+    return {
+      stageKey: week.stageKey,
+      order: week.week,
       kind: 'week',
-      title: `Week ${s.week} · ${s.focus}`,
-      description: s.focus,
-      items: (s.days || []).map((d) => `Day ${d.day} — ${d.topic}: ${d.deliverable}`),
-    }));
+      title: `Week ${week.week} · ${week.focus}`,
+      description: week.focus,
+      state: weekState(weekDays),
+      completed,
+      total: weekDays.length,
+      activeDay: weekDays.find((d) => d.state === 'active') || null,
+      items: weekDays.map((d) => d.title),
+      days: weekDays,
+    };
+  });
+
+  return { stages, stageUnits: days, activeStage: days.find((d) => d.state === 'active') || null };
 }
 
 export async function getPathView(member) {
@@ -57,34 +170,50 @@ export async function getPathView(member) {
 
   const progress = await progressRepo.listProgress(member.memberId);
   const byStage = new Map(progress.map((p) => [p.stageKey, p]));
+  const locks = await stageLocksRepo.listLocks(member.memberId);
+  const byLock = new Map(locks.map((l) => [l.stageKey, l]));
 
-  let priorAllComplete = true;
-  const stages = ordered.map((s) => {
-    const p = byStage.get(s.stageKey);
-    const isComplete = p?.state === 'complete';
-    const state = isComplete ? 'complete' : priorAllComplete ? 'active' : 'locked';
-    priorAllComplete = priorAllComplete && isComplete;
-    return {
-      ...s,
-      state,
-      deliverableUrl: p?.deliverableUrl || null,
-      completedAt: p?.verifiedAt || null,
-    };
-  });
+  const pathView =
+    pathKey === 'B_fast_track'
+      ? fastTrackView(ordered, byStage, byLock)
+      : {
+          stages: withSequentialState(ordered, byStage, byLock),
+          stageUnits: null,
+          activeStage: null,
+        };
+  const stageUnits = pathView.stageUnits || pathView.stages;
+  const activeStage = pathView.activeStage || stageUnits.find((s) => s.state === 'active') || null;
 
-  const completed = stages.filter((s) => s.state === 'complete').length;
+  const completed = stageUnits.filter((s) => s.state === 'complete').length;
   return {
     pathKey,
     meta: { title: meta.title || pathKey, duration: meta.duration || '' },
-    stages,
+    stages: pathView.stages,
+    stageUnits,
+    activeStage,
     completed,
-    total: stages.length,
-    progressPct: stages.length ? Math.round((100 * completed) / stages.length) : 0,
+    total: stageUnits.length,
+    progressPct: stageUnits.length ? Math.round((100 * completed) / stageUnits.length) : 0,
   };
 }
 
+export function normalizeDeliverableUrl(deliverableUrl) {
+  const raw = String(deliverableUrl || '').trim();
+  if (!raw) return null;
+  const withProtocol = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`;
+  try {
+    const parsed = new URL(withProtocol);
+    const plausibleHost = parsed.hostname === 'localhost' || parsed.hostname.includes('.');
+    if (!['http:', 'https:'].includes(parsed.protocol) || !plausibleHost) return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
 export async function submitStage(member, stageKey, deliverableUrl) {
-  if (!deliverableUrl || !/^https?:\/\/\S+/.test(deliverableUrl)) {
+  const normalizedUrl = normalizeDeliverableUrl(deliverableUrl);
+  if (!normalizedUrl) {
     const e = new Error('A deliverable URL (http/https) is required.');
     e.httpStatus = 400;
     e.code = 'invalid_deliverable';
@@ -93,7 +222,7 @@ export async function submitStage(member, stageKey, deliverableUrl) {
 
   // Re-derive gating server-side; never trust the client about which stage is open.
   const view = await getPathView(member);
-  const stage = view.stages.find((s) => s.stageKey === stageKey);
+  const stage = view.stageUnits.find((s) => s.stageKey === stageKey);
   if (!stage) {
     const e = new Error('Unknown stage.');
     e.httpStatus = 404;
@@ -107,7 +236,7 @@ export async function submitStage(member, stageKey, deliverableUrl) {
     memberId: member.memberId,
     stageKey,
     state: 'complete', // demo: self-attested; prod = submitted -> admin verify -> complete
-    deliverableUrl,
+    deliverableUrl: normalizedUrl,
     verifiedBy: 'self',
     verifiedAt: now,
   });
@@ -120,5 +249,50 @@ export async function submitStage(member, stageKey, deliverableUrl) {
     after: { status: 'complete' },
   });
 
+  return getPathView(member);
+}
+
+export async function setStageOverride(member, stageKey, state, { actorId }) {
+  if (!['locked', 'unlocked', 'auto'].includes(state)) {
+    const e = new Error('Stage override must be locked, unlocked, or auto.');
+    e.httpStatus = 400;
+    e.code = 'invalid_stage_override';
+    throw e;
+  }
+
+  const view = await getPathView(member);
+  const stage = view.stageUnits.find((s) => s.stageKey === stageKey);
+  if (!stage) {
+    const e = new Error('Unknown stage.');
+    e.httpStatus = 404;
+    e.code = 'not_found';
+    throw e;
+  }
+  if (stage.state === 'complete' && state !== 'auto') {
+    const e = new Error('Completed stages cannot be locked or unlocked.');
+    e.httpStatus = 409;
+    e.code = 'stage_complete';
+    throw e;
+  }
+
+  if (state === 'auto') {
+    await stageLocksRepo.deleteLock(member.memberId, stageKey);
+  } else {
+    await stageLocksRepo.putLock({
+      memberId: member.memberId,
+      stageKey,
+      state,
+      updatedAt: new Date().toISOString(),
+      updatedBy: actorId,
+    });
+  }
+  await audit.append({
+    actorId,
+    actorRole: 'admin',
+    action: `STAGE_${state.toUpperCase()}`,
+    targetType: 'stage',
+    targetId: `${member.memberId}#${stageKey}`,
+    after: { status: state },
+  });
   return getPathView(member);
 }

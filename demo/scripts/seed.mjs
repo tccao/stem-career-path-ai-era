@@ -10,6 +10,7 @@ import { hashPassword } from '../src/services/auth.mjs';
 import * as demoAuth from '../src/repositories/demoAuth.mjs';
 import * as membersRepo from '../src/repositories/members.mjs';
 import * as appsRepo from '../src/repositories/applications.mjs';
+import * as progressRepo from '../src/repositories/progress.mjs';
 import * as lc from '../src/services/lifecycle.mjs';
 import { seedCurriculum } from './seed-curriculum.mjs';
 
@@ -64,12 +65,34 @@ async function provisionStudent(email, fullName, track, password) {
     role: 'student',
     passwordHash: hashPassword(password),
   });
+  return memberId;
+}
+
+async function putCompletedStage(memberId, stageKey, deliverableUrl) {
+  if (!memberId) return;
+  await progressRepo.putProgress({
+    memberId,
+    stageKey,
+    state: 'complete',
+    deliverableUrl,
+    verifiedBy: 'seed',
+    verifiedAt: '2026-06-01T15:00:00.000Z',
+  });
+}
+
+async function seedDemoProgress() {
+  const members = await membersRepo.listMembers();
+  const fast = members.find((m) => m.email === STUDENT_B.email);
+  const roadmap = members.find((m) => m.email === STUDENT_A.email);
+  await putCompletedStage(fast?.memberId, 'wk1-day1', 'https://github.com/codeforgood/demo-token-counter-notes');
+  await putCompletedStage(roadmap?.memberId, 'pillar1', 'https://github.com/codeforgood/demo-ai-skills-plan');
 }
 
 async function seedSampleApplications() {
   const already = await appsRepo.findByEmail('maya@student.edu');
   if (already.length) {
     console.log('  sample applications already present - skipping');
+    await seedDemoProgress();
     return;
   }
 
@@ -95,6 +118,7 @@ async function seedSampleApplications() {
   // Two provisioned students, one per learning path (for the student dashboard)
   await provisionStudent(STUDENT_B.email, 'Lee Nakamura', 'fast_track', STUDENT_B.password);
   await provisionStudent(STUDENT_A.email, 'Ava Okafor', 'full_roadmap', STUDENT_A.password);
+  await seedDemoProgress();
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

@@ -56,15 +56,21 @@ describe('Student app API', () => {
     assert.equal((await r.json()).reason, 'wrong_role');
   });
 
-  test('fast-track student sees 4 weeks; first active, rest locked', async () => {
+  test('fast-track student sees 4 weeks / 28 days; day 1 active, later days locked', async () => {
     const { token } = await makeStudent('fast_track');
     const r = await api('/api/v1/app/path', { token });
     assert.equal(r.status, 200);
     const view = await r.json();
     assert.equal(view.pathKey, 'B_fast_track');
     assert.equal(view.stages.length, 4);
+    assert.equal(view.stageUnits.length, 28);
     assert.equal(view.stages[0].state, 'active');
     assert.equal(view.stages[1].state, 'locked');
+    assert.equal(view.stages[0].days[0].stageKey, 'wk1-day1');
+    assert.equal(view.stages[0].days[0].title, 'Day 1 - Token Mechanics');
+    assert.equal(view.stages[0].days[0].state, 'active');
+    assert.equal(view.stages[0].days[1].state, 'locked');
+    assert.equal(view.activeStage.stageKey, 'wk1-day1');
     assert.equal(view.progressPct, 0);
   });
 
@@ -75,27 +81,41 @@ describe('Student app API', () => {
     assert.equal(view.stages.length, 8);
   });
 
-  test('submitting the active stage completes it and unlocks the next', async () => {
+  test('submitting the active fast-track day completes it and unlocks the next day', async () => {
     const { token } = await makeStudent('fast_track');
-    const r = await api('/api/v1/app/stages/wk1/submit', {
+    const r = await api('/api/v1/app/stages/wk1-day1/submit', {
       method: 'POST',
       token,
-      body: { deliverableUrl: 'https://github.com/me/week1' },
+      body: { deliverableUrl: 'https://github.com/me/day1' },
     });
     assert.equal(r.status, 200);
     const view = await r.json();
-    assert.equal(view.stages[0].state, 'complete');
-    assert.equal(view.stages[0].deliverableUrl, 'https://github.com/me/week1');
-    assert.equal(view.stages[1].state, 'active'); // next unlocked
-    assert.equal(view.progressPct, 25);
+    assert.equal(view.stages[0].state, 'active');
+    assert.equal(view.stages[0].days[0].state, 'complete');
+    assert.equal(view.stages[0].days[0].deliverableUrl, 'https://github.com/me/day1');
+    assert.equal(view.stages[0].days[1].state, 'active'); // next day unlocked
+    assert.equal(view.activeStage.stageKey, 'wk1-day2');
+    assert.equal(view.progressPct, 4);
+  });
+
+  test('submitting accepts a bare domain and stores a normalized URL', async () => {
+    const { token } = await makeStudent('fast_track');
+    const r = await api('/api/v1/app/stages/wk1-day1/submit', {
+      method: 'POST',
+      token,
+      body: { deliverableUrl: 'test.com/' },
+    });
+    assert.equal(r.status, 200);
+    const view = await r.json();
+    assert.equal(view.stages[0].days[0].deliverableUrl, 'https://test.com/');
   });
 
   test('submitting a locked stage -> 403 stage_locked (server-side gate)', async () => {
     const { token } = await makeStudent('fast_track');
-    const r = await api('/api/v1/app/stages/wk3/submit', {
+    const r = await api('/api/v1/app/stages/wk1-day3/submit', {
       method: 'POST',
       token,
-      body: { deliverableUrl: 'https://github.com/me/week3' },
+      body: { deliverableUrl: 'https://github.com/me/day3' },
     });
     assert.equal(r.status, 403);
     assert.equal((await r.json()).error, 'stage_locked');
@@ -103,7 +123,7 @@ describe('Student app API', () => {
 
   test('submit without a valid URL -> 400', async () => {
     const { token } = await makeStudent('fast_track');
-    const r = await api('/api/v1/app/stages/wk1/submit', { method: 'POST', token, body: { deliverableUrl: 'nope' } });
+    const r = await api('/api/v1/app/stages/wk1-day1/submit', { method: 'POST', token, body: { deliverableUrl: 'nope' } });
     assert.equal(r.status, 400);
   });
 

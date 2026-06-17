@@ -88,7 +88,30 @@
     table { width:100%; border-collapse:collapse; }
     th, td { text-align:left; padding:9px 8px; font-size:.83rem; border-bottom:1px solid var(--line); }
     th { color:var(--muted); font-weight:600; font-size:.72rem; text-transform:uppercase; }
+    .member-row { cursor:pointer; }
+    .member-row:hover { background:#faf7ff; }
+    .progress-mini { min-width:130px; }
+    .progress-mini .bar { height:7px; border-radius:999px; background:#ede5f5; overflow:hidden; margin-bottom:5px; }
+    .progress-mini .bar span { display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,var(--cfg-purple),var(--cfg-lavender)); }
+    .progress-mini .txt { font-size:.72rem; color:var(--muted); white-space:nowrap; }
+    .current-stage { max-width:210px; font-size:.78rem; color:var(--muted); }
+    .progress-detail { margin-top:16px; border-top:1px solid var(--line); padding-top:16px; }
+    .progress-detail h3 { margin:0 0 3px; color:var(--cfg-purple-dark); font-size:1rem; }
+    .progress-detail p { margin:0 0 12px; color:var(--muted); font-size:.84rem; }
+    .stage-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .stage-block { border:1px solid var(--line); border-radius:10px; padding:12px; background:#fcfaff; }
+    .stage-block h4 { margin:0 0 8px; font-size:.85rem; color:var(--cfg-purple-dark); }
+    .stage-chips { display:flex; flex-wrap:wrap; gap:6px; }
+    .stage-chip { display:inline-flex; align-items:center; gap:6px; font-size:.7rem; border-radius:999px; padding:4px 8px; border:1px solid var(--line); background:#fff; color:var(--muted); }
+    .stage-chip.complete { border-color:#b9e5c8; background:#e9f7ef; color:var(--ok); }
+    .stage-chip.active { border-color:var(--cfg-lavender); background:#f0e9fa; color:var(--cfg-purple-dark); }
+    .stage-chip.locked { color:#9a90a8; background:#f8f5fb; }
+    .stage-chip[data-override="locked"] { border-color:#e7b0ac; background:#fde9e7; color:var(--bad); }
+    .stage-chip[data-override="unlocked"] { border-color:#b9e5c8; background:#e9f7ef; color:var(--ok); }
+    .mini-action { border:0; border-left:1px solid currentColor; background:transparent; color:inherit; padding:0 0 0 6px; font:inherit; font-weight:700; cursor:pointer; }
+    .mini-action:hover { text-decoration:underline; }
     @media (max-width: 880px) { .cols { grid-template-columns: 1fr; } .kpis { grid-template-columns: repeat(3,1fr); } }
+    @media (max-width: 880px) { .stage-grid { grid-template-columns:1fr; } table { min-width:760px; } #members { overflow-x:auto; } }
   </style>
 </head>
 <body>
@@ -133,6 +156,7 @@
     <div class="panel members-wrap">
       <h2>Members</h2>
       <div id="members"></div>
+      <div id="memberProgress" class="progress-detail"><div class="empty">Select a member to review learning progress.</div></div>
     </div>
   </div>
 
@@ -142,6 +166,7 @@
     const API = '/api/v1';
     let token = sessionStorage.getItem('cfg_admin_token') || null;
     let currentId = null;
+    let currentMemberId = null;
 
     const $ = (id) => document.getElementById(id);
     const toast = (msg) => { const t = $('toast'); t.textContent = msg; t.classList.add('show');
@@ -260,20 +285,104 @@
       const { items } = await api('/admin/members');
       if (!items.length) { $('members').innerHTML = '<div class="empty">No provisioned members yet.</div>'; return; }
       $('members').innerHTML = `<table><thead><tr>
-        <th>Name</th><th>Email</th><th>Basis</th><th>Path</th><th>Status</th><th>Access ends</th><th></th></tr></thead>
-        <tbody>${items.map((m) => `<tr>
+        <th>Name</th><th>Email</th><th>Basis</th><th>Path</th><th>Progress</th><th>Current</th><th>Status</th><th>Access ends</th><th></th></tr></thead>
+        <tbody>${items.map((m) => `<tr class="member-row" data-member="${m.memberId}">
           <td>${esc(m.fullName || '—')}</td><td>${esc(m.email)}</td><td>${esc(m.accessBasis || '')}</td>
-          <td>${esc(m.path || '')}</td><td><span class="pill ${m.status}">${m.status}</span></td>
+          <td>${esc(pathLabel(m.path || ''))}</td><td>${progressMini(m.progress)}</td>
+          <td><div class="current-stage">${esc(m.progress?.currentStage?.title || 'Path complete')}</div></td>
+          <td><span class="pill ${m.status}">${m.status}</span></td>
           <td>${esc((m.accessEndsAt || '').slice(0, 10))}</td>
           <td>${m.status === 'ACTIVE'
             ? `<button class="btn sec" data-ext="${m.memberId}">Extend</button> <button class="btn bad" data-rev="${m.memberId}">Revoke</button>`
             : ''}</td></tr>`).join('')}</tbody></table>`;
-      $('members').querySelectorAll('button[data-ext]').forEach(b => b.onclick = () => memberAction(b.dataset.ext, 'extend', { days: 90 }));
-      $('members').querySelectorAll('button[data-rev]').forEach(b => b.onclick = () => memberAction(b.dataset.rev, 'revoke', { reasonCode: 'ADMIN_REVOKE' }));
+      $('members').querySelectorAll('.member-row').forEach(r => r.onclick = () => openMemberProgress(r.dataset.member));
+      $('members').querySelectorAll('button[data-ext]').forEach(b => b.onclick = (e) => { e.stopPropagation(); memberAction(b.dataset.ext, 'extend', { days: 90 }); });
+      $('members').querySelectorAll('button[data-rev]').forEach(b => b.onclick = (e) => { e.stopPropagation(); memberAction(b.dataset.rev, 'revoke', { reasonCode: 'ADMIN_REVOKE' }); });
     }
     async function memberAction(id, act, body) {
       try { await api(`/admin/members/${id}/${act}`, { method: 'POST', body }); toast('Member ' + act + 'd'); await refresh(); }
       catch (e) { toast('Error: ' + e.message); }
+    }
+
+    async function openMemberProgress(id) {
+      try {
+        currentMemberId = id;
+        const { member, path } = await api('/admin/members/' + id + '/progress');
+        $('memberProgress').innerHTML = renderMemberProgress(member, path);
+        $('memberProgress').querySelectorAll('button[data-stage-action]').forEach((b) =>
+          b.onclick = () => updateStageGate(id, b.dataset.stage, b.dataset.stageAction),
+        );
+      } catch (e) { toast('Error: ' + e.message); }
+    }
+
+    function renderMemberProgress(member, path) {
+      const unit = path.pathKey === 'B_fast_track' ? 'days' : 'stages';
+      const current = path.activeStage ? path.activeStage.title : 'Path complete';
+      return `<h3>${esc(member.fullName || member.email)}</h3>
+        <p>${esc(path.meta.title)} · ${path.completed}/${path.total} ${unit} complete · Current: ${esc(current)}</p>
+        ${progressMini(path)}
+        <div class="stage-grid">${path.pathKey === 'B_fast_track' ? renderWeekProgress(path.stages) : renderRoadmapProgress(path.stages)}</div>`;
+    }
+
+    function renderWeekProgress(weeks) {
+      return weeks.map((w) => `<div class="stage-block">
+        <h4>${esc(w.title)} · ${w.completed}/${w.total}</h4>
+        <div class="stage-chips">${w.days.map((d) =>
+          renderStageChip(d)).join('')}</div>
+      </div>`).join('');
+    }
+
+    function renderRoadmapProgress(stages) {
+      return stages.map((s) => `<div class="stage-block">
+        <h4>${esc(s.title)}</h4>
+        <div class="stage-chips">${renderStageChip(s)}</div>
+      </div>`).join('');
+    }
+
+    function renderStageChip(stage) {
+      const action = stage.state === 'complete' ? ''
+        : stage.lockOverride === 'locked' ? 'unlocked'
+        : stage.lockOverride === 'unlocked' ? 'locked'
+        : stage.state === 'locked' ? 'unlocked'
+        : 'locked';
+      const label = action === 'unlocked' ? 'Unlock' : action === 'locked' ? 'Lock' : '';
+      const auto = stage.lockOverride
+        ? `<button class="mini-action" type="button" data-stage="${esc(stage.stageKey)}" data-stage-action="auto">Auto</button>`
+        : '';
+      const control = action
+        ? `<button class="mini-action" type="button" data-stage="${esc(stage.stageKey)}" data-stage-action="${action}">${label}</button>${auto}`
+        : '';
+      const state = stage.lockOverride === 'unlocked' ? 'Unlocked' : stage.lockOverride === 'locked' ? 'Locked' : stateText(stage.state);
+      return `<span class="stage-chip ${stage.state}" data-override="${esc(stage.lockOverride || '')}" title="${esc(stage.description || '')}">
+        ${esc(stage.title || state)} · ${state}${control}
+      </span>`;
+    }
+
+    async function updateStageGate(memberId, stageKey, state) {
+      try {
+        const { member, path } = await api(`/admin/members/${memberId}/stages/${stageKey}/${state}`, { method: 'POST', body: {} });
+        toast(state === 'auto' ? 'Milestone restored to automatic gating' : `Milestone ${state}`);
+        $('memberProgress').innerHTML = renderMemberProgress(member, path);
+        $('memberProgress').querySelectorAll('button[data-stage-action]').forEach((b) =>
+          b.onclick = () => updateStageGate(memberId, b.dataset.stage, b.dataset.stageAction),
+        );
+        await loadMembers();
+      } catch (e) { toast('Error: ' + e.message); }
+    }
+
+    function progressMini(progress = {}) {
+      const pct = Math.max(0, Math.min(100, Number(progress.progressPct || 0)));
+      const completed = Number(progress.completed || 0);
+      const total = Number(progress.total || 0);
+      return `<div class="progress-mini"><div class="bar"><span style="width:${pct}%"></span></div><div class="txt">${pct}% · ${completed}/${total}</div></div>`;
+    }
+
+    function pathLabel(path) {
+      return path === 'B_fast_track' ? 'Fast Track' : path === 'A_full_roadmap' ? 'Full Roadmap' : path;
+    }
+
+    function stateText(state) {
+      return state === 'complete' ? 'Complete' : state === 'active' ? 'In progress' : 'Locked';
     }
 
     function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }

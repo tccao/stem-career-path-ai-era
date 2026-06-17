@@ -8,12 +8,36 @@ import * as lc from '../../services/lifecycle.mjs';
 import * as appsRepo from '../../repositories/applications.mjs';
 import * as membersRepo from '../../repositories/members.mjs';
 import * as audit from '../../repositories/audit.mjs';
+import * as student from '../../services/student.mjs';
 import { route } from './_helpers.mjs';
 
 const r = Router();
 r.use(authenticate, requireRole('admin'));
 
 const actor = (req) => req.user.sub || req.user.email;
+const publicMember = (m) => ({
+  memberId: m.memberId,
+  fullName: m.fullName,
+  email: m.email,
+  role: m.role,
+  accessBasis: m.accessBasis,
+  path: m.path,
+  status: m.status,
+  accessEndsAt: m.accessEndsAt,
+});
+
+const progressSummary = (pathView) => ({
+  completed: pathView.completed,
+  total: pathView.total,
+  progressPct: pathView.progressPct,
+  currentStage: pathView.activeStage
+    ? {
+        stageKey: pathView.activeStage.stageKey,
+        title: pathView.activeStage.title,
+        weekTitle: pathView.activeStage.weekTitle,
+      }
+    : null,
+});
 
 // ---- dashboard overview (counts by lifecycle status) ----
 r.get(
@@ -105,7 +129,34 @@ r.get(
   '/members',
   route(async (req, res) => {
     const items = (await membersRepo.listMembers()).filter((m) => m.role === 'student');
-    res.json({ count: items.length, items });
+    const withProgress = await Promise.all(
+      items.map(async (m) => ({
+        ...m,
+        progress: progressSummary(await student.getPathView(m)),
+      })),
+    );
+    res.json({ count: withProgress.length, items: withProgress });
+  }),
+);
+
+r.get(
+  '/members/:id/progress',
+  route(async (req, res) => {
+    const member = await membersRepo.getMember(req.params.id);
+    if (!member || member.role !== 'student') return res.status(404).json({ error: 'not_found' });
+    res.json({ member: publicMember(member), path: await student.getPathView(member) });
+  }),
+);
+
+r.post(
+  '/members/:id/stages/:stageKey/:state',
+  route(async (req, res) => {
+    const member = await membersRepo.getMember(req.params.id);
+    if (!member || member.role !== 'student') return res.status(404).json({ error: 'not_found' });
+    const path = await student.setStageOverride(member, req.params.stageKey, req.params.state, {
+      actorId: actor(req),
+    });
+    res.json({ member: publicMember(member), path });
   }),
 );
 
