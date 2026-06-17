@@ -3,85 +3,247 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Code For Good · My Learning Path (Demo)</title>
+  <title>Code For Good · My Learning Path</title>
+  <!--
+    Student app (/app). Design system ported from mock-dashboard.html (ADR-003), wired to the
+    live API: GET /api/v1/app/profile + /api/v1/app/path. The sidebar tree, stats, "continue"
+    card, and pathway grid render from real data; submitting a deliverable completes the active
+    stage and unlocks the next (server-enforced gating — the UI only reflects state).
+  -->
   <style>
+    /* ===== DESIGN TOKENS (CFG) ===== */
     :root {
-      --cfg-purple:#6a0dad; --cfg-purple-dark:#4b0082; --cfg-lavender:#b19cd9;
-      --bg:#f7f4fb; --card:#fff; --line:#e7e0f0; --ink:#2d2d2d; --muted:#6b6577;
-      --ok:#1b8a4b; --warn:#b26a00;
+      --cfg-purple-dark:#4b0082; --cfg-purple:#6a0dad; --cfg-lavender:#b19cd9;
+      --cfg-purple-light:#f3e9f9; --cfg-section-bg:#f9f3fc; --cfg-text:#2a1f3d;
+      --cfg-muted:#5b5170; --cfg-border:#eadcf5; --cfg-coral:#e85a6b; --cfg-mint:#2ea27a;
+      --cfg-gold:#d99b22; --shadow-sm:0 1px 2px rgba(75,0,130,.06); --shadow-md:0 4px 14px rgba(75,0,130,.08);
+      --shadow-lg:0 12px 32px rgba(75,0,130,.12); --r-sm:8px; --r-md:12px; --r-lg:18px; --sidebar:280px;
     }
-    * { box-sizing:border-box; }
-    body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:var(--bg); color:var(--ink); }
-    .topbar { display:flex; align-items:center; justify-content:space-between; padding:14px 22px; color:#fff;
-      background:linear-gradient(90deg,var(--cfg-purple-dark),var(--cfg-purple)); }
-    .topbar .brand { font-weight:700; } .topbar .brand small { display:block; font-weight:400; opacity:.85; font-size:.72rem; }
-    .topbar .who { font-size:.85rem; opacity:.95; margin-right:10px; }
-    .topbar button { background:rgba(255,255,255,.15); color:#fff; border:1px solid rgba(255,255,255,.35); border-radius:6px; padding:6px 12px; cursor:pointer; }
-    .wrap { max-width:900px; margin:22px auto; padding:0 18px; }
+    *,*::before,*::after { box-sizing:border-box; }
+    body { margin:0; font-family:Arial, sans-serif; color:var(--cfg-text); background:var(--cfg-section-bg); -webkit-font-smoothing:antialiased; }
+    a { color:inherit; text-decoration:none; }
+    h1,h2,h3,h4 { margin:0; font-weight:600; line-height:1.2; }
     .hidden { display:none !important; }
-    .login-card { max-width:380px; margin:8vh auto; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:28px; box-shadow:0 6px 24px rgba(75,0,130,.08); }
-    .login-card h1 { font-size:1.25rem; margin:0 0 4px; color:var(--cfg-purple-dark); }
-    .login-card p { margin:0 0 18px; color:var(--muted); font-size:.9rem; }
-    label { display:block; font-size:.8rem; color:var(--muted); margin:12px 0 5px; }
-    input { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:.95rem; }
-    .btn { background:var(--cfg-purple); color:#fff; border:none; border-radius:8px; padding:10px 16px; font-size:.9rem; cursor:pointer; }
-    .btn:hover { background:var(--cfg-purple-dark); } .btn:disabled { opacity:.5; cursor:not-allowed; }
-    .hint { font-size:.78rem; color:var(--muted); margin-top:10px; }
 
-    .hero { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px 22px; margin-bottom:18px; }
-    .hero h1 { margin:0 0 2px; font-size:1.3rem; color:var(--cfg-purple-dark); }
-    .hero .meta { color:var(--muted); font-size:.85rem; }
-    .bar { height:10px; background:#efe9f8; border-radius:999px; margin-top:14px; overflow:hidden; }
-    .bar > i { display:block; height:100%; background:linear-gradient(90deg,var(--cfg-lavender),var(--cfg-purple)); width:0; transition:width .4s; }
-    .barlabel { font-size:.76rem; color:var(--muted); margin-top:6px; }
+    /* ===== TOP BAR ===== */
+    .topbar { position:sticky; top:0; z-index:50; height:64px; background:#fff; border-bottom:1px solid var(--cfg-border); display:flex; align-items:center; justify-content:space-between; padding:0 22px; }
+    .topbar .brand { display:flex; align-items:center; gap:10px; font-weight:700; color:var(--cfg-purple-dark); }
+    .topbar .brand img { width:32px; height:32px; object-fit:contain; }
+    .topbar .brand small { display:block; font-size:.66rem; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--cfg-muted); }
+    .topbar-right { display:flex; align-items:center; gap:16px; }
+    .user { display:flex; align-items:center; gap:10px; }
+    .avatar { width:38px; height:38px; border-radius:50%; background:linear-gradient(135deg,var(--cfg-purple),var(--cfg-lavender)); color:#fff; display:grid; place-items:center; font-weight:700; }
+    .user .name { font-weight:600; font-size:.92rem; }
+    .user .name small { display:block; color:var(--cfg-muted); font-weight:400; font-size:.78rem; }
+    .linkbtn { background:none; border:1px solid var(--cfg-border); color:var(--cfg-purple-dark); border-radius:999px; padding:7px 14px; font:inherit; font-size:.82rem; cursor:pointer; }
+    .linkbtn:hover { background:var(--cfg-section-bg); }
+    .menu-btn { display:none; width:40px; height:40px; border-radius:10px; border:1px solid var(--cfg-border); background:#fff; cursor:pointer; place-items:center; color:var(--cfg-purple-dark); }
 
-    .stage { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:12px; }
-    .stage.locked { opacity:.6; }
-    .stage.active { border-color:var(--cfg-lavender); box-shadow:0 3px 14px rgba(106,13,173,.08); }
-    .stage .head { display:flex; align-items:center; justify-content:space-between; gap:10px; }
-    .stage .head h3 { margin:0; font-size:1rem; color:var(--ink); }
-    .stage .desc { color:var(--muted); font-size:.86rem; margin:8px 0 0; }
-    .badge { font-size:.7rem; padding:4px 10px; border-radius:999px; white-space:nowrap; }
-    .badge.active { background:#efe6fb; color:var(--cfg-purple-dark); }
-    .badge.locked { background:#eee; color:var(--muted); }
-    .badge.complete { background:#e3f5ea; color:var(--ok); }
-    ul.items { margin:10px 0 0; padding-left:18px; } ul.items li { font-size:.83rem; color:#4a4458; margin:3px 0; }
-    .submit { margin-top:14px; display:flex; gap:8px; }
-    .submit input { flex:1; }
-    .done { margin-top:12px; font-size:.82rem; color:var(--ok); }
-    .done a { color:var(--cfg-purple); }
-    .toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--cfg-purple-dark); color:#fff; padding:10px 18px; border-radius:8px; font-size:.85rem; opacity:0; transition:opacity .2s; }
+    /* ===== LAYOUT ===== */
+    .layout { margin-left:var(--sidebar); min-height:calc(100vh - 64px); }
+    .sidebar { background:#fff; border-right:1px solid var(--cfg-border); padding:18px 14px; display:flex; flex-direction:column; gap:3px; position:fixed; left:0; top:64px; width:var(--sidebar); height:calc(100vh - 64px); overflow-y:auto; scrollbar-width:thin; z-index:40; }
+    .nav-section { font-size:.68rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--cfg-muted); padding:14px 12px 6px; }
+    .nav-item { display:flex; align-items:center; gap:12px; padding:11px 12px; border-radius:var(--r-md); font-size:.94rem; font-weight:600; color:var(--cfg-text); cursor:pointer; }
+    .nav-item svg { width:19px; height:19px; color:var(--cfg-muted); flex-shrink:0; }
+    .nav-item:hover { background:var(--cfg-section-bg); }
+    .nav-item.active { background:var(--cfg-purple-light); color:var(--cfg-purple-dark); }
+    .nav-item.active svg { color:var(--cfg-purple); }
+    .sidebar-foot { margin-top:auto; padding:12px 4px 4px; border-top:1px solid var(--cfg-border); }
+
+    .sb-progress { margin:2px 6px 12px; padding:13px 14px; border:1px solid var(--cfg-border); border-radius:var(--r-md); background:var(--cfg-section-bg); }
+    .sb-progress .top { display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:9px; }
+    .sb-progress .lab { font-size:.72rem; font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:var(--cfg-muted); }
+    .sb-progress .pct { font-size:.86rem; font-weight:700; color:var(--cfg-purple-dark); }
+    .sb-progress .track { height:7px; border-radius:999px; background:#e7daf3; overflow:hidden; }
+    .sb-progress .track>span { display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,var(--cfg-purple),var(--cfg-lavender)); transition:width .6s ease; }
+    .sb-progress .sub { margin-top:8px; font-size:.74rem; color:var(--cfg-muted); }
+
+    /* ===== ACCORDION ===== */
+    .acc { display:block; }
+    .acc-head { width:100%; background:none; border:0; font-family:inherit; text-align:left; cursor:pointer; }
+    .acc-head .chev { margin-left:auto; width:16px; height:16px; color:var(--cfg-muted); transition:transform .2s ease; flex-shrink:0; }
+    .acc[data-open="true"]>.acc-head .chev { transform:rotate(180deg); }
+    .acc[data-open="true"]>.acc-head.nav-item { background:var(--cfg-purple-light); color:var(--cfg-purple-dark); }
+    .acc-body { display:grid; grid-template-rows:0fr; overflow:hidden; visibility:hidden; transition:grid-template-rows .26s ease, visibility 0s linear .26s; }
+    .acc[data-open="true"]>.acc-body { grid-template-rows:1fr; visibility:visible; transition:grid-template-rows .26s ease; }
+    .acc-body>.acc-inner { overflow:hidden; min-height:0; }
+    .acc-inner { padding:3px 0 6px 10px; }
+    .acc.lvl2>.acc-head { display:flex; align-items:center; padding:8px 10px; border-radius:8px; font-size:.85rem; font-weight:600; color:var(--cfg-text); }
+    .acc.lvl2>.acc-head:hover { background:var(--cfg-section-bg); }
+    .acc.lvl2[data-open="true"]>.acc-head { color:var(--cfg-purple-dark); }
+    .acc.lvl2>.acc-head .frac { margin-left:auto; font-size:.68rem; font-weight:700; color:var(--cfg-muted); background:#fff; border:1px solid var(--cfg-border); border-radius:999px; padding:1px 8px; }
+    .acc.lvl2>.acc-head .chev { margin-left:4px; width:14px; height:14px; }
+    .acc.lvl2.done>.acc-head .frac { color:var(--cfg-mint); border-color:rgba(46,162,122,.35); background:rgba(46,162,122,.1); }
+    .acc.lvl2.locked>.acc-head { color:#9b8fb3; }
+    .milestones { list-style:none; margin:0; padding:6px 0 8px 6px; display:flex; flex-direction:column; gap:8px; }
+    .milestones li { display:flex; align-items:flex-start; gap:10px; font-size:.82rem; line-height:1.35; color:var(--cfg-muted); }
+    .milestones .dot { width:12px; height:12px; border-radius:50%; border:2px solid var(--cfg-lavender); margin-top:2px; flex-shrink:0; }
+    .milestones li.done { color:var(--cfg-text); }
+    .milestones li.done .dot { background:var(--cfg-purple); border-color:var(--cfg-purple); }
+
+    /* ===== MAIN ===== */
+    .main { padding:28px 32px 48px; max-width:1100px; margin:0 auto; }
+    .page-head { display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:16px; margin-bottom:24px; }
+    .page-head h1 { font-size:1.7rem; margin-bottom:6px; }
+    .page-head p { margin:0; color:var(--cfg-muted); font-size:.96rem; }
+    .access-chip { display:inline-flex; align-items:center; gap:14px; background:#fff; border:1px solid var(--cfg-border); border-radius:var(--r-lg); padding:12px 18px; box-shadow:var(--shadow-sm); }
+    .access-chip .status { display:inline-flex; align-items:center; gap:7px; font-weight:700; font-size:.86rem; color:var(--cfg-mint); }
+    .access-chip .status.expired { color:var(--cfg-coral); }
+    .access-chip .status .led { width:9px; height:9px; border-radius:50%; background:currentColor; box-shadow:0 0 0 3px rgba(46,162,122,.18); }
+    .access-chip .sep { width:1px; height:26px; background:var(--cfg-border); }
+    .access-chip .meta { font-size:.8rem; color:var(--cfg-muted); line-height:1.3; }
+    .access-chip .meta b { color:var(--cfg-text); }
+
+    .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+    .stat { background:#fff; border:1px solid var(--cfg-border); border-radius:var(--r-lg); padding:18px 20px; box-shadow:var(--shadow-sm); }
+    .stat .ico { width:38px; height:38px; border-radius:10px; background:var(--cfg-purple-light); color:var(--cfg-purple-dark); display:grid; place-items:center; margin-bottom:12px; }
+    .stat .ico svg { width:19px; height:19px; }
+    .stat .num { font-size:1.7rem; font-weight:700; color:var(--cfg-purple-dark); line-height:1; }
+    .stat .lbl { font-size:.84rem; color:var(--cfg-muted); margin-top:5px; }
+
+    .card { background:#fff; border:1px solid var(--cfg-border); border-radius:var(--r-lg); box-shadow:var(--shadow-sm); padding:24px; margin-bottom:24px; }
+    .eyebrow { display:inline-block; font-size:.72rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--cfg-purple); background:var(--cfg-purple-light); padding:5px 11px; border-radius:999px; }
+    .continue { background:linear-gradient(135deg,var(--cfg-purple-dark) 0%, var(--cfg-purple) 65%, #7e2bb8 100%); color:#fff; border:0; }
+    .continue .eyebrow { background:rgba(255,255,255,.18); color:#fff; }
+    .continue h3 { color:#fff; font-size:1.35rem; margin:14px 0 6px; }
+    .continue .where { color:rgba(255,255,255,.82); font-size:.92rem; margin-bottom:18px; }
+    .progress { height:9px; border-radius:999px; background:rgba(255,255,255,.22); overflow:hidden; margin-bottom:8px; }
+    .progress>span { display:block; height:100%; border-radius:999px; background:#fff; }
+    .continue .pct { display:flex; justify-content:space-between; font-size:.82rem; color:rgba(255,255,255,.85); margin-bottom:18px; }
+    .submit { display:flex; gap:10px; flex-wrap:wrap; }
+    .submit input { flex:1; min-width:240px; padding:11px 14px; border:0; border-radius:999px; font:inherit; font-size:.9rem; }
+    .btn { display:inline-flex; align-items:center; gap:8px; font-weight:600; font-size:.92rem; padding:11px 20px; border-radius:999px; border:0; cursor:pointer; font-family:inherit; }
+    .btn svg { width:16px; height:16px; }
+    .btn-white { background:#fff; color:var(--cfg-purple-dark); }
+    .btn-white:hover { transform:translateY(-1px); }
+    .done-note { margin-top:8px; font-size:.82rem; color:rgba(255,255,255,.9); }
+    .done-note a { color:#fff; text-decoration:underline; }
+
+    .section-title { display:flex; align-items:center; justify-content:space-between; margin:4px 0 14px; }
+    .section-title h2 { font-size:1.15rem; }
+    .pillars { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px; }
+    .pcard { border:1px solid var(--cfg-border); border-radius:var(--r-md); padding:16px; background:#fff; position:relative; }
+    .pcard .pnum { width:30px; height:30px; border-radius:9px; display:grid; place-items:center; font-weight:700; font-size:.86rem; margin-bottom:10px; }
+    .pcard.done .pnum { background:rgba(46,162,122,.14); color:var(--cfg-mint); }
+    .pcard.current .pnum { background:var(--cfg-purple); color:#fff; }
+    .pcard.locked .pnum { background:var(--cfg-section-bg); color:#b6a9cb; }
+    .pcard h4 { font-size:.9rem; line-height:1.25; margin-bottom:8px; }
+    .pcard .state { font-size:.74rem; font-weight:700; letter-spacing:.03em; text-transform:uppercase; }
+    .pcard.done .state { color:var(--cfg-mint); }
+    .pcard.current .state { color:var(--cfg-purple); }
+    .pcard.locked { background:#fcfafe; }
+    .pcard.locked h4 { color:#8c7fa6; }
+    .pcard.locked .state { color:#b6a9cb; }
+    .pcard .lockico { position:absolute; top:16px; right:14px; color:#c3b6d6; }
+    .pcard .lockico svg { width:15px; height:15px; }
+
+    .ladder { display:flex; gap:10px; flex-wrap:wrap; }
+    .rung { flex:1; min-width:110px; text-align:center; border:1px solid var(--cfg-border); border-radius:var(--r-md); padding:16px 10px; background:#fcfafe; }
+    .rung .medal { width:40px; height:40px; border-radius:50%; margin:0 auto 8px; display:grid; place-items:center; background:var(--cfg-section-bg); color:#b6a9cb; }
+    .rung .medal svg { width:20px; height:20px; }
+    .rung.earned { background:#fff; border-color:var(--cfg-lavender); }
+    .rung.earned .medal { background:linear-gradient(135deg,var(--cfg-gold),#f0d27a); color:#fff; }
+    .rung.current { border-color:var(--cfg-purple); box-shadow:var(--shadow-sm); }
+    .rung.current .medal { background:var(--cfg-purple); color:#fff; }
+    .rung .rname { font-size:.84rem; font-weight:700; }
+    .rung .rmoney { font-size:.74rem; color:var(--cfg-muted); margin-top:2px; }
+
+    /* ===== LOGIN ===== */
+    .login-wrap { min-height:100vh; display:grid; place-items:center; padding:20px; }
+    .login-card { width:100%; max-width:390px; background:#fff; border:1px solid var(--cfg-border); border-radius:var(--r-lg); padding:30px; box-shadow:var(--shadow-lg); }
+    .login-card .brand { display:flex; align-items:center; gap:10px; font-weight:700; color:var(--cfg-purple-dark); margin-bottom:18px; }
+    .login-card .brand img { width:34px; height:34px; }
+    .login-card h1 { font-size:1.25rem; margin-bottom:4px; }
+    .login-card p { margin:0 0 16px; color:var(--cfg-muted); font-size:.9rem; }
+    label { display:block; font-size:.78rem; color:var(--cfg-muted); margin:12px 0 5px; }
+    .login-card input { width:100%; padding:11px 13px; border:1px solid var(--cfg-border); border-radius:var(--r-sm); font:inherit; font-size:.95rem; }
+    .btn-purple { background:var(--cfg-purple); color:#fff; width:100%; justify-content:center; margin-top:18px; }
+    .btn-purple:hover { background:var(--cfg-purple-dark); }
+    .hint { font-size:.76rem; color:var(--cfg-muted); margin-top:12px; }
+    .toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--cfg-purple-dark); color:#fff; padding:10px 18px; border-radius:8px; font-size:.85rem; opacity:0; transition:opacity .2s; z-index:99; }
     .toast.show { opacity:1; }
+
+    @media (max-width:980px){ .stats{grid-template-columns:repeat(2,1fr);} .pillars{grid-template-columns:repeat(2,1fr);} }
+    @media (max-width:760px){ .layout{margin-left:0;} .sidebar{transform:translateX(-100%); transition:transform .2s ease; box-shadow:var(--shadow-lg);} .sidebar.open{transform:none;} .menu-btn{display:grid;} .user .name{display:none;} .main{padding:22px 18px 40px;} }
   </style>
 </head>
 <body>
-  <div class="topbar">
-    <div class="brand">Code For Good <small>My learning path — V2 demo</small></div>
-    <div id="session" class="hidden"><span class="who" id="who"></span><button id="logoutBtn">Log out</button></div>
-  </div>
-
-  <div id="login" class="wrap">
+  <!-- ===== LOGIN ===== -->
+  <div id="login" class="login-wrap">
     <div class="login-card">
-      <h1>Student sign in</h1>
+      <div class="brand"><img src="assets/icons/codeforgood-logo.png" alt="Code For Good" onerror="this.style.display='none'"><span>Code For Good</span></div>
+      <h1>Sign in to your path</h1>
       <p>Demo authentication (stands in for Cognito).</p>
       <label for="email">Email</label>
       <input id="email" type="email" value="student@codeforgood.us" />
       <label for="password">Password</label>
       <input id="password" type="password" value="student1234" />
-      <div style="margin-top:16px;"><button class="btn" id="loginBtn" style="width:100%;">Sign in</button></div>
+      <button class="btn btn-purple" id="loginBtn">Sign in</button>
       <div class="hint" id="loginMsg"></div>
       <div class="hint">Fast track: <b>student@codeforgood.us</b> · Full roadmap: <b>roadmap@codeforgood.us</b> · pw <b>student1234</b></div>
     </div>
   </div>
 
-  <div id="app" class="wrap hidden">
-    <div class="hero">
-      <h1 id="heroTitle">My path</h1>
-      <div class="meta" id="heroMeta"></div>
-      <div class="bar"><i id="bar"></i></div>
-      <div class="barlabel" id="barLabel"></div>
-    </div>
-    <div id="stages"></div>
+  <!-- ===== APP ===== -->
+  <div id="app" class="hidden">
+    <header class="topbar">
+      <div style="display:flex; align-items:center; gap:14px;">
+        <button class="menu-btn" id="menuBtn" aria-label="Toggle menu">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
+        </button>
+        <a class="brand" href="STEM%20Career%20Path%20Landing%20Page.html">
+          <img src="assets/icons/codeforgood-logo.png" alt="Code For Good" onerror="this.style.display='none'">
+          <span>Code For Good<small>STEM Career Path</small></span>
+        </a>
+      </div>
+      <div class="topbar-right">
+        <div class="user"><div class="avatar" id="avatar">S</div>
+          <div class="name" id="userName">Student<small>Student</small></div></div>
+        <button class="linkbtn" id="logoutBtn">Log out</button>
+      </div>
+    </header>
+
+    <aside class="sidebar" id="sidebar">
+      <div class="sb-progress">
+        <div class="top"><span class="lab">Path progress</span><span class="pct" id="sbPct">0%</span></div>
+        <div class="track"><span id="sbBar" style="width:0%"></span></div>
+        <div class="sub" id="sbSub">0 of 0 stages complete</div>
+      </div>
+      <div class="nav-section">Learning</div>
+      <div class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg> Dashboard</div>
+      <div class="acc" data-open="true" id="pathAcc">
+        <button class="acc-head nav-item" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          <span id="pathNavLabel">My path</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg>
+        </button>
+        <div class="acc-body"><div class="acc-inner" id="pathTree"></div></div>
+      </div>
+      <div class="sidebar-foot">
+        <div class="nav-item" id="logoutNav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg> Log out</div>
+      </div>
+    </aside>
+
+    <main class="layout"><div class="main">
+      <div class="page-head">
+        <div><h1 id="welcome">Welcome back 👋</h1><p id="pathSub"></p></div>
+        <div class="access-chip">
+          <span class="status" id="accStatus"><span class="led"></span> ACTIVE</span>
+          <span class="sep"></span>
+          <span class="meta" id="accMeta"></span>
+        </div>
+      </div>
+
+      <div class="stats" id="stats"></div>
+
+      <div id="continueWrap"></div>
+
+      <div class="section-title"><h2 id="pathwayTitle">Your pathway</h2></div>
+      <div class="pillars" id="pathway"></div>
+
+      <div class="section-title"><h2>Earn-while-you-learn ladder</h2></div>
+      <div class="ladder" id="ladder"></div>
+    </div></main>
   </div>
 
   <div class="toast" id="toast"></div>
@@ -90,76 +252,152 @@
     const API = '/api/v1';
     let token = sessionStorage.getItem('cfg_student_token') || null;
     const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
     const toast = (m) => { const t=$('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2400); };
-    const esc = (s) => String(s).replace(/[&<>"]/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-    async function api(path,{method='GET',body}={}) {
-      const res = await fetch(API+path,{ method, headers:{'content-type':'application/json',...(token?{authorization:`Bearer ${token}`}:{})}, body: body?JSON.stringify(body):undefined });
+    async function api(path, { method='GET', body } = {}) {
+      const res = await fetch(API + path, { method, headers:{ 'content-type':'application/json', ...(token?{authorization:`Bearer ${token}`}:{}) }, body: body?JSON.stringify(body):undefined });
       const json = await res.json().catch(()=>({}));
-      if (res.status===401) { logout(); throw new Error('unauthorized'); }
-      if (!res.ok) throw Object.assign(new Error(json.message||json.error||res.statusText),{code:json.error,status:res.status});
+      if (res.status === 401) { logout(); throw new Error('unauthorized'); }
+      if (!res.ok) throw Object.assign(new Error(json.message||json.error||res.statusText), { code:json.error, status:res.status });
       return json;
     }
 
+    // ---- auth ----
     async function login() {
-      $('loginMsg').textContent='';
+      $('loginMsg').textContent = '';
       try {
-        const r = await api('/auth/login',{method:'POST',body:{email:$('email').value,password:$('password').value}});
-        if (r.user.role !== 'student') { $('loginMsg').textContent='This login is not a student account.'; return; }
-        token=r.token; sessionStorage.setItem('cfg_student_token',token);
-        showApp(r.user);
-      } catch(e){ $('loginMsg').textContent='Sign-in failed: '+e.message; }
+        const r = await api('/auth/login', { method:'POST', body:{ email:$('email').value, password:$('password').value } });
+        if (r.user.role !== 'student') { $('loginMsg').textContent = 'That account is not a student login.'; return; }
+        token = r.token; sessionStorage.setItem('cfg_student_token', token);
+        await boot();
+      } catch (e) { $('loginMsg').textContent = 'Sign-in failed: ' + e.message; }
     }
-    function logout(){ token=null; sessionStorage.removeItem('cfg_student_token'); $('app').classList.add('hidden'); $('session').classList.add('hidden'); $('login').classList.remove('hidden'); }
+    function logout() { token=null; sessionStorage.removeItem('cfg_student_token'); $('app').classList.add('hidden'); $('login').classList.remove('hidden'); }
 
-    async function showApp(user){
-      $('login').classList.add('hidden'); $('app').classList.remove('hidden'); $('session').classList.remove('hidden');
+    async function boot() {
+      $('login').classList.add('hidden'); $('app').classList.remove('hidden');
       try {
-        const me = await api('/app/profile');
-        $('who').textContent = (me.member.fullName||me.member.email)+' · '+(me.member.accessBasis||'student');
+        const { member } = await api('/app/profile');
+        const first = (member.fullName || member.email).split(' ')[0];
+        $('avatar').textContent = first.charAt(0).toUpperCase();
+        $('userName').innerHTML = `${esc(first)}<small>Student · ${esc(member.accessBasis||'')}</small>`;
+        $('welcome').textContent = `Welcome back, ${first} 👋`;
+        const ends = member.accessEndsAt ? new Date(member.accessEndsAt).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}) : '—';
+        $('accMeta').innerHTML = `Access until <b>${esc(ends)}</b><br>${esc(member.accessBasis||'')} access`;
         await loadPath();
-      } catch(e){
-        if (e.code==='access_expired') { $('stages').innerHTML=`<div class="stage"><b>Access expired.</b><div class="desc">Your learning window has ended or access was revoked. Contact Code For Good to renew.</div></div>`; $('heroTitle').textContent='Access expired'; }
-        else toast('Error: '+e.message);
+      } catch (e) {
+        if (e.code === 'access_expired') {
+          $('accStatus').className = 'status expired'; $('accStatus').innerHTML = '<span class="led"></span> EXPIRED';
+          $('stats').innerHTML=''; $('pathway').innerHTML='';
+          $('continueWrap').innerHTML = `<div class="card"><h3>Your access has ended</h3><p style="color:var(--cfg-muted);margin-top:8px">Your learning window has expired or access was revoked. Contact Code For Good to renew.</p></div>`;
+        } else toast('Error: ' + e.message);
       }
     }
 
-    async function loadPath(){
+    // ---- render ----
+    function chev(){ return '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg>'; }
+
+    async function loadPath() {
       const v = await api('/app/path');
-      $('heroTitle').textContent = v.meta.title;
-      $('heroMeta').textContent = `${v.meta.duration} · ${v.completed}/${v.total} stages complete`;
-      $('bar').style.width = v.progressPct+'%';
-      $('barLabel').textContent = v.progressPct+'% complete';
-      $('stages').innerHTML = v.stages.map(renderStage).join('');
-      v.stages.forEach((s)=>{ const f=$('form-'+s.stageKey); if(f) f.onsubmit=(e)=>{ e.preventDefault(); submit(s.stageKey, $('url-'+s.stageKey).value); }; });
+      // sidebar progress
+      $('sbPct').textContent = v.progressPct + '%';
+      $('sbBar').style.width = v.progressPct + '%';
+      $('sbSub').textContent = `${v.completed} of ${v.total} stages complete`;
+      $('pathSub').textContent = `${v.meta.title} · ${v.meta.duration}`;
+      $('pathNavLabel').textContent = v.pathKey === 'B_fast_track' ? 'Fast Track' : '8-Pillar Roadmap';
+      $('pathwayTitle').textContent = v.pathKey === 'B_fast_track' ? 'Your 4-week fast track' : 'Your 8-pillar pathway';
+
+      // sidebar accordion tree
+      $('pathTree').innerHTML = v.stages.map((s) => {
+        const items = (s.items || []).map((m) => `<li class="${s.state==='complete'?'done':''}"><span class="dot"></span><span>${esc(m)}</span></li>`).join('');
+        const frac = s.state === 'complete' ? '✓' : s.state === 'active' ? '●' : '🔒';
+        return `<div class="acc lvl2 ${s.state==='complete'?'done':s.state}" data-open="false">
+          <button class="acc-head" type="button"><span>${esc(s.title)}</span><span class="frac">${frac}</span>${chev()}</button>
+          <div class="acc-body"><div class="acc-inner"><ul class="milestones">${items}</ul></div></div></div>`;
+      }).join('');
+      wireAccordions();
+
+      // stats
+      const deliverables = v.stages.filter((s) => s.deliverableUrl).length;
+      const trackLabel = v.pathKey === 'B_fast_track' ? 'Fast Track' : 'Full Roadmap';
+      $('stats').innerHTML = [
+        [icoChart(), v.progressPct + '%', 'Path readiness'],
+        [icoCheck(), `${v.completed}/${v.total}`, 'Stages complete'],
+        [icoDoc(), String(deliverables), 'Deliverables submitted'],
+        [icoTarget(), trackLabel, 'Your track'],
+      ].map(([ico, num, lbl]) => `<div class="stat"><div class="ico">${ico}</div><div class="num">${esc(num)}</div><div class="lbl">${esc(lbl)}</div></div>`).join('');
+
+      // continue card (current active stage)
+      const active = v.stages.find((s) => s.state === 'active');
+      if (active) {
+        $('continueWrap').innerHTML = `<div class="card continue">
+          <span class="eyebrow">Current ${active.kind === 'week' ? 'week' : 'pillar'}</span>
+          <h3>${esc(active.title)}</h3>
+          <div class="where">${esc(active.description || 'Complete this stage to unlock the next.')}</div>
+          <div class="progress"><span style="width:${v.progressPct}%"></span></div>
+          <div class="pct"><span>${v.completed}/${v.total} stages</span><span>${v.progressPct}% complete</span></div>
+          <form class="submit" id="submitForm">
+            <input id="deliverableUrl" type="url" placeholder="Paste your deliverable URL (GitHub, Loom, live demo…)" required />
+            <button class="btn btn-white" type="submit">Submit &amp; complete ${icoArrow()}</button>
+          </form>
+          <div class="done-note">Submitting records your proof of work and unlocks the next stage.</div>
+        </div>`;
+        $('submitForm').onsubmit = (e) => { e.preventDefault(); submit(active.stageKey, $('deliverableUrl').value); };
+      } else {
+        $('continueWrap').innerHTML = `<div class="card continue"><span class="eyebrow">Path complete</span><h3>🎉 You've completed every stage</h3><div class="where">All ${v.total} stages done. Nice work — keep building and shipping.</div></div>`;
+      }
+
+      // pathway grid
+      $('pathway').innerHTML = v.stages.map((s) => {
+        const cls = s.state === 'complete' ? 'done' : s.state;
+        const label = s.state === 'complete' ? '✓ Completed' : s.state === 'active' ? 'In progress' : 'Locked';
+        const lock = s.state === 'locked' ? `<span class="lockico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>` : '';
+        return `<div class="pcard ${cls}">${lock}<div class="pnum">${s.order}</div><h4>${esc(shortTitle(s.title))}</h4><span class="state">${label}</span></div>`;
+      }).join('');
+
+      renderLadder(v.progressPct);
     }
 
-    function renderStage(s){
-      const badge = s.state==='complete' ? '<span class="badge complete">✓ Complete</span>'
-        : s.state==='active' ? '<span class="badge active">● In progress</span>'
-        : '<span class="badge locked">🔒 Locked</span>';
-      const items = (s.items||[]).map(i=>`<li>${esc(i)}</li>`).join('');
-      let foot = '';
-      if (s.state==='active') foot = `<form class="submit" id="form-${s.stageKey}">
-          <input id="url-${s.stageKey}" type="url" placeholder="Paste your deliverable URL (GitHub, Loom, live demo…)" required />
-          <button class="btn" type="submit">Submit & complete</button></form>`;
-      else if (s.state==='complete' && s.deliverableUrl) foot = `<div class="done">✓ Submitted: <a href="${esc(s.deliverableUrl)}" target="_blank" rel="noopener">${esc(s.deliverableUrl)}</a></div>`;
-      return `<div class="stage ${s.state}">
-        <div class="head"><h3>${esc(s.title)}</h3>${badge}</div>
-        ${s.description?`<p class="desc">${esc(s.description)}</p>`:''}
-        ${items?`<ul class="items">${items}</ul>`:''}
-        ${foot}</div>`;
+    function shortTitle(t){ return String(t).replace(/^Pillar \d+ · /, '').replace(/^Week \d+ · /, m=>m); }
+
+    function renderLadder(pct) {
+      const rungs = [['Starter',''],['Builder',''],['Earner','$50–100 / gig'],['Professional','$200–500 / gig'],['Graduate','$500–2k / mo']];
+      const reached = Math.round((pct/100) * rungs.length);
+      $('ladder').innerHTML = rungs.map((r,i) => {
+        const cls = i < reached ? 'earned' : i === reached ? 'current' : '';
+        const medal = i < reached ? icoTrophy() : i === reached ? icoUp() : icoLock();
+        return `<div class="rung ${cls}"><div class="medal">${medal}</div><div class="rname">${esc(r[0])}</div><div class="rmoney">${esc(r[1]||(i<reached?'Earned':''))}</div></div>`;
+      }).join('');
     }
 
-    async function submit(stageKey, url){
-      try { await api(`/app/stages/${stageKey}/submit`,{method:'POST',body:{deliverableUrl:url}}); toast('Stage complete — next unlocked'); await loadPath(); }
-      catch(e){ toast('Error: '+e.message); }
+    async function submit(stageKey, url) {
+      try { await api(`/app/stages/${stageKey}/submit`, { method:'POST', body:{ deliverableUrl:url } }); toast('Stage complete — next unlocked'); await loadPath(); }
+      catch (e) { toast('Error: ' + e.message); }
     }
 
-    $('loginBtn').onclick=login;
-    $('password').addEventListener('keydown',(e)=>{ if(e.key==='Enter') login(); });
-    $('logoutBtn').onclick=logout;
-    if (token) api('/auth/me').then(r=>showApp(r.user)).catch(()=>logout());
+    function wireAccordions() {
+      document.querySelectorAll('#pathTree .acc.lvl2 > .acc-head').forEach((h) => {
+        h.onclick = () => { const a = h.parentElement; a.dataset.open = a.dataset.open === 'true' ? 'false' : 'true'; };
+      });
+    }
+
+    // tiny inline icons
+    function icoChart(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l3-3 4 4 5-6"/></svg>';}
+    function icoCheck(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>';}
+    function icoDoc(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>';}
+    function icoTarget(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg>';}
+    function icoArrow(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';}
+    function icoTrophy(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M8.2 13.9L7 22l5-3 5 3-1.2-8.1"/></svg>';}
+    function icoUp(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 1v22M5 8l7-7 7 7"/></svg>';}
+    function icoLock(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';}
+
+    $('loginBtn').onclick = login;
+    $('password').addEventListener('keydown', (e) => { if (e.key === 'Enter') login(); });
+    $('logoutBtn').onclick = logout;
+    $('logoutNav').onclick = logout;
+    $('menuBtn').onclick = () => $('sidebar').classList.toggle('open');
+    if (token) api('/auth/me').then((r) => r.user.role === 'student' ? boot() : logout()).catch(() => logout());
   </script>
 </body>
 </html>
