@@ -170,38 +170,40 @@
 
     .section-title { display:flex; align-items:center; justify-content:space-between; margin:4px 0 14px; }
     .section-title h2 { font-size:1.15rem; }
-    .pillars { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px; }
-    .pillars.fasttrack { grid-template-columns:repeat(2,minmax(360px,1fr)); align-items:start; }
-    .pcard { border:1px solid var(--cfg-border); border-radius:var(--r-md); padding:16px; background:#fff; position:relative; }
-    .pcard .pnum { width:30px; height:30px; border-radius:9px; display:grid; place-items:center; font-weight:700; font-size:.86rem; margin-bottom:10px; }
-    .pcard.done .pnum { background:rgba(46,162,122,.14); color:var(--cfg-mint); }
-    .pcard.current .pnum { background:var(--cfg-purple); color:#fff; }
-    .pcard.locked .pnum { background:var(--cfg-section-bg); color:#b6a9cb; }
-    .pcard h4 { font-size:.9rem; line-height:1.25; margin-bottom:8px; }
-    .pcard .state { font-size:.74rem; font-weight:700; letter-spacing:.03em; text-transform:uppercase; }
-    .pcard.done .state { color:var(--cfg-mint); }
-    .pcard.current .state { color:var(--cfg-purple); }
-    .pcard.locked { background:#fcfafe; }
-    .pcard.locked h4 { color:#6f6188; }
-    .pcard.locked .state { color:#7c6b98; }
-    .pcard .lockico { position:absolute; top:16px; right:14px; color:#c3b6d6; }
-    .pcard .lockico svg { width:15px; height:15px; }
-    .week-card { padding:0; overflow:hidden; }
-    .week-card .week-top { padding:16px; border-bottom:1px solid var(--cfg-border); }
-    .week-card .week-meta { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
-    .week-card .week-meta .pnum { margin-bottom:0; }
-    .week-card .week-count { font-size:.74rem; font-weight:700; color:var(--cfg-muted); }
-    .week-card.current .week-count { color:var(--cfg-purple); }
-    .day-list { display:grid; grid-template-columns:1fr; gap:8px; padding:12px; }
-    .day-card { width:100%; min-height:44px; border:1px solid var(--cfg-border); border-radius:8px; background:#fff; color:var(--cfg-text); display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 11px; font:inherit; text-align:left; cursor:pointer; }
+    /* ===== JOURNEY ===== */
+    .journey { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+    .journey.fasttrack { grid-template-columns:repeat(2,minmax(300px,1fr)); align-items:start; }
+    .node { position:relative; background:#fff; border:1.5px solid var(--line); border-radius:var(--r); padding:18px 16px; box-shadow:var(--sh); transition:transform .18s,box-shadow .18s; cursor:pointer; }
+    .node:hover { transform:translateY(-4px); box-shadow:var(--sh-lg); }
+    .node:focus-visible { outline:3px solid var(--teal); outline-offset:2px; }
+    .node .badge { width:42px; height:42px; border-radius:12px; display:grid; place-items:center; font-weight:900; font-size:1rem; margin-bottom:12px; color:#fff; background:var(--grad-accent); }
+    .node.done .badge { background:var(--grad-mint); }
+    .node.current .badge { background:var(--grad-teal); animation:glow 2.4s infinite; }
+    @keyframes glow { 0%,100%{box-shadow:0 0 0 6px rgba(14,165,183,.18)} 50%{box-shadow:0 0 0 11px rgba(14,165,183,.05)} }
+    .node.locked .badge { background:#efe7fb; color:#b9a9d6; }
+    .node h4 { font-size:.94rem; margin-bottom:7px; }
+    .node .state { font-size:.68rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+    .node.done .state { color:#0e9e7a; }
+    .node.current .state { color:var(--teal-dark); }
+    .node.locked .state { color:#7a6c95; }
+    .node.locked h4 { color:#7a6c95; }
+    .node.current { border-color:var(--teal); }
+    .node .lk { position:absolute; top:16px; right:15px; color:#cdbfe6; }
+    .node .lk svg { width:15px; height:15px; }
+    /* fast-track day drill-down (kept inside week node) */
+    .day-list { display:grid; grid-template-columns:1fr; gap:8px; margin-top:14px; }
+    .day-card { width:100%; min-height:44px; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 11px; font:inherit; text-align:left; cursor:pointer; }
     .day-card span:first-child { min-width:0; font-size:.82rem; font-weight:700; line-height:1.3; }
-    .day-card .state { flex-shrink:0; font-size:.65rem; }
-    .day-card:hover { border-color:var(--cfg-lavender); background:#fcfafe; }
-    .day-card.complete { border-color:rgba(46,162,122,.28); background:rgba(46,162,122,.07); }
-    .day-card.active { border-color:var(--cfg-purple); background:#fff; }
-    .day-card.selected { border-color:var(--cfg-purple-dark); background:#efe1f8; box-shadow:0 0 0 2px rgba(106,13,173,.14); }
-    .day-card.complete.selected { border-color:var(--cfg-purple-dark); background:rgba(46,162,122,.07); box-shadow:0 0 0 2px rgba(106,13,173,.14); }
-    .day-card.locked { color:#9b8fb3; background:#fcfafe; cursor:not-allowed; }
+    .day-card .state { flex-shrink:0; font-size:.62rem; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+    .day-card:hover { border-color:var(--teal); background:var(--teal-soft); }
+    .day-card.complete { border-color:rgba(34,211,168,.4); background:rgba(34,211,168,.08); }
+    .day-card.complete .state { color:#0e9e7a; }
+    .day-card.active { border-color:var(--teal); }
+    .day-card.active .state { color:var(--teal-dark); }
+    .day-card.selected { border-color:var(--teal); background:var(--teal); color:#fff; box-shadow:0 6px 16px rgba(12,125,140,.28); }
+    .day-card.selected .state { color:rgba(255,255,255,.85); }
+    .day-card.locked { color:#7a6c95; background:#fcfafe; cursor:not-allowed; }
+    .day-card.locked .state { color:#7a6c95; }
 
     .stage-detail { scroll-margin-top:88px; }
     .stage-head { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; flex-wrap:wrap; margin-bottom:18px; }
@@ -465,7 +467,7 @@
       $('pathSub').textContent = `${v.meta.title} · ${v.meta.duration}`;
       $('pathNavLabel').textContent = v.pathKey === 'B_fast_track' ? 'Fast Track' : '8-Pillar Roadmap';
       $('pathwayTitle').textContent = v.pathKey === 'B_fast_track' ? 'Your 4-week fast track' : 'Your 8-pillar pathway';
-      $('pathway').className = v.pathKey === 'B_fast_track' ? 'pillars fasttrack' : 'pillars';
+      $('pathway').className = v.pathKey === 'B_fast_track' ? 'journey fasttrack' : 'journey';
 
       // sidebar accordion tree
       $('pathTree').innerHTML = v.stages.map((s) => {
@@ -532,29 +534,26 @@
     function renderWeeks(weeks) {
       return weeks.map((w) => {
         const cls = cardClass(w.state);
-        const label = w.state === 'complete' ? 'Completed' : w.state === 'active' ? 'In progress' : 'Locked';
-        return `<div class="pcard week-card ${cls}">
-          <div class="week-top">
-            <div class="week-meta"><div class="pnum">${w.order}</div><span class="week-count">${w.completed}/${w.total} days</span></div>
-            <h4>${esc(shortTitle(w.title))}</h4><span class="state">${label}</span>
-          </div>
-          <div class="day-list">${w.days.map((d) => {
-            const state = d.state === 'complete' ? 'Done' : d.state === 'active' ? 'Open' : 'Locked';
-            const selected = d.stageKey === stageKeyFromHash() ? 'selected' : '';
-            return `<button class="day-card ${d.state} ${selected}" type="button" data-stage="${esc(d.stageKey)}" data-state="${esc(d.state)}" ${d.state === 'locked' ? 'aria-disabled="true"' : ''}>
-              <span>${esc(d.title)}</span><span class="state">${state}</span>
-            </button>`;
-          }).join('')}</div>
-        </div>`;
+        const label = w.state === 'complete' ? 'Complete' : w.state === 'active' ? 'In progress' : 'Locked';
+        const badge = w.state === 'complete' ? '✓' : String(w.order);
+        const days = w.days.map((d) => {
+          const sel = d.stageKey === stageKeyFromHash() ? 'selected' : '';
+          const st = d.state === 'complete' ? 'Done' : d.state === 'active' ? 'Open' : 'Locked';
+          return `<button class="day-card ${d.state} ${sel}" type="button" data-stage="${esc(d.stageKey)}" data-state="${esc(d.state)}" ${d.state === 'locked' ? 'aria-disabled="true"' : ''}>
+            <span>${esc(d.title)}</span><span class="state">${st}</span>
+          </button>`;
+        }).join('');
+        return `<div class="node ${cls}"><div class="badge">${badge}</div><div class="state">${label} · ${w.completed}/${w.total} days</div><h4>${esc(shortTitle(w.title))}</h4><div class="day-list">${days}</div></div>`;
       }).join('');
     }
 
     function renderStageCards(stages) {
       return stages.map((s) => {
-        const cls = cardClass(s.state);
-        const label = s.state === 'complete' ? '✓ Completed' : s.state === 'active' ? 'In progress' : 'Locked';
-        const lock = s.state === 'locked' ? `<span class="lockico">${icoLock()}</span>` : '';
-        return `<div class="pcard ${cls}" data-stage="${esc(s.stageKey)}" data-state="${esc(s.state)}">${lock}<div class="pnum">${s.order}</div><h4>${esc(shortTitle(s.title))}</h4><span class="state">${label}</span></div>`;
+        const cls = cardClass(s.state); // done|current|locked
+        const label = s.state === 'complete' ? 'Complete' : s.state === 'active' ? 'In progress' : 'Locked';
+        const lock = s.state === 'locked' ? `<i class="lk">${icoLock()}</i>` : '';
+        const badge = s.state === 'complete' ? '✓' : String(s.order);
+        return `<div class="node ${cls}" data-stage="${esc(s.stageKey)}" data-state="${esc(s.state)}" role="button" tabindex="0">${lock}<div class="badge">${badge}</div><div class="state">${label}</div><h4>${esc(shortTitle(s.title))}</h4></div>`;
       }).join('');
     }
 
