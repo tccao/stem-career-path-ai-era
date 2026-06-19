@@ -134,26 +134,34 @@
     .stat .num { font-size:1.7rem; font-weight:700; color:var(--cfg-purple-dark); line-height:1; }
     .stat .lbl { font-size:.84rem; color:var(--cfg-muted); margin-top:5px; }
 
-    .card { background:#fff; border:1px solid var(--cfg-border); border-radius:var(--r-lg); box-shadow:var(--shadow-sm); padding:24px; margin-bottom:24px; }
-    .eyebrow { display:inline-block; font-size:.72rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--cfg-purple); background:var(--cfg-purple-light); padding:5px 11px; border-radius:999px; }
-    .continue { background:linear-gradient(135deg,var(--cfg-purple-dark) 0%, var(--cfg-purple) 65%, #7e2bb8 100%); color:#fff; border:0; }
-    .continue .eyebrow { background:rgba(255,255,255,.18); color:#fff; }
-    .continue h3 { color:#fff; font-size:1.35rem; margin:14px 0 6px; }
-    .continue .where { color:rgba(255,255,255,.82); font-size:.92rem; margin-bottom:18px; }
-    .progress { height:9px; border-radius:999px; background:rgba(255,255,255,.22); overflow:hidden; margin-bottom:8px; }
-    .progress>span { display:block; height:100%; border-radius:999px; background:#fff; }
-    .continue .pct { display:flex; justify-content:space-between; font-size:.82rem; color:rgba(255,255,255,.85); margin-bottom:18px; }
-    .submit { display:flex; gap:10px; flex-wrap:wrap; }
-    .submit input { flex:1; min-width:240px; padding:11px 14px; border:0; border-radius:999px; font:inherit; font-size:.9rem; }
-    .btn { display:inline-flex; align-items:center; gap:8px; font-weight:600; font-size:.92rem; padding:11px 20px; border-radius:999px; border:0; cursor:pointer; font-family:inherit; }
+    .card { background:#fff; border:1px solid var(--line); border-radius:var(--r-lg); box-shadow:var(--sh); padding:24px; margin-bottom:24px; }
+
+    /* ===== HERO ===== */
+    .hero { position:relative; overflow:hidden; border-radius:var(--r-lg); color:#fff; background:var(--grad-hero); box-shadow:var(--sh-lg); padding:32px 34px 28px; margin-bottom:24px; }
+    .hero::before { content:''; position:absolute; width:380px; height:380px; border-radius:50%; right:-120px; top:-150px; background:radial-gradient(circle,rgba(255,255,255,.2),transparent 70%); }
+    .hero::after { content:''; position:absolute; width:240px; height:240px; border-radius:50%; right:110px; bottom:-140px; background:radial-gradient(circle,rgba(255,194,75,.26),transparent 70%); }
+    .hero-grid { position:relative; display:grid; grid-template-columns:1.5fr .9fr; gap:28px; align-items:center; }
+    .eyebrow { display:inline-flex; align-items:center; gap:8px; font-size:.68rem; font-weight:800; letter-spacing:.13em; text-transform:uppercase; color:#fff; background:rgba(255,255,255,.16); padding:7px 13px; border-radius:var(--r-pill); border:1px solid rgba(255,255,255,.25); }
+    .eyebrow .pulse { width:8px; height:8px; border-radius:50%; background:var(--mint); animation:pulse 2s infinite; }
+    @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(34,211,168,.6)} 70%{box-shadow:0 0 0 10px rgba(34,211,168,0)} 100%{box-shadow:0 0 0 0 rgba(34,211,168,0)} }
+    .hero h1 { font-size:2.3rem; margin:15px 0 8px; }
+    .hero .where { color:rgba(255,255,255,.82); font-size:.98rem; font-weight:600; margin-bottom:20px; }
+    .hbar { height:11px; border-radius:var(--r-pill); background:rgba(255,255,255,.2); overflow:hidden; margin-bottom:9px; }
+    .hbar>span { display:block; height:100%; border-radius:var(--r-pill); background:linear-gradient(90deg,#fff,#ffe9a8); box-shadow:0 0 16px rgba(255,233,168,.8); transition:width 1.4s cubic-bezier(.2,.8,.2,1); }
+    .hpct { display:flex; justify-content:space-between; font-size:.8rem; color:rgba(255,255,255,.85); font-weight:700; margin-bottom:22px; }
+    .cta { display:flex; gap:11px; flex-wrap:wrap; }
+    .btn { display:inline-flex; align-items:center; gap:9px; font:inherit; font-weight:800; font-size:.94rem; padding:13px 24px; border-radius:var(--r-pill); border:0; cursor:pointer; transition:transform .15s,box-shadow .15s; }
     .btn svg { width:16px; height:16px; }
-    .btn-white { background:#fff; color:var(--cfg-purple-dark); }
-    .btn-white:hover { transform:translateY(-1px); }
-    .btn-outline { background:transparent; color:#fff; border:1px solid rgba(255,255,255,.6); }
-    .btn-outline:hover { background:rgba(255,255,255,.12); }
     .btn:disabled { opacity:.5; cursor:not-allowed; }
-    .done-note { margin-top:8px; font-size:.82rem; color:rgba(255,255,255,.9); }
-    .done-note a { color:#fff; text-decoration:underline; }
+    .btn-glow { background:#fff; color:var(--p-dark); box-shadow:0 10px 26px rgba(0,0,0,.18); }
+    .btn-glow:hover { transform:translateY(-2px) scale(1.02); }
+    .btn-ghost { background:rgba(255,255,255,.12); color:#fff; border:1px solid rgba(255,255,255,.45); }
+    .btn-ghost:hover { background:rgba(255,255,255,.2); }
+    .hero-side { background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.22); border-radius:var(--r); padding:18px; }
+    .hero-side h4 { font-size:.7rem; letter-spacing:.12em; text-transform:uppercase; color:rgba(255,255,255,.75); margin-bottom:13px; }
+    .chk { display:flex; gap:10px; align-items:flex-start; margin-bottom:11px; font-size:.88rem; font-weight:600; color:rgba(255,255,255,.95); }
+    .chk i { width:21px; height:21px; border-radius:7px; background:rgba(255,255,255,.2); display:grid; place-items:center; flex-shrink:0; font-style:normal; font-weight:900; font-size:.78rem; }
+    .chk.on i { background:var(--grad-mint); color:#053b2e; }
 
     .section-title { display:flex; align-items:center; justify-content:space-between; margin:4px 0 14px; }
     .section-title h2 { font-size:1.15rem; }
@@ -478,26 +486,35 @@
         [icoTarget(), trackLabel, 'Your track'],
       ].map(([ico, num, lbl]) => `<div class="stat"><div class="ico">${ico}</div><div class="num">${esc(num)}</div><div class="lbl">${esc(lbl)}</div></div>`).join('');
 
-      // continue card (current active stage)
+      // hero (current active stage) — Electric Twilight
       const active = v.activeStage;
       if (active) {
         const week = active.weekKey ? v.stages.find((s) => s.stageKey === active.weekKey) : null;
         const title = week ? week.title : active.title;
         const detail = week ? `${active.title}: ${active.description}` : (active.description || 'Complete this stage to unlock the next.');
-        $('continueWrap').innerHTML = `<div class="card continue">
-          <span class="eyebrow">Current ${week ? 'week' : 'stage'}</span>
-          <h3>${esc(title)}</h3>
-          <div class="where">${esc(detail)}</div>
-          <div class="progress"><span style="width:${v.progressPct}%"></span></div>
-          <div class="pct"><span>${v.completed}/${v.total} ${unitLabel}</span><span>${v.progressPct}% complete</span></div>
-          <div class="submit">
-            <button class="btn btn-white" id="openActiveStage" type="button">Open ${esc(active.title)} ${icoArrow()}</button>
+        const reqs = requirementsFor(active).slice(0, 3);
+        const checklist = reqs.map((r) => `<div class="chk"><i></i><span>${esc(r)}</span></div>`).join('');
+        $('continueWrap').innerHTML = `<section class="hero">
+          <div class="hero-grid">
+            <div>
+              <span class="eyebrow"><span class="pulse"></span> Your next move</span>
+              <h1>${esc(title)}</h1>
+              <p class="where">${esc(detail)}</p>
+              <div class="hbar"><span style="width:${v.progressPct}%"></span></div>
+              <div class="hpct"><span>${v.progressPct}% complete</span><span>${v.completed}/${v.total} ${unitLabel}</span></div>
+              <div class="cta">
+                <button class="btn btn-glow" id="openActiveStage" type="button">Open ${esc(active.title)} ${icoArrow()}</button>
+              </div>
+            </div>
+            <div class="hero-side">
+              <h4>What to complete</h4>
+              ${checklist || '<div class="chk"><i></i><span>Open the stage to see requirements</span></div>'}
+            </div>
           </div>
-          <div class="done-note">Finish the checklist on the stage page to unlock what comes next.</div>
-        </div>`;
+        </section>`;
         $('openActiveStage').onclick = () => openStage(active.stageKey);
       } else {
-        $('continueWrap').innerHTML = `<div class="card continue"><span class="eyebrow">Path complete</span><h3>🎉 You've completed every stage</h3><div class="where">All ${v.total} stages done. Nice work — keep building and shipping.</div></div>`;
+        $('continueWrap').innerHTML = `<section class="hero"><div class="hero-grid"><div><span class="eyebrow">Path complete</span><h1>You've completed every stage</h1><p class="where">All ${v.total} stages done — keep building and shipping.</p></div></div></section>`;
       }
 
       // pathway grid
