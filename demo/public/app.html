@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Code For Good · My Learning Path</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&amp;family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
   <!--
     Student app (/app). Design system ported from mock-dashboard.html (ADR-003), wired to the
     live API: GET /api/v1/app/profile + /api/v1/app/path. The sidebar tree, stats, "continue"
@@ -11,18 +14,31 @@
     stage and unlocks the next (server-enforced gating — the UI only reflects state).
   -->
   <style>
-    /* ===== DESIGN TOKENS (CFG) ===== */
+    /* ===== DESIGN TOKENS (vibrant redesign) ===== */
     :root {
+      --p-dark:#3a006b; --p:#6a0dad; --p-bright:#8b1ad1; --magenta:#c026d3; --violet:#7c3aed;
+      --lav:#b19cd9; --lav-soft:#efe7fb; --mint:#22d3a8; --coral:#ff5d73; --gold:#ffc24b;
+      --teal:#0ea5b7; --teal-dark:#0c7d8c; --teal-soft:#e2f7fa;
+      --ink:#1c1130; --muted:#6b5b86; --line:#eee9f4; --canvas:#ffffff; --white:#fff;
+      --grad-hero:linear-gradient(135deg,#1e1b4b 0%,#4c1d95 45%,#6d28d9 75%,#c026d3 100%);
+      --grad-accent:linear-gradient(135deg,#6d28d9,#c026d3);
+      --grad-mint:linear-gradient(135deg,#10b981,#22d3a8);
+      --grad-teal:linear-gradient(135deg,#0c7d8c,#0ea5b7);
+      --font-head:'Space Grotesk','Inter',system-ui,sans-serif;
+      --font-body:'Inter',system-ui,'Segoe UI',Arial,sans-serif;
+      --r:16px; --r-lg:24px; --r-pill:999px; --sidebar:268px;
+      --sh:0 10px 30px rgba(76,5,124,.08); --sh-lg:0 24px 60px rgba(76,5,124,.20);
+      /* legacy CFG aliases — retained so unmigrated rules stay valid; phased out per section */
       --cfg-purple-dark:#4b0082; --cfg-purple:#6a0dad; --cfg-lavender:#b19cd9;
-      --cfg-purple-light:#f3e9f9; --cfg-section-bg:#f9f3fc; --cfg-text:#2a1f3d;
-      --cfg-muted:#5b5170; --cfg-border:#eadcf5; --cfg-coral:#e85a6b; --cfg-mint:#2ea27a;
+      --cfg-purple-light:#f3e9f9; --cfg-section-bg:#faf7fd; --cfg-text:#1c1130;
+      --cfg-muted:#6b5b86; --cfg-border:#eee9f4; --cfg-coral:#ff5d73; --cfg-mint:#2ea27a;
       --cfg-gold:#d99b22; --shadow-sm:0 1px 2px rgba(75,0,130,.06); --shadow-md:0 4px 14px rgba(75,0,130,.08);
-      --shadow-lg:0 12px 32px rgba(75,0,130,.12); --r-sm:8px; --r-md:12px; --r-lg:18px; --sidebar:280px;
+      --shadow-lg:0 12px 32px rgba(75,0,130,.12); --r-sm:8px; --r-md:12px;
     }
     *,*::before,*::after { box-sizing:border-box; }
-    body { margin:0; font-family:Arial, sans-serif; color:var(--cfg-text); background:var(--cfg-section-bg); -webkit-font-smoothing:antialiased; }
+    body { margin:0; font-family:var(--font-body); color:var(--ink); background:var(--canvas); -webkit-font-smoothing:antialiased; }
     a { color:inherit; text-decoration:none; }
-    h1,h2,h3,h4 { margin:0; font-weight:600; line-height:1.2; }
+    h1,h2,h3,h4 { margin:0; font-family:var(--font-head); line-height:1.1; font-weight:700; letter-spacing:-.02em; }
     .hidden { display:none !important; }
 
     /* ===== TOP BAR ===== */
@@ -252,6 +268,11 @@
     @media (max-width:420px){
       .topbar .brand{font-size:.86rem;}
       .linkbtn{padding:7px 10px;}
+    }
+
+    /* ===== REDUCED MOTION ===== */
+    @media (prefers-reduced-motion: reduce){
+      *{animation:none !important; transition:none !important;}
     }
   </style>
 </head>
