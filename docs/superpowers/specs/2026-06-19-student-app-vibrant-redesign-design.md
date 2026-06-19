@@ -17,10 +17,12 @@ Replace the student app's current mock-derived look with a **bold, energetic, vi
 
 ```csv
 decision,choice
-aesthetic,Bold & energetic — vibrant gradient (purple→violet→magenta), glow accents, motion
+aesthetic,Bold & energetic — hero gradient "Electric Twilight" (midnight indigo→violet→magenta; premium/deep), glow accents, motion
 layout,Full re-layout of the main column; restyled sidebar KEPT for stage navigation
-canvas,Near-white (#fcfbfe) so gradient elements pop
+canvas,Pure white (#ffffff) so gradient elements pop
 top bar,Glassy — translucent white with backdrop blur (unchanged structure, restyled)
+active sidebar entry,Solid teal pill (NOT purple-on-light-purple) — distinct from purple brand nav
+type,Space Grotesk (headings + big numbers) + Inter (body) via Google Fonts
 surfaces in scope,topbar · sidebar · hero · momentum chips · journey · ladder · login card
 ```
 
@@ -30,20 +32,27 @@ Add a vibrant layer on top of the existing CFG palette. Keep the canonical CFG v
 
 ```csv
 token,value,use
---p-dark,#3a006b,deep brand anchor / hero start
---p,#6a0dad,core CFG purple (unchanged)
---magenta,#c026d3,energy accent / current-state
---violet,#7c3aed,mid gradient stop
+--canvas,#ffffff,page background (pure white)
+--p,#6a0dad,core CFG purple (unchanged) — brand/nav-active
+--magenta,#c026d3,energy accent / journey current-state
+--violet,#6d28d9,mid gradient stop
 --mint,#22d3a8,done/success
---coral,#ff5d73,track/alert accent
+--coral,#ff5d73,track accent
 --gold,#ffc24b,progress-fill highlight
---canvas,#fcfbfe,page background (near-white)
---grad-hero,"linear-gradient(135deg,#3a006b,#6a0dad,#a21caf,#c026d3)",hero + sidebar progress + avatar
---grad-accent,"linear-gradient(135deg,#6a0dad,#c026d3)",buttons/active nav/badges/number text
+--teal,#0ea5b7,active/selected SIDEBAR entry (current stage + selected milestone)
+--teal-dark,#0c7d8c,teal text / current-week label
+--teal-soft,#e2f7fa,sidebar milestone hover
+--grad-hero,"linear-gradient(135deg,#1e1b4b,#4c1d95,#6d28d9,#c026d3)",hero + sidebar progress card + avatar (Electric Twilight: midnight indigo→violet→magenta)
+--grad-accent,"linear-gradient(135deg,#6d28d9,#c026d3)",buttons/brand-nav-active/badges/number text
+--grad-teal,"linear-gradient(135deg,#0c7d8c,#0ea5b7)",selected sidebar milestone + current-week frac
 --grad-mint,"linear-gradient(135deg,#10b981,#22d3a8)",done badges/streak
+--font-head,"'Space Grotesk','Inter',system-ui,sans-serif",headings + big gradient numbers
+--font-body,"'Inter',system-ui,'Segoe UI',Arial,sans-serif",all body/UI text
 ```
 
-Radii get larger and bolder: `--r:16px`, `--r-lg:24px`, pill `999px`. Headings move to weight 800, tight letter-spacing (`-.02em`). Shadows are larger and purple-tinted.
+Fonts load from Google Fonts (`fonts.googleapis.com`): `Space Grotesk` 500–700 for headings and big numbers, `Inter` 400–800 for body/UI. Radii: `--r:16px`, `--r-lg:24px`, pill `999px`. Headings weight 700 (Space Grotesk caps at 700), tight letter-spacing (`-.02em`). Shadows are larger and purple-tinted.
+
+**Sidebar color system (resolves owner feedback):** brand navigation active state = purple (`--grad-accent`, white text); your *current position* (current stage label, current-week fraction, selected milestone) = **teal** (`--grad-teal`, white text). This makes "where I am" read as a distinct color from "what's selected in nav," and removes the low-contrast purple-on-light-purple selected state.
 
 Accessibility note: number-as-gradient-text (`background-clip:text`) must keep a solid-color fallback and meet contrast; locked-state text darkened from the audit's pale lavender to `#7a6c95`+ to clear WCAG AA. Respect `prefers-reduced-motion` — disable the pulse/glow/bar-fill animations.
 
@@ -53,7 +62,7 @@ Accessibility note: number-as-gradient-text (`background-clip:text`) must keep a
 ┌──────────────────────────────────────────────────────────┐
 │ GLASSY TOP BAR  brand · ☰(mobile)      ring% · who · ava · logout │
 ├───────────────┬──────────────────────────────────────────┤
-│ SIDEBAR       │ MAIN (near-white)                         │
+│ SIDEBAR       │ MAIN (white)                              │
 │ (restyled)    │ ┌──────────────────────────────────────┐ │
 │ gradient      │ │ HERO — "Your next move" (active stage)│ │
 │ progress card │ │ big title · progress · SUBMIT CTA ·   │ │
@@ -85,13 +94,13 @@ Full-width gradient panel with soft radial glows. Renders the **active stage** f
 Four chips with gradient left-rails + gradient number text: Readiness (`progressPct`), Streak (derived/optional — see §6), Deliverables submitted (count of stages with `deliverableUrl`), Track (Fast Track / Full Roadmap).
 
 ### 4.5 Journey (replaces pathway grid as the visual path)
-Horizontal track of connected nodes from `v.stages`: done = mint badge, current = magenta badge with pulsing glow ring + magenta border, locked = ghost badge + lock icon. Full Roadmap (8 pillars) wraps to a multi-row grid; Fast Track shows 4 week-nodes. Clicking a node scrolls to / selects that stage (mirrors sidebar selection). Drill-down to day/milestone detail stays in the **sidebar accordion** (so removing the grid loses no navigation).
+Horizontal track of connected nodes from `v.stages`: done = mint badge, current-week marker = **teal** badge with pulsing teal glow ring + teal border (the "where you are" color), locked = ghost badge + lock icon. Full Roadmap (8 pillars) wraps to a multi-row grid; Fast Track shows 4 week-nodes. Clicking a node scrolls to / selects that stage (mirrors sidebar selection). Drill-down to day/milestone detail stays in the **sidebar accordion** (so removing the grid loses no navigation).
 
 ### 4.6 Earn-while-you-learn ladder
 Restyled ascending "rungs" with gradient amounts and a "You are here" highlight keyed to current progress.
 
 ### 4.7 Login card
-Restyle to match: gradient brand mark, bolder type, gradient primary button, near-white field surfaces. Keep the demo-fill controls and presenter-note hint from the audit fix pass.
+Restyle to match: gradient brand mark, bolder type, gradient primary button, subtle off-white field surfaces on the white canvas. Keep the demo-fill controls and presenter-note hint from the audit fix pass.
 
 ## 5. Data flow (unchanged contract)
 
