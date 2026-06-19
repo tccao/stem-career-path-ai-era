@@ -29,19 +29,22 @@
     .topbar { position:sticky; top:0; z-index:50; height:64px; background:#fff; border-bottom:1px solid var(--cfg-border); display:flex; align-items:center; justify-content:space-between; padding:0 22px; }
     .topbar .brand { display:flex; align-items:center; gap:10px; font-weight:700; color:var(--cfg-purple-dark); }
     .topbar .brand img { width:32px; height:32px; object-fit:contain; }
+    .topbar .brand span { white-space:nowrap; }
     .topbar .brand small { display:block; font-size:.66rem; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--cfg-muted); }
     .topbar-right { display:flex; align-items:center; gap:16px; }
     .user { display:flex; align-items:center; gap:10px; }
     .avatar { width:38px; height:38px; border-radius:50%; background:linear-gradient(135deg,var(--cfg-purple),var(--cfg-lavender)); color:#fff; display:grid; place-items:center; font-weight:700; }
     .user .name { font-weight:600; font-size:.92rem; }
     .user .name small { display:block; color:var(--cfg-muted); font-weight:400; font-size:.78rem; }
-    .linkbtn { background:none; border:1px solid var(--cfg-border); color:var(--cfg-purple-dark); border-radius:999px; padding:7px 14px; font:inherit; font-size:.82rem; cursor:pointer; }
+    .linkbtn { background:none; border:1px solid var(--cfg-border); color:var(--cfg-purple-dark); border-radius:999px; padding:7px 14px; font:inherit; font-size:.82rem; cursor:pointer; white-space:nowrap; }
     .linkbtn:hover { background:var(--cfg-section-bg); }
     .menu-btn { display:none; width:40px; height:40px; border-radius:10px; border:1px solid var(--cfg-border); background:#fff; cursor:pointer; place-items:center; color:var(--cfg-purple-dark); }
 
     /* ===== LAYOUT ===== */
     .layout { margin-left:var(--sidebar); min-height:calc(100vh - 64px); }
     .sidebar { background:#fff; border-right:1px solid var(--cfg-border); padding:18px 14px; display:flex; flex-direction:column; gap:3px; position:fixed; left:0; top:64px; width:var(--sidebar); height:calc(100vh - 64px); overflow-y:auto; scrollbar-width:thin; z-index:40; }
+    .sidebar-backdrop { display:none; position:fixed; inset:64px 0 0; background:rgba(42,31,61,.24); z-index:35; }
+    .sidebar-backdrop.open { display:block; }
     .nav-section { font-size:.68rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--cfg-muted); padding:14px 12px 6px; }
     .nav-item { display:flex; align-items:center; gap:12px; padding:11px 12px; border-radius:var(--r-md); font-size:.94rem; font-weight:600; color:var(--cfg-text); cursor:pointer; }
     .nav-item svg { width:19px; height:19px; color:var(--cfg-muted); flex-shrink:0; }
@@ -74,7 +77,7 @@
     .acc.lvl2>.acc-head .frac { margin-left:auto; font-size:.68rem; font-weight:700; color:var(--cfg-muted); background:#fff; border:1px solid var(--cfg-border); border-radius:999px; padding:1px 8px; }
     .acc.lvl2>.acc-head .chev { margin-left:4px; width:14px; height:14px; }
     .acc.lvl2.done>.acc-head .frac { color:var(--cfg-mint); border-color:rgba(46,162,122,.35); background:rgba(46,162,122,.1); }
-    .acc.lvl2.locked>.acc-head { color:#9b8fb3; }
+    .acc.lvl2.locked>.acc-head { color:#74658f; }
     .milestones { list-style:none; margin:0; padding:6px 0 8px 6px; display:flex; flex-direction:column; gap:8px; }
     .milestones li { display:flex; align-items:flex-start; gap:10px; font-size:.82rem; line-height:1.35; color:var(--cfg-muted); border-radius:8px; padding:6px; cursor:pointer; }
     .milestones li:hover { background:var(--cfg-section-bg); color:var(--cfg-purple-dark); }
@@ -140,8 +143,8 @@
     .pcard.done .state { color:var(--cfg-mint); }
     .pcard.current .state { color:var(--cfg-purple); }
     .pcard.locked { background:#fcfafe; }
-    .pcard.locked h4 { color:#8c7fa6; }
-    .pcard.locked .state { color:#b6a9cb; }
+    .pcard.locked h4 { color:#6f6188; }
+    .pcard.locked .state { color:#7c6b98; }
     .pcard .lockico { position:absolute; top:16px; right:14px; color:#c3b6d6; }
     .pcard .lockico svg { width:15px; height:15px; }
     .week-card { padding:0; overflow:hidden; }
@@ -206,13 +209,50 @@
     .btn-purple { background:var(--cfg-purple); color:#fff; width:100%; justify-content:center; margin-top:18px; }
     .btn-purple:hover { background:var(--cfg-purple-dark); }
     .hint { font-size:.76rem; color:var(--cfg-muted); margin-top:12px; }
+    .demo-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
+    .demo-actions .linkbtn { width:100%; justify-content:center; border-radius:var(--r-sm); padding:8px 10px; font-size:.78rem; }
     .toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--cfg-purple-dark); color:#fff; padding:10px 18px; border-radius:8px; font-size:.85rem; opacity:0; transition:opacity .2s; z-index:99; }
     .toast.show { opacity:1; }
 
     @media (max-width:980px){ .stats{grid-template-columns:repeat(2,1fr);} .pillars,.pillars.fasttrack{grid-template-columns:repeat(2,minmax(0,1fr));} }
-    @media (max-width:760px){ .layout{margin-left:0;} .sidebar{transform:translateX(-100%); transition:transform .2s ease; box-shadow:var(--shadow-lg);} .sidebar.open{transform:none;} .menu-btn{display:grid;} .user .name{display:none;} .main{padding:22px 18px 40px;} }
-    @media (max-width:760px){ .proof-bar{grid-template-columns:auto 1fr;} .proof-input{grid-column:1/-1;} .proof-bar .btn{grid-column:1/-1; justify-content:center;} }
+    @media (max-width:760px){
+      .topbar{padding:0 12px; gap:10px;}
+      .topbar>div:first-child{gap:8px!important; min-width:0;}
+      .topbar .brand{gap:8px; min-width:0; font-size:.9rem;}
+      .topbar .brand img{width:28px; height:28px;}
+      .topbar .brand small{display:none;}
+      .topbar-right{gap:10px; flex-shrink:0;}
+      .avatar{width:34px; height:34px;}
+      .linkbtn{padding:7px 12px;}
+      .layout{margin-left:0;}
+      .sidebar{transform:translateX(-100%); transition:transform .2s ease; box-shadow:var(--shadow-lg);}
+      .sidebar.open{transform:none;}
+      .menu-btn{display:grid; flex-shrink:0;}
+      .user .name{display:none;}
+      .main{padding:20px 18px 40px;}
+      .page-head{gap:12px; margin-bottom:18px;}
+      .page-head h1{font-size:1.45rem;}
+      .page-head p{font-size:.9rem;}
+      .access-chip{width:100%; padding:10px 14px; border-radius:14px;}
+      .stats{gap:14px; margin-bottom:18px;}
+      .stat{padding:14px 16px;}
+      .stat .ico{width:34px; height:34px; margin-bottom:10px;}
+      .stat .num{font-size:1.48rem;}
+      .card{padding:20px 24px; margin-bottom:20px;}
+      .continue h3{font-size:1.18rem; margin:12px 0 6px;}
+      .continue .where{font-size:.86rem; margin-bottom:12px;}
+      .continue .pct{margin-bottom:12px;}
+      .submit input{min-width:100%;}
+      .submit .btn{width:100%; justify-content:center;}
+      .proof-bar{grid-template-columns:auto 1fr;}
+      .proof-input{grid-column:1/-1;}
+      .proof-bar .btn{grid-column:1/-1; justify-content:center;}
+    }
     @media (max-width:640px){ .pillars,.pillars.fasttrack{grid-template-columns:1fr;} }
+    @media (max-width:420px){
+      .topbar .brand{font-size:.86rem;}
+      .linkbtn{padding:7px 10px;}
+    }
   </style>
 </head>
 <body>
@@ -223,12 +263,16 @@
       <h1>Sign in to your path</h1>
       <p>Demo authentication (stands in for Cognito).</p>
       <label for="email">Email</label>
-      <input id="email" type="email" value="student@codeforgood.us" />
+      <input id="email" type="email" autocomplete="username" />
       <label for="password">Password</label>
-      <input id="password" type="password" value="student1234" />
+      <input id="password" type="password" autocomplete="current-password" />
       <button class="btn btn-purple" id="loginBtn">Sign in</button>
       <div class="hint" id="loginMsg"></div>
-      <div class="hint">Fast track: <b>student@codeforgood.us</b> · Full roadmap: <b>roadmap@codeforgood.us</b> · pw <b>student1234</b></div>
+      <div class="demo-actions">
+        <button class="linkbtn" id="fillFastBtn" type="button">Fast track demo</button>
+        <button class="linkbtn" id="fillRoadmapBtn" type="button">Roadmap demo</button>
+      </div>
+      <div class="hint">For public demos, keep credentials in presenter notes.</div>
     </div>
   </div>
 
@@ -236,7 +280,7 @@
   <div id="app" class="hidden">
     <header class="topbar">
       <div style="display:flex; align-items:center; gap:14px;">
-        <button class="menu-btn" id="menuBtn" aria-label="Toggle menu">
+        <button class="menu-btn" id="menuBtn" aria-label="Toggle menu" aria-controls="sidebar" aria-expanded="false">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
         </button>
         <a class="brand" href="STEM%20Career%20Path%20Landing%20Page.html">
@@ -251,6 +295,7 @@
       </div>
     </header>
 
+    <div class="sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true"></div>
     <aside class="sidebar" id="sidebar">
       <div class="sb-progress">
         <div class="top"><span class="lab">Path progress</span><span class="pct" id="sbPct">0%</span></div>
@@ -323,7 +368,13 @@
         await boot();
       } catch (e) { $('loginMsg').textContent = 'Sign-in failed: ' + e.message; }
     }
-    function logout() { token=null; sessionStorage.removeItem('cfg_student_token'); $('app').classList.add('hidden'); $('login').classList.remove('hidden'); }
+    function logout() {
+      closeMenu();
+      token=null;
+      sessionStorage.removeItem('cfg_student_token');
+      $('app').classList.add('hidden');
+      $('login').classList.remove('hidden');
+    }
 
     async function boot() {
       $('login').classList.add('hidden'); $('app').classList.remove('hidden');
@@ -591,13 +642,32 @@
     function icoLock(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';}
 
     $('loginBtn').onclick = login;
+    $('fillFastBtn').onclick = () => fillDemo('student@codeforgood.us');
+    $('fillRoadmapBtn').onclick = () => fillDemo('roadmap@codeforgood.us');
     $('password').addEventListener('keydown', (e) => { if (e.key === 'Enter') login(); });
     $('logoutBtn').onclick = logout;
     $('logoutNav').onclick = logout;
-    $('menuBtn').onclick = () => $('sidebar').classList.toggle('open');
+    $('menuBtn').onclick = () => $('sidebar').classList.contains('open') ? closeMenu() : openMenu();
+    $('sidebarBackdrop').onclick = closeMenu;
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
     window.addEventListener('hashchange', () => { if (latestPath) renderPath(latestPath); });
     window.addEventListener('popstate', () => { if (latestPath) renderPath(latestPath); });
     if (token) api('/auth/me').then((r) => r.user.role === 'student' ? boot() : logout()).catch(() => logout());
+
+    function fillDemo(email) {
+      $('email').value = email;
+      $('password').value = 'student1234';
+    }
+    function openMenu() {
+      $('sidebar').classList.add('open');
+      $('sidebarBackdrop').classList.add('open');
+      $('menuBtn').setAttribute('aria-expanded', 'true');
+    }
+    function closeMenu() {
+      $('sidebar').classList.remove('open');
+      $('sidebarBackdrop').classList.remove('open');
+      $('menuBtn').setAttribute('aria-expanded', 'false');
+    }
   </script>
 </body>
 </html>

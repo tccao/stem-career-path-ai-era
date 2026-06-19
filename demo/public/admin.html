@@ -48,6 +48,8 @@
     .btn.bad { background:#fff; color:var(--bad); border:1px solid #e7b0ac; }
     .btn:disabled { opacity:.45; cursor:not-allowed; }
     .hint { font-size:.78rem; color:var(--muted); margin-top:10px; }
+    .demo-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .demo-actions .btn { flex:1; min-width:160px; padding:8px 12px; font-size:.78rem; }
 
     /* kpis */
     .kpis { display:grid; grid-template-columns: repeat(6, 1fr); gap:12px; margin-bottom:20px; }
@@ -125,14 +127,17 @@
   <div id="login" class="wrap">
     <div class="login-card">
       <h1>Admin sign in</h1>
-      <p>Demo authentication (stands in for Cognito). Use the seeded admin account.</p>
+      <p>Demo authentication (stands in for Cognito). Presenter accounts are loaded locally.</p>
       <label for="email">Email</label>
-      <input id="email" type="email" value="admin@codeforgood.us" />
+      <input id="email" type="email" autocomplete="username" />
       <label for="password">Password</label>
-      <input id="password" type="password" value="admin1234" />
+      <input id="password" type="password" autocomplete="current-password" />
       <div style="margin-top:16px;"><button class="btn" id="loginBtn" style="width:100%;">Sign in</button></div>
       <div class="hint" id="loginMsg"></div>
-      <div class="hint">Seeded admin: <b>admin@codeforgood.us</b> / <b>admin1234</b></div>
+      <div class="demo-actions">
+        <button class="btn sec" id="fillAdminBtn" type="button">Fill demo admin</button>
+      </div>
+      <div class="hint">For public demos, keep credentials in presenter notes.</div>
     </div>
   </div>
 
@@ -171,6 +176,36 @@
     const $ = (id) => document.getElementById(id);
     const toast = (msg) => { const t = $('toast'); t.textContent = msg; t.classList.add('show');
       setTimeout(() => t.classList.remove('show'), 2200); };
+    const STATUS_LABELS = {
+      SUBMITTED: 'Submitted',
+      INTERVIEW_SCHEDULED: 'Interview scheduled',
+      DONATION_REQUIRED: 'Donation required',
+      DONATION_CONFIRMED: 'Donation confirmed',
+      APPROVED_BENEFICIARY: 'Approved beneficiary',
+      ACTIVE: 'Active',
+      EXPIRED: 'Expired',
+      REVOKED: 'Revoked',
+      REJECTED: 'Rejected',
+    };
+    const PATH_LABELS = {
+      full_roadmap: 'Full roadmap',
+      fast_track: 'Fast track',
+      A_full_roadmap: 'Full roadmap',
+      B_fast_track: 'Fast track',
+    };
+    const BASIS_LABELS = { beneficiary: 'Beneficiary', supporter: 'Supporter' };
+    const ACTION_LABELS = {
+      APPLICATION_SUBMITTED: 'Application submitted',
+      INTERVIEW_SCHEDULED: 'Interview scheduled',
+      APPROVED_BENEFICIARY: 'Approved beneficiary',
+      DONATION_REQUIRED: 'Donation required',
+      DONATION_CONFIRMED: 'Donation confirmed',
+      MEMBER_PROVISIONED: 'Member provisioned',
+      ACCESS_EXTENDED: 'Access extended',
+      ACCESS_REVOKED: 'Access revoked',
+      REJECTED: 'Rejected',
+      INFO_REQUESTED: 'Info requested',
+    };
 
     async function api(path, { method = 'GET', body } = {}) {
       const res = await fetch(API + path, {
@@ -215,7 +250,13 @@
       $('tabs').innerHTML = STATUSES.map(([s, l]) =>
         `<div class="tab ${s === activeStatus ? 'active' : ''}" data-s="${s}">${l}</div>`).join('');
       $('tabs').querySelectorAll('.tab').forEach((t) =>
-        t.onclick = () => { activeStatus = t.dataset.s; renderTabs(); loadQueue(); });
+        t.onclick = () => {
+          activeStatus = t.dataset.s;
+          currentId = null;
+          clearDetail();
+          renderTabs();
+          loadQueue();
+        });
     }
 
     async function refresh() { await Promise.all([loadOverview(), loadQueue(), loadMembers()]); }
@@ -234,14 +275,19 @@
     async function loadQueue() {
       $('queueTitle').textContent = 'Applications · ' + (STATUSES.find(s => s[0] === activeStatus)?.[1] || activeStatus);
       const { items } = await api('/admin/applications?status=' + activeStatus);
-      if (!items.length) { $('queue').innerHTML = '<div class="empty">No applications in this state.</div>'; return; }
+      if (!items.length) { $('queue').innerHTML = '<div class="empty">No applications in this state.</div>'; clearDetail(); return; }
+      if (currentId && !items.some((a) => a.applicationId === currentId)) clearDetail();
       $('queue').innerHTML = items.map((a) => `
         <div class="row" data-id="${a.applicationId}">
           <div><div class="nm">${esc(a.fullName || '—')}</div>
-            <div class="sub">${esc(a.email)} · ${esc(a.preferredTrack || '')}</div></div>
-          <span class="pill ${a.status}">${a.status}</span>
+            <div class="sub">${esc(a.email)} · ${esc(labelPath(a.preferredTrack))}</div></div>
+          <span class="pill ${a.status}">${esc(labelStatus(a.status))}</span>
         </div>`).join('');
       $('queue').querySelectorAll('.row').forEach((r) => r.onclick = () => openApp(r.dataset.id));
+    }
+
+    function clearDetail() {
+      $('detail').innerHTML = '<div class="empty">Select an application from the queue.</div>';
     }
 
     const ACTIONS = {
@@ -260,11 +306,11 @@
         `<button class="btn ${cls}" data-act="${act}">${label}</button>`).join('') || '<span class="empty">No actions — terminal state.</span>';
       $('detail').innerHTML = `
         <div class="field"><span>Applicant</span><span><b>${esc(a.fullName)}</b></span></div>
-        ${f('Email', a.email)} ${f('Status', a.status)} ${f('Track', a.preferredTrack)}
-        ${f('Access basis', a.accessBasis)} ${f('Member ID', a.memberId)} ${f('Submitted', a.createdAt)}
+        ${f('Email', a.email)} ${f('Status', labelStatus(a.status))} ${f('Track', labelPath(a.preferredTrack))}
+        ${f('Access basis', labelBasis(a.accessBasis))} ${f('Member ID', a.memberId)} ${f('Submitted', formatDateTime(a.createdAt))}
         <div class="actions">${acts}</div>
         <div class="timeline">${(audit || []).map(ev =>
-          `<div class="ev"><b>${esc(ev.action)}</b> · ${esc((ev.after && ev.after.status) || '')} <span style="float:right">${esc((ev.ts||'').slice(0,16).replace('T',' '))}</span></div>`).join('')}</div>`;
+          `<div class="ev"><b>${esc(labelAction(ev.action))}</b> · ${esc(labelStatus(ev.after && ev.after.status))} <span style="float:right">${esc(formatDateTime(ev.ts))}</span></div>`).join('')}</div>`;
       $('detail').querySelectorAll('button[data-act]').forEach((b) =>
         b.onclick = () => doAction(id, b.dataset.act));
     }
@@ -287,10 +333,10 @@
       $('members').innerHTML = `<table><thead><tr>
         <th>Name</th><th>Email</th><th>Basis</th><th>Path</th><th>Progress</th><th>Current</th><th>Status</th><th>Access ends</th><th></th></tr></thead>
         <tbody>${items.map((m) => `<tr class="member-row" data-member="${m.memberId}">
-          <td>${esc(m.fullName || '—')}</td><td>${esc(m.email)}</td><td>${esc(m.accessBasis || '')}</td>
-          <td>${esc(pathLabel(m.path || ''))}</td><td>${progressMini(m.progress)}</td>
+          <td>${esc(m.fullName || '—')}</td><td>${esc(m.email)}</td><td>${esc(labelBasis(m.accessBasis))}</td>
+          <td>${esc(labelPath(m.path))}</td><td>${progressMini(m.progress)}</td>
           <td><div class="current-stage">${esc(m.progress?.currentStage?.title || 'Path complete')}</div></td>
-          <td><span class="pill ${m.status}">${m.status}</span></td>
+          <td><span class="pill ${m.status}">${esc(labelStatus(m.status))}</span></td>
           <td>${esc((m.accessEndsAt || '').slice(0, 10))}</td>
           <td>${m.status === 'ACTIVE'
             ? `<button class="btn sec" data-ext="${m.memberId}">Extend</button> <button class="btn bad" data-rev="${m.memberId}">Revoke</button>`
@@ -386,8 +432,19 @@
     }
 
     function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+    function labelStatus(s) { return STATUS_LABELS[s] || s || '—'; }
+    function labelPath(s) { return PATH_LABELS[s] || s || '—'; }
+    function labelBasis(s) { return BASIS_LABELS[s] || s || '—'; }
+    function labelAction(s) { return ACTION_LABELS[s] || String(s || 'Event').replaceAll('_', ' ').toLowerCase().replace(/^\w/, c => c.toUpperCase()); }
+    function formatDateTime(s) {
+      if (!s) return '—';
+      const d = new Date(s);
+      if (Number.isNaN(d.getTime())) return String(s).slice(0,16).replace('T',' ');
+      return d.toLocaleString(undefined, { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
+    }
 
     $('loginBtn').onclick = login;
+    $('fillAdminBtn').onclick = () => { $('email').value = 'admin@codeforgood.us'; $('password').value = 'admin1234'; };
     $('password').addEventListener('keydown', (e) => { if (e.key === 'Enter') login(); });
     $('logoutBtn').onclick = logout;
 
