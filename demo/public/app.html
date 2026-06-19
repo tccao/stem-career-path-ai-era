@@ -127,12 +127,17 @@
     .access-chip .meta { font-size:.8rem; color:var(--cfg-muted); line-height:1.3; }
     .access-chip .meta b { color:var(--cfg-text); }
 
-    .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
-    .stat { background:#fff; border:1px solid var(--cfg-border); border-radius:var(--r-lg); padding:18px 20px; box-shadow:var(--shadow-sm); }
-    .stat .ico { width:38px; height:38px; border-radius:10px; background:var(--cfg-purple-light); color:var(--cfg-purple-dark); display:grid; place-items:center; margin-bottom:12px; }
-    .stat .ico svg { width:19px; height:19px; }
-    .stat .num { font-size:1.7rem; font-weight:700; color:var(--cfg-purple-dark); line-height:1; }
-    .stat .lbl { font-size:.84rem; color:var(--cfg-muted); margin-top:5px; }
+    /* ===== MOMENTUM CHIPS ===== */
+    .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px; }
+    .chip { background:#fff; border:1px solid var(--line); border-radius:var(--r); padding:16px; box-shadow:var(--sh); position:relative; overflow:hidden; }
+    .chip::before { content:''; position:absolute; left:0; top:0; bottom:0; width:5px; background:var(--grad-accent); }
+    .chip.mint::before { background:var(--grad-mint); }
+    .chip.gold::before { background:linear-gradient(180deg,#ffc24b,#ff9d2e); }
+    .chip.coral::before { background:linear-gradient(180deg,#ff5d73,#e11d48); }
+    .chip .k { display:flex; align-items:center; gap:7px; font-size:.72rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+    .chip .v { font-size:1.85rem; font-weight:900; font-family:var(--font-head); letter-spacing:-.03em; margin-top:7px; background:var(--grad-accent); -webkit-background-clip:text; background-clip:text; color:transparent; }
+    .chip.mint .v { background:var(--grad-mint); -webkit-background-clip:text; background-clip:text; color:transparent; }
+    .chip .s { font-size:.74rem; color:var(--muted); font-weight:600; margin-top:2px; }
 
     .card { background:#fff; border:1px solid var(--line); border-radius:var(--r-lg); box-shadow:var(--sh); padding:24px; margin-bottom:24px; }
 
@@ -479,12 +484,11 @@
       // stats
       const deliverables = units.filter((s) => s.deliverableUrl).length;
       const trackLabel = v.pathKey === 'B_fast_track' ? 'Fast Track' : 'Full Roadmap';
-      $('stats').innerHTML = [
-        [icoChart(), v.progressPct + '%', 'Path readiness'],
-        [icoCheck(), `${v.completed}/${v.total}`, v.pathKey === 'B_fast_track' ? 'Days complete' : 'Stages complete'],
-        [icoDoc(), String(deliverables), 'Deliverables submitted'],
-        [icoTarget(), trackLabel, 'Your track'],
-      ].map(([ico, num, lbl]) => `<div class="stat"><div class="ico">${ico}</div><div class="num">${esc(num)}</div><div class="lbl">${esc(lbl)}</div></div>`).join('');
+      $('stats').innerHTML = `
+        <div class="chip"><div class="k">Readiness</div><div class="v">${v.progressPct}%</div><div class="s">path readiness</div></div>
+        <div class="chip mint"><div class="k">${v.pathKey === 'B_fast_track' ? 'Days' : 'Stages'}</div><div class="v">${v.completed}/${v.total}</div><div class="s">complete</div></div>
+        <div class="chip gold"><div class="k">Deliverables</div><div class="v">${deliverables}</div><div class="s">submitted</div></div>
+        <div class="chip coral"><div class="k">Track</div><div class="v" style="font-size:1.3rem;-webkit-text-fill-color:initial;background:none;color:var(--coral)">${esc(trackLabel)}</div><div class="s">your path</div></div>`;
 
       // hero (current active stage) — Electric Twilight
       const active = v.activeStage;
