@@ -92,59 +92,75 @@ Design principles:
 
 These two views show **what is actually deployed at launch** — nothing else (the future
 automated-payment ingress lives in Appendix A only): **(A)** the runtime **request & data flow**,
-and **(B)** the **trust zones** and the IAM seams between them. Colour groups nodes by trust /
-function; numbered edges ①–⑤ trace a member session. The AWS Well-Architected review of this
-design lives in `docs/Well-Architected-Review.md`.
+and **(B)** the **trust zones** and the IAM seams between them. Figure 2A groups services by
+boundary (each group's logo sits in the title), gives every AWS service its logo, and labels each
+arrow with the connection type; the step numbers 1–5 trace a member session. The AWS
+Well-Architected review of this design lives in `docs/Well-Architected-Review.md`.
+
+> **Rendering note.** Figure 2A is a Mermaid `flowchart` (Mermaid ≥ 11.3) whose nodes use the
+> iconify **`logos`** icon pack via the icon-shape syntax (`id@{ icon: "logos:aws-…" }`). GitHub
+> renders the graph and labels, but the AWS logos appear only where the renderer has registered the
+> pack (`mermaid.registerIconPacks([{ name: "logos", icons }])`). A self-contained preview that
+> registers it and renders the real logos is in `assets/diagrams/architecture-2A.html`.
+> (`flowchart` is used instead of `architecture-beta` because that diagram type cannot label edges.)
 
 **Figure 2A — request & data flow.**
 
 ```mermaid
 flowchart LR
-    classDef ext fill:#f5f5f5,stroke:#9e9e9e,color:#424242,stroke-dasharray:4 4
+    browser["🌐 Browser SPA"]
 
-    B["🌐 Browser SPA"]
-
-    subgraph CDN["Edge — cached"]
-      AMP["Amplify Hosting<br/>public site + SPA shell"]
-      CFC["CloudFront<br/>curriculum · signed-cookie auth · no WAF"]
+    subgraph ext["🌐 External SaaS — PCI / scheduling"]
+        zef["Zeffy<br/>donations + read-only API"]
+        cal["Calendly / Cal.com"]
     end
 
-    GW["API Gateway HTTP API<br/>Cognito JWT authorizer<br/>stage + per-route throttling"]
-    Lpub["public-fn"]
-    Lapp["app-fn"]
-    Lsys["system-fn"]
-    COG["Cognito User Pool · Essentials<br/>MFA required (TOTP admin / email-OTP student)"]
-    SQS[["SQS provisioning queue + DLQ"]]
-    EVB["EventBridge Scheduler"]
-    DDB[("DynamoDB on-demand<br/>app + member tables")]
-    S3C[("S3 — gated curriculum<br/>private")]
-    SSM["SSM Param Store<br/>CloudFront signing key"]
-    SES["Amazon SES"]
-    ZEF["Zeffy (hosted)<br/>donations + read-only API"]:::ext
-    CAL["Calendly / Cal.com"]:::ext
+    subgraph aws["☁️ AWS Cloud"]
+        gw@{ icon: "logos:aws-api-gateway", form: "square", label: "API Gateway (JWT authorizer)", pos: "b" }
+        cog@{ icon: "logos:aws-cognito", form: "square", label: "Cognito (MFA required)", pos: "b" }
+        sqs@{ icon: "logos:aws-sqs", form: "square", label: "SQS + DLQ", pos: "b" }
+        evb@{ icon: "logos:aws-eventbridge", form: "square", label: "EventBridge Scheduler", pos: "b" }
+        ssm@{ icon: "logos:aws-systems-manager", form: "square", label: "SSM Param Store", pos: "b" }
+        ses@{ icon: "logos:aws-ses", form: "square", label: "SES", pos: "b" }
 
-    B -->|"① site + SPA (HTTPS)"| AMP
-    B -. Donate link-out .-> ZEF
-    B -. Book interview .-> CAL
-    B -->|"② API (HTTPS)"| GW
-    GW --> Lpub
-    GW --> Lapp
-    Lapp -->|verify JWT/group/window| COG
-    Lapp -->|"③ gate ok → Set-Cookie"| B
-    Lapp -->|read signing key| SSM
-    B -->|"④ curriculum + signed cookies"| CFC
-    CFC -->|OAC| S3C
-    Lapp -->|"⑤ enqueue grant"| SQS
-    SQS --> Lsys
-    EVB -->|reconcile poll + expiry sweep| Lsys
-    Lsys -. poll read-only API · verify payment .-> ZEF
-    Lsys -->|read Zeffy API key| SSM
-    Lsys -->|AdminCreateUser| COG
-    Lsys --> SES
-    SES -.->|welcome / expiry mail| B
-    Lpub --> DDB
-    Lapp --> DDB
-    Lsys --> DDB
+        subgraph edge["☁️ Edge — cached"]
+            amp@{ icon: "logos:aws-amplify", form: "square", label: "Amplify Hosting", pos: "b" }
+            cfc@{ icon: "logos:aws-cloudfront", form: "square", label: "CloudFront (curriculum)", pos: "b" }
+        end
+
+        subgraph compute["λ Compute — 3 Lambdas"]
+            lpub@{ icon: "logos:aws-lambda", form: "square", label: "public-fn", pos: "b" }
+            lapp@{ icon: "logos:aws-lambda", form: "square", label: "app-fn", pos: "b" }
+            lsys@{ icon: "logos:aws-lambda", form: "square", label: "system-fn", pos: "b" }
+        end
+
+        subgraph data["🗄️ Data — least privilege"]
+            ddb@{ icon: "logos:aws-dynamodb", form: "square", label: "DynamoDB", pos: "b" }
+            s3c@{ icon: "logos:aws-s3", form: "square", label: "Curriculum S3", pos: "b" }
+        end
+    end
+
+    browser -->|"1) site + SPA (HTTPS)"| amp
+    browser -->|"2) API (HTTPS)"| gw
+    browser -.->|"donate link-out"| zef
+    browser -.->|"book interview"| cal
+    gw -->|"intake"| lpub
+    gw -->|"JWT routes"| lapp
+    lapp -->|"verify JWT / group / window"| cog
+    lapp -.->|"3) gate ok → Set-Cookie"| browser
+    lapp -->|"read signing key"| ssm
+    browser -->|"4) curriculum + signed cookies"| cfc
+    cfc -->|"OAC"| s3c
+    lapp -->|"5) enqueue grant"| sqs
+    sqs -->|"consume"| lsys
+    evb -->|"reconcile poll + expiry sweep"| lsys
+    lsys -.->|"poll → verify payment"| zef
+    lsys -->|"read Zeffy key"| ssm
+    lsys -->|"AdminCreateUser"| cog
+    lsys -->|"welcome / expiry mail"| ses
+    lpub -->|"PutItem Applications"| ddb
+    lapp -->|"read/write key-scoped"| ddb
+    lsys -->|"write Members"| ddb
 ```
 
 **Figure 2B — trust zones & IAM seams.** The same components, grouped by trust boundary, with the
