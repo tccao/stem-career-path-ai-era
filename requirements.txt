@@ -1,4 +1,12 @@
-python3
-python3-venv
+# Local validation dependencies.
+#
+# The Python virtual environment is created and managed by uv:
+#
+#     uv venv --python 3.14
+#
+# uv provisions the Python 3.14 interpreter itself, so python3-venv is no
+# longer required. Install uv from https://docs.astral.sh/uv/ if missing.
+#
+# The HTML validation tools below are system (apt) packages:
 tidy
 libxml2-utils

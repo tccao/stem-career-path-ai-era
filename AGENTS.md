@@ -19,7 +19,7 @@ mock-dashboard.html, mock-booking.html  # V2 UI mocks
 assets/{images,icons}/              # codeforgood-logo.png, cohort/profile imgs
 references/                         # CodeForGood_index.html + roadmap PDFs (source of truth) 
 docs/                               # all V2 planning (see Doc map)
-requirements.txt                    # apt deps for local validation venv
+requirements.txt                    # validation apt deps (tidy, xmllint); venv via `uv venv --python 3.14`
 ```
 
 ## Doc map (read before V2 work)
@@ -58,6 +58,7 @@ Run/validate (static, no install):
 
 ```csv
 action,command
+create venv,uv venv --python 3.14 (uv-managed Python 3.14)
 open,open index.html (or VS Code Live Server)
 html validate,tidy -q -e index.html
 xml/well-formed,xmllint --noout index.html

@@ -42,7 +42,7 @@ All planning lives in `docs/`. Read these before contributing to the V2 platform
 | [`docs/Customer-Journey.md`](docs/Customer-Journey.md) | Personas, the access lifecycle state machine, end-to-end apply→provision→expire flow |
 | [`docs/Architecture-Design.md`](docs/Architecture-Design.md) | Build-ready AWS serverless design: role separation, audit trail, rate limiting, audit logging |
 | [`docs/Service-Tradeoff-Analysis.md`](docs/Service-Tradeoff-Analysis.md) | Board-facing cost & service justification (charges, alternatives, nonprofit credits) |
-| [`requirements.txt`](requirements.txt) | Local apt package requirements for Python venv support, `tidy`, and `xmllint` |
+| [`requirements.txt`](requirements.txt) | Local validation dependencies: `tidy` and `xmllint` (apt); the Python venv is managed by `uv` |
 
 > The original combined planning file, `docs/Sprint-Planning_Sitemap-and-Wireframes.md`, has been
 > **retired** — its content is split across the Sitemap, Customer-Journey, and Architecture docs above.
@@ -416,6 +416,26 @@ Open `index.html` in a web browser.
 If using VS Code, install the **Live Server** extension and open `index.html` with Live Server.
 
 This is helpful for testing navigation, assets, and responsive behavior.
+
+### Optional: Validation Tooling
+
+The static page needs no build, but a local environment is handy for HTML
+validation. The Python virtual environment is created and managed by
+[`uv`](https://docs.astral.sh/uv/), which also provisions the Python 3.14
+interpreter:
+
+```bash
+uv venv --python 3.14          # create .venv with Python 3.14
+source .venv/bin/activate
+```
+
+The HTML validators are system (apt) packages — see `requirements.txt`:
+
+```bash
+sudo apt install tidy libxml2-utils
+tidy -q -e index.html          # HTML validation
+xmllint --noout index.html     # well-formedness check
+```
 
 ## How to Make Safe Edits
 
