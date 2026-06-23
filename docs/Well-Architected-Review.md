@@ -57,6 +57,7 @@ written; everything else is incremental hardening that fits the $0 posture.
 These are not pillar-specific — they are defects in the current text or diagram.
 
 ### 2.1 [H] Cognito MFA is described as per-group, which Cognito does not support
+
 **Evidence:** §6.1 "Admin MFA is mandatory (TOTP), enforced at the pool level for the `admin`
 group"; §4 service table "admin group MFA mandatory (TOTP)"; restated in §6.3, §10, §16.
 **Problem:** Amazon Cognito user-pool MFA is a **pool-wide** setting — `OFF` / `OPTIONAL` /
@@ -77,6 +78,7 @@ complete an `MFA_SETUP` challenge on first sign-in. Update `Customer-Journey.md`
 flows in `Sitemap-and-Wireframes.md`.
 
 ### 2.2 [H] Signed-cookie cross-domain topology is unspecified
+
 **Evidence:** §9.2 issues `CloudFront-Policy/-Signature/-Key-Pair-Id` cookies from `app-fn`
 (behind API Gateway) for the browser to present to the curriculum CloudFront distribution.
 **Problem:** browsers only send those cookies to CloudFront if the cookie's `Domain` covers the
@@ -93,12 +95,14 @@ is required because the curriculum host differs from the app host.
 a real cross-host fetch). Corrected wording in Appendix A.2.
 
 ### 2.3 [M] `docs/Architecture-Review.md` referenced but missing — RESOLVED (Rev. 4)
+
 **Evidence:** the `Architecture-Design.md` header and `Platform-SRS.md` §1 cited a non-existent
 file. **Resolution:** the design header now points at this Well-Architected review; the
 Platform-SRS reference was made generic ("an architecture review"). No dangling source-of-truth
 reference remains.
 
 ### 2.4 [M] §2 diagram defects (corrected in this revision of the design doc)
+
 - **SES was miscategorised** under "External (no integration, link-out / dashboard only)" while
   `system-fn → SES` is a first-party integration. SES is now drawn in the AWS plane.
 - **`app-fn → CloudFront (set signed cookies)` was semantically wrong** — `app-fn` returns
@@ -117,6 +121,7 @@ logging. IaC-per-environment with a prod approval gate. This is better operation
 most funded startups ship with.
 
 **Findings.**
+
 - **[H] CloudWatch Logs retention is not set.** Log groups default to **never expire**. This is an
   unbounded, slowly-compounding cost leak — and `Ops-Runbook.md` §5 already names "log retention
   misconfig" as a prime billing-spike suspect, so the design implicitly knows about it without
@@ -149,6 +154,7 @@ sealed root with a board custodian and explicit-deny on audit-infra tampering; P
 The signed-cookie gating design (private S3 + OAC + key group) is the right pattern.
 
 **Findings.**
+
 - **[H] Cognito MFA model** — see §2.1. (Resolved: pool-wide `REQUIRED`, TOTP admin / email-OTP
   student.)
 - **[H] Signed-cookie cross-domain topology** — see §2.2.
@@ -186,6 +192,7 @@ board-accepted RPO ≤ 24 h / RTO ≤ 1 business day. The idempotency analysis i
 above-grade.
 
 **Findings.**
+
 - **[M] State the DR posture.** The design is implicitly single-region and PITR is **in-region** —
   a regional outage or a region-level account issue is unrecoverable within the stated RTO from
   PITR alone. For a volunteer pilot this is an acceptable risk, but the board should accept it
@@ -207,6 +214,7 @@ keys avoid hot partitions; the bottleneck analysis (§9A) correctly ranks Cognit
 first and prescribes client backoff + quota pre-warming.
 
 **Findings.**
+
 - **[M] Pin the runtime and standardise on arm64/Graviton.** The doc never names the Lambda
   runtime or CPU architecture. *Recommendation:* choose a fast-cold-start runtime (Node.js or
   Python) on **arm64/Graviton** — typically ~20% cheaper *and* faster, helping both this pillar
@@ -226,6 +234,7 @@ credit figure; a per-service cost table reconciled with `Service-Tradeoff-Analys
 budget alarm routed to the board. There is very little to add.
 
 **Findings.**
+
 - **[H/cost] CloudWatch Logs retention** (see §3) is the single most likely source of unplanned
   spend — closing it protects the whole cost model.
 - **[M] arm64/Graviton** (see §6) is a direct ~20% compute saving.
@@ -273,28 +282,31 @@ the above and pointing arm64 at both this pillar and Cost.
 > the §2.2 signed-cookie domain topology (no longer review-only). The **single exception** is the
 > **KMS CMK** (D4), written in as the recommendation **pending board cost sign-off** (~$1/mo/key).
 
-**P0 — before build starts**
+### P0 — before build starts
+
 1. Rewrite the MFA model to pool-wide `REQUIRED` (D1); sync onboarding docs (§2.1).
 2. Specify the custom-domain + cookie topology and add the cross-host integration test (§2.2).
 3. Set CloudWatch Logs retention in IaC (§3).
 
-**P1 — before launch**
-4. Async on-failure destination/DLQ + alarm for `system-fn` (§3).
-5. Commit to SAM (or CDK) and remove the either/or (§3).
-6. KMS decision: CMK for audit + WORM, AWS-managed elsewhere (§4, D4).
-7. CORS lockdown + `public-fn` input validation (§4).
-8. Create the WORM bucket with Object Lock + versioning at creation (§4).
-9. Standardise Lambda on arm64 + pin the runtime (§6).
-10. Add the single-region DR statement for board acceptance (§5).
-11. Fix or restore the `Architecture-Review.md` reference (§2.3).
+### P1 — before launch
 
-**P2 — fast-follow / monitor**
-12. Canary deployment with auto-rollback (§3).
-13. API Gateway access logging (§3).
-14. AWS Cost Anomaly Detection (§7).
-15. SQS reserved concurrency + partial batch response (§5).
-16. Explicit `/apply` residual-risk acceptance, named first for the WAF trigger (§4).
-17. Add the Sustainability subsection (§8).
+1. Async on-failure destination/DLQ + alarm for `system-fn` (§3).
+2. Commit to SAM (or CDK) and remove the either/or (§3).
+3. KMS decision: CMK for audit + WORM, AWS-managed elsewhere (§4, D4).
+4. CORS lockdown + `public-fn` input validation (§4).
+5. Create the WORM bucket with Object Lock + versioning at creation (§4).
+6. Standardise Lambda on arm64 + pin the runtime (§6).
+7. Add the single-region DR statement for board acceptance (§5).
+8. Fix or restore the `Architecture-Review.md` reference (§2.3).
+
+### P2 — fast-follow / monitor
+
+1. Canary deployment with auto-rollback (§3).
+2. API Gateway access logging (§3).
+3. AWS Cost Anomaly Detection (§7).
+4. SQS reserved concurrency + partial batch response (§5).
+5. Explicit `/apply` residual-risk acceptance, named first for the WAF trigger (§4).
+6. Add the Sustainability subsection (§8).
 
 ---
 
@@ -308,7 +320,8 @@ idempotent on the Zeffy payment ID. First sign-in uses a Cognito **temporary pas
 "`ACTIVE` only via admin grant" invariant; the new invariant is **"`ACTIVE` only via an admin
 grant [beneficiary] or a server-verified payment [supporter]."** WA implications:
 
-**Security**
+### Security
+
 - **Invariant preserved:** internet-facing code still cannot mint accounts — `system-fn` polls
   *outbound* and provisions; it is not internet-facing, and the poll verifies against Zeffy's
   authenticated read-only API (never a client redirect/signal). The supporter grant is gated on
@@ -327,7 +340,8 @@ grant [beneficiary] or a server-verified payment [supporter]."** WA implications
   target (automated money+access), so they move to the **front of the §14 WAF trigger**; consider
   a basic rate rule on these routes sooner than the generic trigger.
 
-**Reliability**
+### Reliability
+
 - **[M] New failure modes:** missed/late payments, Zeffy **Beta-API** changes, and the ~100
   req/min read-only limit. Mitigations: poll-failure alarm + unmatched-donation backlog alarm
   (added to the runbook), idempotent re-processing on `zeffyPaymentId`, and the **admin
@@ -351,6 +365,7 @@ language **(P1)**; `/apply`+donate WAF rule moved earlier **(P2)**.
 ## Appendix A — corrected wording (paste-ready)
 
 ### A.1 MFA (replaces the §6.1 MFA bullet and the §4 Identity row)
+>
 > **MFA is mandatory for every account** (pool-wide Cognito `REQUIRED`). **Admins** enrol a
 > **TOTP** authenticator; **students** use **email-OTP** (Cognito email-message MFA, delivered via
 > the in-stack SES domain — low friction, ≈$0). **SMS MFA is not used** (toll-fraud exposure and
@@ -361,6 +376,7 @@ language **(P1)**; `/apply`+donate WAF rule moved earlier **(P2)**.
 > region, fall back to TOTP for all users.
 
 ### A.2 Cookie / domain topology (add to §9.2 and §16)
+>
 > **Domain & cookie topology (required).** The signed cookies `app-fn` issues are only sent to the
 > curriculum distribution if they share a registrable parent domain. Deploy Amplify, API Gateway,
 > and the curriculum CloudFront under **one parent** — e.g. `app.` / `api.` / `cdn.example.org` —

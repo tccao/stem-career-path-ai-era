@@ -19,7 +19,7 @@ Amplify + AWS serverless**, single-maintainer operability
 > events with per-table retention TTLs; **WAF and Cognito Plus deferred to phase-2 triggers**
 > (aligning with `Service-Tradeoff-Analysis.md`); the **\$1,000 nonprofit credit target** as the
 > single canonical figure; and §6.3 split into Day-1 actual vs. target governance.
-
+>
 > **Rev. 3 change — self-serve supporter access without an interview.** Supporters now donate on
 > Zeffy and are **auto-provisioned within minutes**: `system-fn` polls Zeffy's **read-only Payments
 > API** on a schedule, verifies the payment, matches it to the application **by email** (idempotent
@@ -30,7 +30,7 @@ Amplify + AWS serverless**, single-maintainer operability
 > refunds/chargebacks trigger an audited auto-`REVOKED`. Still **$0 fees, no webhook, no card
 > data** — the only addition is a **read-only Zeffy API key** in SSM. Stripe (seconds-level
 > activation) stays the Appendix A upgrade.
-
+>
 > **Rev. 4 change — Well-Architected hardening.** Applied the review's prose corrections:
 > **MFA REQUIRED pool-wide** (TOTP admins / email-OTP students — corrects the per-group phrasing),
 > **signed-cookie cross-domain topology** (§9.2), **explicit CloudWatch log-retention**, **SAM** as
@@ -973,4 +973,3 @@ IAM/deploy surface.
 member account; SCPs denying CloudTrail tampering, audit-bucket deletion, region sprawl, and IAM
 changes that would remove board access; IAM Identity Center permission sets for humans; alarmed
 break-glass role. Root remains sealed in both states; audit immutability holds across every tier.
-

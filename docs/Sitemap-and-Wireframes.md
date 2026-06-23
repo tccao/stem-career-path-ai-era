@@ -186,7 +186,7 @@ on top of the role guard (see `docs/Architecture-Design.md`).
 
 ## 4. Content hierarchy modeled by each path
 
-**Path A — Full Roadmap (12-month, 8 Pillars)**
+### Path A — Full Roadmap (12-month, 8 Pillars)
 
 ```text
 Path → Pillar → Phase (Units ↔ Weeks) → Action steps · Video module(s) · Resources
@@ -210,7 +210,7 @@ specialization tracks (BUILD-DEPLOY-MONETIZE), the Earn-While-You-Learn gig ladd
 milestone badges (Starter → Builder → Earner → Professional → Graduate), the 12-Month Master
 Action Plan, and a certification roadmap by degree.
 
-**Path B — 4-Week Fast Track (Prompt Like a Pro)**
+### Path B — 4-Week Fast Track (Prompt Like a Pro)
 
 ```text
 Path → Week (1–4) → Day (1–28) → Learning block · Practice exercise · ONE measurable deliverable
@@ -537,4 +537,3 @@ reporting but does **not** change in-app permissions.
 - [ ] Admin experience supports reviewing applications and provisioning access.
 - [ ] Course-access structure reflects the two supplied paths (Full Roadmap + Fast Track), §4.
 - [ ] Role-based nav map is consistent with the access model in `docs/Customer-Journey.md`.
-```

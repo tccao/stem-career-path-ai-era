@@ -13,7 +13,7 @@ Source of truth: `docs/Project SRS.md` (V1) and `docs/Platform-SRS.md` (V2).
 
 ## Repo layout
 
-```
+```text
 STEM Career Path Landing Page.html  # V1 page (→ index.html for deploy)
 mock-dashboard.html, mock-booking.html  # V2 UI mocks
 assets/{images,icons}/              # codeforgood-logo.png, cohort/profile imgs

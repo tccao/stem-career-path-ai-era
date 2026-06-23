@@ -31,9 +31,9 @@ Two dashboards, seeded logins:
 
 | App | URL | Login |
 |-----|-----|-------|
-| **Admin** | http://localhost:3000/admin.html | `admin@codeforgood.us` / `admin1234` |
-| **Student** (fast track) | http://localhost:3000/app.html | `student@codeforgood.us` / `student1234` |
-| **Student** (full roadmap) | http://localhost:3000/app.html | `roadmap@codeforgood.us` / `student1234` |
+| **Admin** | <http://localhost:3000/admin.html> | `admin@codeforgood.us` / `admin1234` |
+| **Student** (fast track) | <http://localhost:3000/app.html> | `student@codeforgood.us` / `student1234` |
+| **Student** (full roadmap) | <http://localhost:3000/app.html> | `roadmap@codeforgood.us` / `student1234` |
 
 The **admin** dashboard drives each application through the state machine
 (schedule interview → approve → **provision**) and manages members (extend / revoke).
@@ -81,7 +81,7 @@ member (403 `access_expired`); submitting a locked stage is rejected (403 `stage
 
 ## Project layout
 
-```
+```text
 demo/
   docker-compose.yml          # MiniStack — the local AWS cloud (one container, :4566)
   src/
@@ -110,6 +110,7 @@ npm test          # requires a local endpoint up (MiniStack or the jar) + AWS_EN
 ```
 
 **46 integration tests** run against a **real local DynamoDB engine** (not a mock): table schema
+
 + GSIs + conditional-write idempotency; every state-machine transition, illegal transitions,
 idempotent provisioning, PII-free audit; the admin API incl. the 401/403 role guard and the full
 apply→provision flow; the seeded curriculum; and the student app incl. role/access guards and the
@@ -143,6 +144,6 @@ real Cognito/SQS/S3/SES later with no application-code change — only the endpo
 
 ## Source of truth
 
-- Production architecture: [`../docs/Architecture-Design.md`](../docs/Architecture-Design.md) (Rev. 4)
-- State machine & personas: [`../docs/Customer-Journey.md`](../docs/Customer-Journey.md)
-- Curriculum source: [`../references/`](../references/) (the two reference PDFs)
++ Production architecture: [`../docs/Architecture-Design.md`](../docs/Architecture-Design.md) (Rev. 4)
++ State machine & personas: [`../docs/Customer-Journey.md`](../docs/Customer-Journey.md)
++ Curriculum source: [`../references/`](../references/) (the two reference PDFs)

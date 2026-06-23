@@ -32,6 +32,7 @@ The mock's `buildTree()` rendering boundary becomes a `fetch` against the real p
 ## Options Considered
 
 ### Option A — Port the mock design into `app.html`, wired to the live API *(chosen)*
+
 | Dimension | Assessment |
 |-----------|------------|
 | Complexity | Med (one file, known design) |
@@ -44,9 +45,11 @@ being vaporware and becomes the real thing. **Cons:** a third copy of the CFG CS
 inline (admin, app, mock) — drift risk if the brand changes.
 
 ### Option B — Keep the minimal UI
+
 **Pros:** nothing to do. **Cons:** leaves a real UX gap; the polished mock goes unused.
 
 ### Option C — Extract a shared `design-system.css` used by admin + app (+ mock)
+
 **Pros:** single source of truth for tokens/components, kills duplication. **Cons:** the demo and
 the V1 page are intentionally single-file artifacts; a shared stylesheet adds a static-asset
 dependency and a build/serve concern that isn't worth it at this size. **Deferred** — it's the
@@ -64,20 +67,24 @@ from the server and disables locked actions; it never computes eligibility clien
 
 ## Consequences
 
-**Easier**
+### Easier
+
 - The student app matches the CFG identity and the approved mock; demos look real.
 - `mock-dashboard.html`'s design is now exercised against live data instead of hard-coded arrays.
 
-**Harder**
+### Harder
+
 - CFG CSS tokens/components are duplicated across `admin.html`, `app.html`, and the mock — a
   palette change touches three files until Option C.
 - `mock-dashboard.html` is now largely redundant with the live app; keep it as a design reference
   or retire it (it is not wired to anything).
 
-**Revisit when**
+### Revisit when
+
 - A fourth branded surface appears or the brand palette changes → do Option C (shared stylesheet).
 
 ## Action Items
+
 1. [x] Rebuild `public/app.html` on the mock's tokens + components.
 2. [x] Render sidebar path tree, progress, stats, "continue" card, and pathway grid from the live API.
 3. [x] Add deliverable submission on the active stage (complete → unlock next), reflecting server gating.

@@ -96,20 +96,24 @@ Express vs. Fastify vs. raw `node:http`: Express chosen for readability and beca
 
 ## Consequences
 
-**Easier**
+### Easier
+
 - Demo data-access code graduates to Lambda code by swapping the endpoint — no rewrite.
 - One language, one `npm install`, no Docker; runs in CI/sandbox and on the maintainer's machine identically.
 - Real DynamoDB semantics let us actually test the idempotent, conditional-write state machine the architecture depends on.
 
-**Harder**
+### Harder
+
 - A JVM must be available (Java 11 satisfies it today; documented as a prerequisite).
 - Auth and gated-content delivery are simulated, so the demo does **not** exercise Cognito MFA, the SQS provisioning seam, or CloudFront signed-cookie gating — those stay design-only until a later phase.
 
-**Revisit when**
+### Revisit when
+
 - We want to demo Cognito/SQS/S3 behavior locally → adopt LocalStack (Option C) behind Docker.
 - We move from demo to deployment → AWS SAM (already the chosen IaC in `Architecture-Design.md` §4/§13); the SDK-v3 modules carry straight over.
 
 ## Action Items
+
 1. [ ] Pin the DynamoDB Local version and add a fetch/launch script (jar, no Docker) with a health check.
 2. [ ] Centralize the endpoint in one DB client module so the demo→AWS switch is a single env var.
 3. [ ] Mark the auth shim and JSON/table content delivery as **demo-only** in `demo/README.md`, each pointing at the production mechanism it stands in for.

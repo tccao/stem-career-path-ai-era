@@ -1,0 +1,23 @@
+# Virtual environments
+
+.venv/
+venv/
+**/.venv/
+**/venv/
+
+# Dependencies
+
+node_modules/
+
+# Cache folders
+
+**/__pycache__/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.cache/
+.cache/
+**/*cache*/
+.agents/
+.claude/
+.codex/

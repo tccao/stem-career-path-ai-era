@@ -416,4 +416,3 @@ The journey is built so the person can trust the gate and the org can account fo
 4. **Notifications ownership** — approval/expiry emails fully automated (SES) vs. manual by owner.
 5. **Refund/chargeback handling — resolved (launch):** the reconcile poll triggers an audited
    auto-`REVOKED` on a detected refund/chargeback; manual admin revoke remains available (§5.1).
-```

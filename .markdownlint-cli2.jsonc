@@ -1,0 +1,17 @@
+{
+  // Rule config still comes from .markdownlint.json (auto-merged by the cli2 engine).
+  // This file exists to provide `ignores`, which the cli2 engine (used by the
+  // VS Code extension) requires instead of a .markdownlintignore file.
+  "ignores": [
+    "**/.venv/**",
+    "**/venv/**",
+    "**/node_modules/**",
+    "**/__pycache__/**",
+    "**/.pytest_cache/**",
+    "**/.mypy_cache/**",
+    "**/.ruff_cache/**",
+    "**/.cache/**",
+    "**/*cache*/**",
+    "**/.agents/**"
+  ]
+}

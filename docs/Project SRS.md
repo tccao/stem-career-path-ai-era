@@ -4,7 +4,7 @@
 
 **Project Owner:** Tinh Cao
 
-**Organization:** Code For Good (https://www.codeforgood.org)
+**Organization:** Code For Good (<https://www.codeforgood.org>)
 
 **Project Type:** Static landing page + maintainable documentation
 
@@ -568,7 +568,6 @@ stem-career-path-ai-era/
     ├── CodeForGood_index.html
 ```
 
-
 ## 19. Documentation Plan
 
 ### 19.1 README.md
@@ -639,7 +638,6 @@ Purpose:
 * Explain GitHub workflow
 * Explain review process
 
-
 ## 20. Development Phases
 
 ### Phase 1 — Planning
@@ -694,7 +692,6 @@ Deliverables:
 * Known limitations
 * Future roadmap
 * Code For Good Leadership handoff notes
-
 
 ## 21. QA Checklist
 

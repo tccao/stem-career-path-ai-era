@@ -15,7 +15,7 @@ This project should be treated as a maintainable static web project, not just a 
 ## Organization
 
 **Organization:** Code For Good  
-**Website:** https://www.codeforgood.org  
+**Website:** <https://www.codeforgood.org>  
 **Project Owner:** Tinh Cao  
 **Primary Reviewer:** Code For Good Leadership  
 **Future Maintainers:** Student volunteers  

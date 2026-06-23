@@ -507,26 +507,26 @@ Because high school students may be minors, the platform should follow these rul
 
 ## 12. References verified June 2026
 
-- AWS Nonprofit Credit Program — https://aws.amazon.com/government-education/nonprofits/nonprofit-credit-program/
-- AWS for Nonprofits — https://aws.amazon.com/government-education/nonprofits/
-- AWS Amplify Hosting pricing — https://aws.amazon.com/amplify/pricing/
-- AWS Amplify WAF pricing documentation — https://docs.aws.amazon.com/amplify/latest/userguide/waf-pricing.html
-- AWS WAF pricing — https://aws.amazon.com/waf/pricing/
-- Amazon Cognito pricing — https://aws.amazon.com/cognito/pricing/
-- AWS Lambda pricing — https://aws.amazon.com/lambda/pricing/
-- Amazon API Gateway pricing — https://aws.amazon.com/api-gateway/pricing/
-- Amazon DynamoDB pricing — https://aws.amazon.com/dynamodb/pricing/
-- Amazon SES pricing — https://aws.amazon.com/ses/pricing/
-- Stripe nonprofit fee discount — https://support.stripe.com/questions/fee-discount-for-nonprofit-organizations
-- Zeffy zero-fee fundraising — https://www.zeffy.com/
-- Zeffy public API (read-only, Beta; ~100 req/min) — https://www.zeffy.com/integration/api
-- Zeffy native webhooks — roadmap / feature request (not shipped as of June 2026) — https://feedback.zeffy.com/feature-requests/p/webhook
-- Zeffy integrations / Zapier — https://support.zeffy.com/integrating-zeffy-with-other-softwares-74zts
-- Stripe webhooks (native signed events) — https://docs.stripe.com/webhooks
-- PayPal webhooks (native; legacy IPN deprecated) — https://developer.paypal.com/api/rest/webhooks/
-- Calendly pricing — https://calendly.com/pricing
-- Cal.com pricing — https://cal.com/pricing
-- FTC COPPA rule — https://www.ftc.gov/legal-library/browse/rules/childrens-online-privacy-protection-rule-coppa
-- IRS quid pro quo contribution guidance — https://www.irs.gov/charities-non-profits/substantiating-charitable-contributions
+- AWS Nonprofit Credit Program — <https://aws.amazon.com/government-education/nonprofits/nonprofit-credit-program/>
+- AWS for Nonprofits — <https://aws.amazon.com/government-education/nonprofits/>
+- AWS Amplify Hosting pricing — <https://aws.amazon.com/amplify/pricing/>
+- AWS Amplify WAF pricing documentation — <https://docs.aws.amazon.com/amplify/latest/userguide/waf-pricing.html>
+- AWS WAF pricing — <https://aws.amazon.com/waf/pricing/>
+- Amazon Cognito pricing — <https://aws.amazon.com/cognito/pricing/>
+- AWS Lambda pricing — <https://aws.amazon.com/lambda/pricing/>
+- Amazon API Gateway pricing — <https://aws.amazon.com/api-gateway/pricing/>
+- Amazon DynamoDB pricing — <https://aws.amazon.com/dynamodb/pricing/>
+- Amazon SES pricing — <https://aws.amazon.com/ses/pricing/>
+- Stripe nonprofit fee discount — <https://support.stripe.com/questions/fee-discount-for-nonprofit-organizations>
+- Zeffy zero-fee fundraising — <https://www.zeffy.com/>
+- Zeffy public API (read-only, Beta; ~100 req/min) — <https://www.zeffy.com/integration/api>
+- Zeffy native webhooks — roadmap / feature request (not shipped as of June 2026) — <https://feedback.zeffy.com/feature-requests/p/webhook>
+- Zeffy integrations / Zapier — <https://support.zeffy.com/integrating-zeffy-with-other-softwares-74zts>
+- Stripe webhooks (native signed events) — <https://docs.stripe.com/webhooks>
+- PayPal webhooks (native; legacy IPN deprecated) — <https://developer.paypal.com/api/rest/webhooks/>
+- Calendly pricing — <https://calendly.com/pricing>
+- Cal.com pricing — <https://cal.com/pricing>
+- FTC COPPA rule — <https://www.ftc.gov/legal-library/browse/rules/childrens-online-privacy-protection-rule-coppa>
+- IRS quid pro quo contribution guidance — <https://www.irs.gov/charities-non-profits/substantiating-charitable-contributions>
 
 > Final pre-launch check: confirm AWS credit award amount, **Zeffy event-flow method (polling vs. Zapier) and confirm whether native webhooks have shipped**, Stripe/PayPal add-later terms, minimum contribution amount, receipt language, age policy, and whether Amplify WAF is needed.
