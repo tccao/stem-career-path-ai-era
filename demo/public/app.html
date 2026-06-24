@@ -96,13 +96,14 @@
     .acc.lvl2>.acc-head .frac { margin-left:auto; font-size:.64rem; font-weight:800; color:var(--muted); background:#f1ecf9; border-radius:var(--r-pill); padding:2px 8px; }
     .acc.lvl2>.acc-head .chev { margin-left:4px; width:14px; height:14px; }
     /* done = mint */
-    .acc.lvl2.done>.acc-head .frac { color:#0e9e7a; background:rgba(34,211,168,.15); }
+    .acc.lvl2.done>.acc-head .frac { color:#0a7a5c; background:rgba(34,211,168,.15); }
     /* current stage (emitted class is "active") = teal "where you are" */
     .acc.lvl2.active>.acc-head { color:var(--teal-dark); }
     .acc.lvl2.active>.acc-head .frac { color:#fff; background:var(--teal); }
     /* locked */
     .acc.lvl2.locked>.acc-head { color:#7a6c95; }
     .acc.lvl2.locked>.acc-head .frac { color:#a99cc0; background:#f1ecf9; }
+    .acc.lvl2.selected>.acc-head { box-shadow:inset 3px 0 0 var(--teal); }
     .milestones { list-style:none; margin:0; padding:6px 0 8px 6px; display:flex; flex-direction:column; gap:7px; }
     .milestones li { display:flex; align-items:flex-start; gap:9px; font-size:.78rem; line-height:1.35; color:var(--muted); font-weight:600; border-radius:8px; padding:6px 8px; cursor:pointer; }
     .milestones li:hover { background:var(--teal-soft); color:var(--teal-dark); }
@@ -183,11 +184,12 @@
     .node.locked .badge { background:#efe7fb; color:#b9a9d6; }
     .node h4 { font-size:.94rem; margin-bottom:7px; }
     .node .state { font-size:.68rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
-    .node.done .state { color:#0e9e7a; }
+    .node.done .state { color:#0a7a5c; }
     .node.current .state { color:var(--teal-dark); }
     .node.locked .state { color:#7a6c95; }
     .node.locked h4 { color:#7a6c95; }
     .node.current { border-color:var(--teal); }
+    .node.selected { border-color:var(--teal); box-shadow:0 0 0 3px var(--teal-soft); }
     .node .lk { position:absolute; top:16px; right:15px; color:#cdbfe6; }
     .node .lk svg { width:15px; height:15px; }
     /* fast-track day drill-down (kept inside week node) */
@@ -197,7 +199,7 @@
     .day-card .state { flex-shrink:0; font-size:.62rem; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
     .day-card:hover { border-color:var(--teal); background:var(--teal-soft); }
     .day-card.complete { border-color:rgba(34,211,168,.4); background:rgba(34,211,168,.08); }
-    .day-card.complete .state { color:#0e9e7a; }
+    .day-card.complete .state { color:#0a7a5c; }
     .day-card.active { border-color:var(--teal); }
     .day-card.active .state { color:var(--teal-dark); }
     .day-card.selected { border-color:var(--teal); background:var(--teal); color:#fff; box-shadow:0 6px 16px rgba(12,125,140,.28); }
@@ -308,7 +310,7 @@
     /* gradient-text fallback (clip unsupported → solid color, keeps contrast) */
     @supports not ((-webkit-background-clip:text) or (background-clip:text)){
       .chip .v, .rung .amt{ background:none; color:var(--p); -webkit-text-fill-color:initial; }
-      .chip.mint .v{ color:#0e9e7a; }
+      .chip.mint .v{ color:#0a7a5c; }
     }
 
     /* ===== REDUCED MOTION ===== */
@@ -483,15 +485,15 @@
       $('pathSub').textContent = `${v.meta.title} · ${v.meta.duration}`;
       $('pathNavLabel').textContent = v.pathKey === 'B_fast_track' ? 'Fast Track' : '8-Pillar Roadmap';
       $('pathwayTitle').textContent = v.pathKey === 'B_fast_track' ? 'Your 4-week fast track' : 'Your 8-pillar pathway';
-      $('pathway').className = v.pathKey === 'B_fast_track' ? 'journey fasttrack' : 'journey';
+      $('pathway').className = 'journey fasttrack';
 
       // sidebar accordion tree
       $('pathTree').innerHTML = v.stages.map((s) => {
         const items = s.days
           ? s.days.map((d) => `<li class="${[d.state==='complete'?'done':'', d.state==='locked'?'locked':'', d.stageKey===selectedStage?'selected':''].filter(Boolean).join(' ')}" data-stage="${esc(d.stageKey)}" data-state="${esc(d.state)}"><span class="dot"></span><span>${esc(d.title)}</span></li>`).join('')
-          : (s.items || []).map((m) => `<li class="${s.state==='complete'?'done':''}"><span class="dot"></span><span>${esc(m)}</span></li>`).join('');
+          : (s.items || []).map((m) => `<li class="${[s.state==='complete'?'done':'', s.state==='locked'?'locked':''].filter(Boolean).join(' ')}" data-nav="${esc(s.stageKey)}"><span class="dot"></span><span>${esc(m)}</span></li>`).join('');
         const frac = s.state === 'complete' ? '✓' : s.state === 'active' ? '●' : '🔒';
-        const isOpen = openWeeks.has(s.stageKey) || s.state === 'active' || (s.days || []).some((d) => d.stageKey === selectedStage);
+        const isOpen = openWeeks.has(s.stageKey) || s.state === 'active' || s.stageKey === selectedStage || (s.days || []).some((d) => d.stageKey === selectedStage);
         return `<div class="acc lvl2 ${s.state==='complete'?'done':s.state}" data-stage-key="${esc(s.stageKey)}" data-open="${isOpen ? 'true' : 'false'}">
           <button class="acc-head" type="button"><span>${esc(s.title)}</span><span class="frac">${frac}</span>${chev()}</button>
           <div class="acc-body"><div class="acc-inner"><ul class="milestones">${items}</ul></div></div></div>`;
@@ -508,36 +510,8 @@
         <div class="chip gold"><div class="k">Deliverables</div><div class="v">${deliverables}</div><div class="s">submitted</div></div>
         <div class="chip coral"><div class="k">Track</div><div class="v" style="font-size:1.3rem;-webkit-text-fill-color:initial;background:none;color:var(--coral)">${esc(trackLabel)}</div><div class="s">your path</div></div>`;
 
-      // hero (current active stage) — Electric Twilight
-      const active = v.activeStage;
-      if (active) {
-        const week = active.weekKey ? v.stages.find((s) => s.stageKey === active.weekKey) : null;
-        const title = week ? week.title : active.title;
-        const detail = week ? `${active.title}: ${active.description}` : (active.description || 'Complete this stage to unlock the next.');
-        const reqs = requirementsFor(active).slice(0, 3);
-        const checklist = reqs.map((r) => `<div class="chk"><i></i><span>${esc(r)}</span></div>`).join('');
-        $('continueWrap').innerHTML = `<section class="hero">
-          <div class="hero-grid">
-            <div>
-              <span class="eyebrow"><span class="pulse"></span> Your next move</span>
-              <h1>${esc(title)}</h1>
-              <p class="where">${esc(detail)}</p>
-              <div class="hbar"><span style="width:${v.progressPct}%"></span></div>
-              <div class="hpct"><span>${v.progressPct}% complete</span><span>${v.completed}/${v.total} ${unitLabel}</span></div>
-              <div class="cta">
-                <button class="btn btn-glow" id="openActiveStage" type="button">Open ${esc(active.title)} ${icoArrow()}</button>
-              </div>
-            </div>
-            <div class="hero-side">
-              <h4>What to complete</h4>
-              ${checklist || '<div class="chk"><i></i><span>Open the stage to see requirements</span></div>'}
-            </div>
-          </div>
-        </section>`;
-        $('openActiveStage').onclick = () => openStage(active.stageKey);
-      } else {
-        $('continueWrap').innerHTML = `<section class="hero"><div class="hero-grid"><div><span class="eyebrow">Path complete</span><h1>You've completed every stage</h1><p class="where">All ${v.total} stages done — keep building and shipping.</p></div></div></section>`;
-      }
+      // hero — features the selected stage (or active by default) and follows clicks
+      renderHero(v);
 
       // pathway grid
       $('pathway').innerHTML = v.pathKey === 'B_fast_track' ? renderWeeks(v.stages) : renderStageCards(v.stages);
@@ -545,6 +519,82 @@
       renderStageDetail(v);
 
       renderLadder(v.progressPct);
+    }
+
+    // The hero features whichever stage is selected (clicked) — falling back to the active stage.
+    function featuredStage(v) {
+      const key = stageKeyFromHash();
+      if (key) {
+        const s = findStage(v, key);
+        if (s && s.state !== 'locked') return s;
+      }
+      return v.activeStage || null;
+    }
+
+    // Booleans aligned with requirementsFor(stage): a complete stage is all-done; otherwise read
+    // the live checkbox state from the open detail (so "what to complete" tracks marking tasks done).
+    function checkedReqStates(stage) {
+      const reqs = requirementsFor(stage);
+      if (stage.state === 'complete') return reqs.map(() => true);
+      const detail = $('stageDetail');
+      if (detail && stageKeyFromHash() === stage.stageKey) {
+        const checks = [...detail.querySelectorAll('.reqCheck')];
+        if (checks.length === reqs.length) return checks.map((c) => c.checked);
+      }
+      const saved = new Set(stage.checkedTasks || []);
+      return reqs.map((_, i) => saved.has(i));
+    }
+
+    function heroChecklistHtml(stage) {
+      if (stage.state === 'complete') {
+        return '<div class="chk on"><i>✓</i><span>This pillar is complete — nice work.</span></div>';
+      }
+      const reqs = requirementsFor(stage);
+      const checked = checkedReqStates(stage);
+      const remaining = reqs.filter((_, i) => !checked[i]);
+      if (!remaining.length) {
+        return '<div class="chk on"><i>✓</i><span>All tasks checked — submit your proof below.</span></div>';
+      }
+      return remaining.slice(0, 3).map((r) => `<div class="chk"><i></i><span>${esc(r)}</span></div>`).join('');
+    }
+
+    function refreshHeroChecklist(stage) {
+      const el = $('heroTasks');
+      if (el) el.innerHTML = heroChecklistHtml(stage);
+    }
+
+    function renderHero(v) {
+      const stage = featuredStage(v);
+      if (!stage) {
+        $('continueWrap').innerHTML = `<section class="hero"><div class="hero-grid"><div><span class="eyebrow">Path complete</span><h1>You've completed every stage</h1><p class="where">All ${v.total} stages done — keep building and shipping.</p></div></div></section>`;
+        return;
+      }
+      const unitLabel = v.pathKey === 'B_fast_track' ? 'days' : 'stages';
+      const week = stage.weekKey ? v.stages.find((s) => s.stageKey === stage.weekKey) : null;
+      const title = week ? week.title : stage.title;
+      const detail = week ? `${stage.title}: ${stage.description}` : (stage.description || 'Complete this stage to unlock the next.');
+      const reviewing = stage.state === 'complete';
+      const eyebrow = reviewing ? 'Reviewing' : 'Your next move';
+      const btnLabel = `${reviewing ? 'Review' : 'Open'} ${stage.title}`;
+      $('continueWrap').innerHTML = `<section class="hero">
+        <div class="hero-grid">
+          <div>
+            <span class="eyebrow"><span class="pulse"></span> ${esc(eyebrow)}</span>
+            <h1>${esc(title)}</h1>
+            <p class="where">${esc(detail)}</p>
+            <div class="hbar"><span style="width:${v.progressPct}%"></span></div>
+            <div class="hpct"><span>${v.progressPct}% complete</span><span>${v.completed}/${v.total} ${unitLabel}</span></div>
+            <div class="cta">
+              <button class="btn btn-glow" id="openActiveStage" type="button">${esc(btnLabel)} ${icoArrow()}</button>
+            </div>
+          </div>
+          <div class="hero-side">
+            <h4>What to complete</h4>
+            <div id="heroTasks">${heroChecklistHtml(stage)}</div>
+          </div>
+        </div>
+      </section>`;
+      $('openActiveStage').onclick = () => openStage(stage.stageKey);
     }
 
     function renderWeeks(weeks) {
@@ -569,7 +619,10 @@
         const label = s.state === 'complete' ? 'Complete' : s.state === 'active' ? 'In progress' : 'Locked';
         const lock = s.state === 'locked' ? `<i class="lk">${icoLock()}</i>` : '';
         const badge = s.state === 'complete' ? '✓' : String(s.order);
-        return `<div class="node ${cls}" data-stage="${esc(s.stageKey)}" data-state="${esc(s.state)}" role="button" tabindex="0">${lock}<div class="badge">${badge}</div><div class="state">${label}</div><h4>${esc(shortTitle(s.title))}</h4></div>`;
+        const sel = s.stageKey === stageKeyFromHash() ? 'selected' : '';
+        const milestones = (s.items || []).map((m) =>
+          `<div class="day-card${s.state === 'locked' ? ' locked' : ''}"><span>${esc(m)}</span></div>`).join('');
+        return `<div class="node ${cls} ${sel}" data-stage="${esc(s.stageKey)}" data-state="${esc(s.state)}" role="button" tabindex="0">${lock}<div class="badge">${badge}</div><div class="state">${label} · ${(s.items || []).length} milestones</div><h4>${esc(shortTitle(s.title))}</h4><div class="day-list">${milestones}</div></div>`;
       }).join('');
     }
 
@@ -588,8 +641,9 @@
       const locked = stage.state === 'locked';
       const complete = stage.state === 'complete';
       const badge = complete ? 'Complete' : locked ? 'Locked' : 'Active';
-      const checks = reqs.map((r) => `<label class="requirement">
-        <input type="checkbox" class="reqCheck" ${complete ? 'checked disabled' : locked ? 'disabled' : ''} />
+      const saved = new Set(stage.checkedTasks || []);
+      const checks = reqs.map((r, i) => `<label class="requirement">
+        <input type="checkbox" class="reqCheck" ${complete ? 'checked disabled' : locked ? 'disabled' : (saved.has(i) ? 'checked' : '')} />
         <span>${esc(r)}</span>
       </label>`).join('');
       const proof = complete
@@ -621,10 +675,24 @@
         url.disabled = !done;
         btn.disabled = !done || !url.value.trim();
       };
-      checks.forEach((c) => c.addEventListener('change', sync));
+      const persist = () => {
+        const idx = checks.map((c, i) => (c.checked ? i : -1)).filter((i) => i >= 0);
+        stage.checkedTasks = idx; // optimistic: keep the in-memory view current for navigation
+        saveStageTasks(stage.stageKey, idx); // persist to the database (fire-and-forget)
+      };
+      checks.forEach((c) => c.addEventListener('change', () => { persist(); sync(); refreshHeroChecklist(stage); }));
       url.addEventListener('input', sync);
       form.onsubmit = (e) => { e.preventDefault(); submit(stage.stageKey, url.value); };
       sync();
+    }
+
+    // Persist proof-of-work ticks to the database. Optimistic UI already applied; we only surface errors.
+    async function saveStageTasks(stageKey, checked) {
+      try {
+        await api(`/app/stages/${encodeURIComponent(stageKey)}/tasks`, { method: 'PUT', body: { checked } });
+      } catch (e) {
+        if (e.message !== 'unauthorized') toast('Could not save progress — check your connection');
+      }
     }
 
     function stageUnits(v){ return v.stageUnits || v.stages || []; }
@@ -642,11 +710,16 @@
       history.pushState(null, '', '#stage=' + encodeURIComponent(stageKey));
       updateSelectedStage(stageKey);
       renderStageDetail(latestPath);
+      renderHero(latestPath);
       requestAnimationFrame(() => $('stageDetail')?.scrollIntoView({ behavior:'smooth', block:'start' }));
     }
     function updateSelectedStage(stageKey) {
       document.querySelectorAll('[data-stage]').forEach((el) =>
         el.classList.toggle('selected', el.dataset.stage === stageKey),
+      );
+      // roadmap: highlight the selected pillar's sidebar accordion (week keys never match a day key in fast track)
+      document.querySelectorAll('#pathTree .acc.lvl2').forEach((a) =>
+        a.classList.toggle('selected', a.dataset.stageKey === stageKey),
       );
     }
     function wireStageLinks() {
@@ -655,6 +728,10 @@
         if (el.getAttribute('role') === 'button') {
           el.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openStage(el.dataset.stage); } };
         }
+      });
+      // sidebar sub-items navigate to their pillar without taking the selected-fill (that stays on the accordion head)
+      document.querySelectorAll('#pathTree [data-nav]').forEach((el) => {
+        el.onclick = () => openStage(el.dataset.nav);
       });
     }
     function requirementsFor(stage) {

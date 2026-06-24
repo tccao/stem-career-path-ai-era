@@ -10,6 +10,7 @@ import { ulid } from 'ulid';
 import * as appsRepo from '../repositories/applications.mjs';
 import * as membersRepo from '../repositories/members.mjs';
 import * as audit from '../repositories/audit.mjs';
+import { createDemoCredential } from './auth.mjs';
 
 export const STATUS = Object.freeze({
   SUBMITTED: 'SUBMITTED',
@@ -144,6 +145,17 @@ export const requireDonation = (applicationId, { actorId }) =>
     patch: { accessBasis: 'supporter', decidedBy: actorId },
   });
 
+// Self-serve "fund a seat" at /apply: SUBMITTED -> DONATION_REQUIRED with NO interview and NO
+// admin step (Customer-Journey §4 — supporters self-serve). The applicant, not an admin, is the
+// actor; access still requires a verified payment downstream (see selfServeSupporterGrant).
+export const chooseFundASeat = (applicationId, { actorId = 'self' } = {}) =>
+  advance(applicationId, STATUS.DONATION_REQUIRED, {
+    actorId,
+    actorRole: 'applicant',
+    reasonCode: 'SELF_SERVE',
+    patch: { accessBasis: 'supporter' },
+  });
+
 export const rejectApplication = (applicationId, { actorId, reasonCode = 'DECLINED' }) =>
   advance(applicationId, STATUS.REJECTED, {
     actorId,
@@ -152,8 +164,14 @@ export const rejectApplication = (applicationId, { actorId, reasonCode = 'DECLIN
   });
 
 // Supporter path: system verifies a Zeffy donation (here invoked directly for the demo).
-export const confirmDonation = (applicationId, { actorId = 'system' } = {}) =>
-  advance(applicationId, STATUS.DONATION_CONFIRMED, { actorId, actorRole: 'system' });
+// `zeffyPaymentId` is the production idempotency key (recorded in the Donations table there);
+// in the demo we stamp it on the application for traceability.
+export const confirmDonation = (applicationId, { actorId = 'system', zeffyPaymentId } = {}) =>
+  advance(applicationId, STATUS.DONATION_CONFIRMED, {
+    actorId,
+    actorRole: 'system',
+    patch: { zeffyPaymentId, donatedAt: zeffyPaymentId ? new Date().toISOString() : undefined },
+  });
 
 // request-info is NOT a status change (not in the state machine) — it's an audited note
 // that keeps the application where it is.
@@ -241,7 +259,55 @@ export async function provision(applicationId, { actorId }) {
     after: { status: STATUS.ACTIVE },
   });
 
-  return { memberId, application: updated, alreadyProvisioned: false };
+  // Mint the login credential (demo stand-in for Cognito AdminCreateUser; prod emails it via SES).
+  const { tempPassword } = await createDemoCredential({ email: app.email, memberId, role: 'student' });
+
+  return { memberId, application: updated, alreadyProvisioned: false, tempPassword };
+}
+
+// ---- self-serve supporter auto-grant (Customer-Journey §4/§5; Arch §9 supporter path) ----
+//
+// Drives an applicant who funds a seat straight to ACTIVE with NO interview and NO admin step:
+//   SUBMITTED -> DONATION_REQUIRED -> DONATION_CONFIRMED -> ACTIVE
+// Idempotent (each leg is a conditional write; provision() is a no-op once done).
+//
+// SECURITY (production): the DONATION_REQUIRED -> DONATION_CONFIRMED leg is gated on a
+// server-verified Zeffy payment — system-fn polls Zeffy's read-only API, matches by email, and
+// is idempotent on zeffyPaymentId. It is NEVER a raw client "I paid" signal. This demo simulates
+// that verification in-process (no real Zeffy), but the trust rule — access follows a
+// server-side payment check, not a client claim — is preserved in the design.
+export async function selfServeSupporterGrant(
+  applicationId,
+  { actorId = 'system', zeffyPaymentId } = {},
+) {
+  let app = await appsRepo.getApplication(applicationId);
+  if (!app) throw new NotFoundError('Application');
+
+  // Already granted -> idempotent no-op (returns the existing member).
+  if (app.status === STATUS.ACTIVE || app.memberId) {
+    return provision(applicationId, { actorId });
+  }
+
+  // Self-serve fund-a-seat: SUBMITTED -> DONATION_REQUIRED (applicant-initiated, no admin).
+  if (app.status === STATUS.SUBMITTED) {
+    app = await chooseFundASeat(applicationId, { actorId: 'self' });
+  }
+
+  // Server-verified payment (demo stand-in for the Zeffy poll): -> DONATION_CONFIRMED.
+  if (app.status === STATUS.DONATION_REQUIRED) {
+    app = await confirmDonation(applicationId, {
+      actorId,
+      zeffyPaymentId: zeffyPaymentId || `demo-${applicationId}`,
+    });
+  }
+
+  // Anything else (REJECTED / EXPIRED / REVOKED / INTERVIEW_SCHEDULED) is not a donate target.
+  if (app.status !== STATUS.DONATION_CONFIRMED) {
+    throw new InvalidTransitionError(app.status, STATUS.ACTIVE);
+  }
+
+  // Auto-provision (system-fn in prod): DONATION_CONFIRMED -> ACTIVE.
+  return provision(applicationId, { actorId });
 }
 
 // ---- member-status transitions ----

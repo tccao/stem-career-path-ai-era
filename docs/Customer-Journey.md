@@ -167,7 +167,7 @@ stateDiagram-v2
     PAID_AUTO --> ACTIVE: auto-grant (future phase)
 
     ACTIVE --> EXPIRED: window ends
-    ACTIVE --> REVOKED: admin revokes
+    ACTIVE --> REVOKED: admin revoke or auto on refund/chargeback
     EXPIRED --> SUBMITTED: re-apply
     REVOKED --> SUBMITTED: re-apply
     REJECTED --> SUBMITTED: re-apply (after cooldown)

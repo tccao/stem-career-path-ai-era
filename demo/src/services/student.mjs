@@ -114,6 +114,7 @@ function withSequentialState(units, byStage, byLock) {
       lockUpdatedAt: lock?.updatedAt || null,
       deliverableUrl: p?.deliverableUrl || null,
       completedAt: p?.verifiedAt || null,
+      checkedTasks: Array.isArray(p?.checkedTasks) ? p.checkedTasks : [],
     };
   });
 }
@@ -249,6 +250,45 @@ export async function submitStage(member, stageKey, deliverableUrl) {
     after: { status: 'complete' },
   });
 
+  return getPathView(member);
+}
+
+// Number of requirement ticks a stage exposes (mirrors the client's requirementsFor).
+function requirementCount(stage) {
+  if (stage.requirements?.length) return stage.requirements.length;
+  if (stage.items?.length) return stage.items.length;
+  return 1;
+}
+
+// Persist the per-stage proof-of-work checkbox ticks (UI progress) to the Progress table.
+// Re-derives gating server-side: locked stages are rejected; completed stages are left untouched.
+export async function saveStageTasks(member, stageKey, checked) {
+  const view = await getPathView(member);
+  const stage = view.stageUnits.find((s) => s.stageKey === stageKey);
+  if (!stage) {
+    const e = new Error('Unknown stage.');
+    e.httpStatus = 404;
+    e.code = 'not_found';
+    throw e;
+  }
+  if (stage.state === 'locked') throw new StageLockedError();
+
+  const count = requirementCount(stage);
+  const checkedTasks = [
+    ...new Set((Array.isArray(checked) ? checked : []).map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n < count)),
+  ].sort((a, b) => a - b);
+
+  if (stage.state !== 'complete') {
+    const existing = await progressRepo.getStageProgress(member.memberId, stageKey);
+    await progressRepo.putProgress({
+      ...(existing || {}),
+      memberId: member.memberId,
+      stageKey,
+      state: existing?.state === 'complete' ? 'complete' : 'active',
+      checkedTasks,
+      updatedAt: new Date().toISOString(),
+    });
+  }
   return getPathView(member);
 }
 

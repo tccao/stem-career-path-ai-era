@@ -58,7 +58,8 @@ breaking v1 clients (see `src/app.mjs` and `src/routes/v1/`).
 | GET | `/health`, `/api/v1` | — | liveness / version discovery |
 | POST | `/api/v1/auth/login` | auth | sign in (demo Cognito stand-in) → token |
 | GET | `/api/v1/auth/me` | auth | current user from token |
-| POST | `/api/v1/applications` | public | submit an application (age/consent gate) |
+| POST | `/api/v1/applications` | public | submit an application (age/consent gate); `accessChoice=supporter` self-serves a seat → `DONATION_REQUIRED` (no interview) |
+| POST | `/api/v1/applications/:id/donate` | public | self-serve donation: simulated Zeffy verify → **auto-provision to ACTIVE, no admin** (idempotent); returns a `demoLogin` credential (Cognito + SES stand-in) |
 | GET | `/api/v1/admin/overview` | admin | counts by lifecycle status |
 | GET | `/api/v1/admin/applications?status=` | admin | review queue |
 | GET | `/api/v1/admin/applications/:id` | admin | application + audit trail |
@@ -97,7 +98,8 @@ demo/
     admin.html                # admin dashboard (applications + members)
     app.html                  # student dashboard (learning path + gated progress)
   scripts/                    # create-tables, seed, seed-curriculum
-  test/                       # node:test suites (43 tests)
+  test/                       # backend node:test suites (54 tests)
+  e2e/                        # student-SPA end-to-end (puppeteer-core + axe-core)
   docs/                       # ADR-001 (stack), ADR-002 (local cloud)
 ```
 
@@ -109,16 +111,44 @@ demo/
 npm test          # requires a local endpoint up (MiniStack or the jar) + AWS_ENDPOINT_URL set
 ```
 
-**46 integration tests** run against a **real local DynamoDB engine** (not a mock): table schema
+**54 integration tests** run against a **real local DynamoDB engine** (not a mock): table schema
 
 + GSIs + conditional-write idempotency; every state-machine transition, illegal transitions,
 idempotent provisioning, PII-free audit; the admin API incl. the 401/403 role guard and the full
-apply→provision flow; the seeded curriculum; and the student app incl. role/access guards and the
-stage-gating logic (submit unlocks next day/pillar; locked stage → 403).
+apply→provision flow; the **self-serve supporter path** (fund a seat → donate → auto-grant → log in
+with the issued credential, no admin); the seeded curriculum; and the student app incl. role/access
+guards and the stage-gating logic (submit unlocks next day/pillar; locked stage → 403).
 
 > **Test ownership note.** The database, state machine, and API suites run anywhere a DynamoDB
 > endpoint is reachable. The deeper MiniStack-only integrations (real Cognito, the SQS
 > provisioning seam, S3/SES) are wired against MiniStack and run on a Docker host — see ADR-002.
+>
+> **Endpoint config.** `config.mjs` auto-loads `demo/.env` (`process.loadEnvFile`), so `cp
+> .env.example .env` once and `npm test` / `npm start` / the `db:*` scripts all pick up
+> `AWS_ENDPOINT_URL` (defaults to MiniStack `:4566`). Without a `.env`, export the vars instead.
+
+### UI / end-to-end tests (student SPA)
+
+`npm test` covers only the backend/API. The student SPA (`public/app.html`) has its own suite under
+`e2e/` that drives the real page headlessly — roadmap layout, hero-follows-selection, proof-of-work
+persistence to the DB, sidebar navigation, and axe-core color-contrast.
+
+```bash
+npm run test:e2e     # student-SPA E2E (needs a local DynamoDB engine + AWS_ENDPOINT_URL, like npm test)
+npm run test:all     # backend suite + E2E
+```
+
+**Tooling is installed as devDeps — no per-run downloads, no separate `npm start`:**
+
++ `puppeteer-core` + `axe-core` are `devDependencies`. `puppeteer-core` ships **no** browser, so it
+  reuses a system Chromium — set `CHROME_BIN` to point at one (defaults to
+  `/snap/chromium/current/usr/lib/chromium-browser/chrome` on this box; launched `--no-sandbox`
+  because snap confinement blocks the sandbox). Install once with `npm i -D puppeteer-core axe-core`.
++ The suite starts the Express app **in-process** (`createApp()` serves the static SPA), seeds a fresh
+  student via the lifecycle service, and authenticates by injecting the session JWT — so it always
+  tests the current code with no port juggling or stale server. Shared helpers live in
+  `e2e/_support.mjs`; seeded logins for manual runs: `roadmap@codeforgood.us` (path A) /
+  `student@codeforgood.us` (path B) / `admin@codeforgood.us`, passwords `student1234` / `admin1234`.
 
 ---
 

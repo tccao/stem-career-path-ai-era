@@ -133,6 +133,72 @@ describe('Phase 3 · admin API', () => {
     assert.equal(found.status, 'ACTIVE');
   });
 
+  test('self-serve: applying to fund a seat -> DONATION_REQUIRED (no interview)', async () => {
+    const { res, body } = await createApplication({ accessChoice: 'supporter' });
+    assert.equal(res.status, 201);
+    assert.equal(body.status, 'DONATION_REQUIRED');
+    assert.equal(body.accessBasis, 'supporter');
+    assert.ok(body.donateUrl, 'returns a donate link-out');
+  });
+
+  test('self-serve: donating auto-grants ACTIVE access with NO admin token', async () => {
+    const { body: app } = await createApplication({ accessChoice: 'supporter' });
+
+    // Note: no Authorization header — this is purely self-serve, no admin involved.
+    const r = await api(`/api/v1/applications/${app.applicationId}/donate`, {
+      method: 'POST',
+      body: { zeffyPaymentId: 'zf_http_1' },
+    });
+    assert.equal(r.status, 201);
+    const j = await r.json();
+    assert.equal(j.status, 'ACTIVE');
+    assert.equal(j.accessBasis, 'supporter');
+    assert.ok(j.memberId);
+
+    // It really is an ACTIVE supporter member, visible to the admin.
+    const tok = await adminToken();
+    const members = await (await api('/api/v1/admin/members', { headers: bearer(tok) })).json();
+    const found = members.items.find((m) => m.memberId === j.memberId);
+    assert.ok(found, 'self-serve member appears in the members list');
+    assert.equal(found.status, 'ACTIVE');
+    assert.equal(found.accessBasis, 'supporter');
+  });
+
+  test('self-serve: issued credential logs in and reaches the gated student app', async () => {
+    const { body: app } = await createApplication({ accessChoice: 'supporter' });
+    const grant = await (
+      await api(`/api/v1/applications/${app.applicationId}/donate`, { method: 'POST', body: {} })
+    ).json();
+    assert.ok(grant.demoLogin?.tempPassword, 'donate returns a demo welcome credential');
+
+    // Log in as the freshly self-provisioned supporter (no admin involved anywhere).
+    const login = await (
+      await api('/api/v1/auth/login', {
+        method: 'POST',
+        body: { email: grant.demoLogin.email, password: grant.demoLogin.tempPassword },
+      })
+    ).json();
+    assert.ok(login.token);
+    assert.equal(login.user.role, 'student');
+
+    // Reach the access-gated student app with that token.
+    const r = await api('/api/v1/app/path', { headers: bearer(login.token) });
+    assert.equal(r.status, 200);
+    assert.equal((await r.json()).pathKey, 'B_fast_track');
+  });
+
+  test('self-serve: double donate is idempotent (exactly one member)', async () => {
+    const { body: app } = await createApplication({ accessChoice: 'supporter' });
+    const first = await (
+      await api(`/api/v1/applications/${app.applicationId}/donate`, { method: 'POST', body: {} })
+    ).json();
+    const second = await (
+      await api(`/api/v1/applications/${app.applicationId}/donate`, { method: 'POST', body: {} })
+    ).json();
+    assert.equal(first.memberId, second.memberId);
+    assert.equal(second.alreadyProvisioned, true);
+  });
+
   test('invalid transition over HTTP -> 409 (approve a SUBMITTED app)', async () => {
     const tok = await adminToken();
     const { body: app } = await createApplication();

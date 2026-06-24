@@ -51,6 +51,36 @@ describe('Phase 2 · lifecycle state machine', () => {
     assert.equal(member.accessBasis, 'supporter');
   });
 
+  test('self-serve supporter: submit -> fund a seat -> auto-grant -> ACTIVE (no admin)', async () => {
+    const app = await lc.submitApplication(sampleApplicant());
+
+    // Applicant chooses to fund a seat — straight to DONATION_REQUIRED, no interview/admin.
+    const dr = await lc.chooseFundASeat(app.applicationId, { actorId: 'self' });
+    assert.equal(dr.status, lc.STATUS.DONATION_REQUIRED);
+    assert.equal(dr.accessBasis, 'supporter');
+
+    // Verified donation auto-provisions to ACTIVE in one system-driven call.
+    const { memberId, application } = await lc.selfServeSupporterGrant(app.applicationId, {
+      zeffyPaymentId: 'zf_test_1',
+    });
+    assert.equal(application.status, lc.STATUS.ACTIVE);
+
+    const member = await membersRepo.getMember(memberId);
+    assert.equal(member.status, 'ACTIVE');
+    assert.equal(member.accessBasis, 'supporter');
+    assert.equal(member.role, 'student');
+  });
+
+  test('self-serve grant works straight from SUBMITTED and is idempotent', async () => {
+    const app = await lc.submitApplication(sampleApplicant());
+    const first = await lc.selfServeSupporterGrant(app.applicationId, { zeffyPaymentId: 'zf_a' });
+    const second = await lc.selfServeSupporterGrant(app.applicationId, { zeffyPaymentId: 'zf_a' });
+
+    assert.equal(second.alreadyProvisioned, true);
+    assert.equal(first.memberId, second.memberId);
+    assert.equal((await membersRepo.getMember(first.memberId)).accessBasis, 'supporter');
+  });
+
   test('illegal transition rejected: approve a SUBMITTED app (skipping interview)', async () => {
     const app = await lc.submitApplication(sampleApplicant());
     await assert.rejects(

@@ -31,16 +31,15 @@ flowchart LR
 
     subgraph ext["🌐 External SaaS — PCI / scheduling"]
         zef["Zeffy<br/>donations + read-only API"]
-        cal["Calendly / Cal.com"]
+        cal["Cal.com"]
     end
 
     subgraph aws["☁️ AWS Cloud"]
-        gw@{ icon: "logos:aws-api-gateway", form: "square", label: "API Gateway (JWT authorizer)", pos: "b" }
-        cog@{ icon: "logos:aws-cognito", form: "square", label: "Cognito (MFA required)", pos: "b" }
-        sqs@{ icon: "logos:aws-sqs", form: "square", label: "SQS + DLQ", pos: "b" }
-        evb@{ icon: "logos:aws-eventbridge", form: "square", label: "EventBridge Scheduler", pos: "b" }
-        ssm@{ icon: "logos:aws-systems-manager", form: "square", label: "SSM Param Store", pos: "b" }
-        ses@{ icon: "logos:aws-ses", form: "square", label: "SES", pos: "b" }
+
+        subgraph entry["🔐 API & identity"]
+            gw@{ icon: "logos:aws-api-gateway", form: "square", label: "API Gateway (JWT authorizer)", pos: "b" }
+            cog@{ icon: "logos:aws-cognito", form: "square", label: "Cognito (MFA required)", pos: "b" }
+        end
 
         subgraph edge["☁️ Edge — cached"]
             amp@{ icon: "logos:aws-amplify", form: "square", label: "Amplify Hosting", pos: "b" }
@@ -53,9 +52,19 @@ flowchart LR
             lsys@{ icon: "logos:aws-lambda", form: "square", label: "system-fn", pos: "b" }
         end
 
+        subgraph async["⚙️ Async & scheduling"]
+            sqs@{ icon: "logos:aws-sqs", form: "square", label: "SQS + DLQ", pos: "b" }
+            evb@{ icon: "logos:aws-eventbridge", form: "square", label: "EventBridge Scheduler", pos: "b" }
+        end
+
+        subgraph shared["🔑 Secrets & email"]
+            ssm@{ icon: "logos:aws-systems-manager", form: "square", label: "SSM Param Store", pos: "b" }
+            ses@{ icon: "logos:aws-ses", form: "square", label: "SES", pos: "b" }
+        end
+
         subgraph data["🗄️ Data — least privilege"]
-            ddb@{ icon: "logos:aws-dynamodb", form: "square", label: "DynamoDB", pos: "b" }
             s3c@{ icon: "logos:aws-s3", form: "square", label: "Curriculum S3", pos: "b" }
+            ddb@{ icon: "logos:aws-dynamodb", form: "square", label: "DynamoDB", pos: "b" }
         end
     end
 
@@ -63,9 +72,9 @@ flowchart LR
     browser -->|"2) API (HTTPS)"| gw
     browser -.->|"donate link-out"| zef
     browser -.->|"book interview"| cal
+    gw -.->|"JWT authorizer (JWKS)"| cog
     gw -->|"intake"| lpub
     gw -->|"JWT routes"| lapp
-    lapp -->|"verify JWT / group / window"| cog
     lapp -.->|"3) gate ok → Set-Cookie"| browser
     lapp -->|"read signing key"| ssm
     browser -->|"4) curriculum + signed cookies"| cfc
@@ -78,7 +87,7 @@ flowchart LR
     lsys -->|"AdminCreateUser"| cog
     lsys -->|"welcome / expiry mail"| ses
     lpub -->|"PutItem Applications"| ddb
-    lapp -->|"read/write key-scoped"| ddb
+    lapp -->|"status/window + key-scoped R/W"| ddb
     lsys -->|"write Members"| ddb
     </pre>
   </div>

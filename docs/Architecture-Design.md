@@ -3,7 +3,7 @@
 **Project:** STEM Graduates Career Path — AI Era (Code For Good)
 **Doc type:** Build-ready architecture & security design (AWS serverless)
 **Owner:** Tinh Cao
-**Status:** Rev. 4 — AWS Well-Architected review findings applied (`docs/Well-Architected-Review.md`); self-serve supporter access (Zeffy read-only poll) added in Rev. 3
+**Status:** Rev. 5 — state-cycle & data-flow audit corrections applied (re-activation transition, status ownership, lapsed-application TTL, Figure 2A grouping/authorizer fix); Rev. 4 applied AWS Well-Architected review findings (`docs/Well-Architected-Review.md`); self-serve supporter access (Zeffy read-only poll) added in Rev. 3
 **Source of truth:** `docs/Platform-SRS.md` (platform) · `docs/Project SRS.md` (Phase-0 landing page)
 **Companion docs:** `docs/Sitemap-and-Wireframes.md` · `docs/Customer-Journey.md` ·
 `docs/Service-Tradeoff-Analysis.md` · `docs/Ops-Runbook.md`
@@ -40,6 +40,20 @@ Amplify + AWS serverless**, single-maintainer operability
 > **`system-fn` async on-failure DLQ**, a stated **single-region DR posture**, **Cost Anomaly
 > Detection**, and an explicit **Sustainability** section (§12.1). Findings + status:
 > `docs/Well-Architected-Review.md`.
+>
+> **Rev. 5 change — state-cycle & flow audit corrections.** Closed gaps found auditing the access
+> machine end-to-end. **(1) Re-activation** of a returning `EXPIRED`/`REVOKED` member is now a
+> distinct conditional `UpdateItem`, not the first-grant `PutItem attribute_not_exists(memberId)`
+> (which would silently no-op against the persistent `Members` row) — §9.1, §9A.1. **(2) Status
+> ownership** is stated explicitly: `Members.status` is authoritative post-provisioning,
+> `Applications.status` freezes at the grant decision (§5.2). **(3) "Lapsed"** is defined and the
+> scheduled sweep now stamps `expiresAt` on stale pre-`ACTIVE` applications (§5.1, §9.3).
+> **(4) Re-apply** writes a **new** `Applications` row — the provisioning dedupe key — with cooldown
+> looked up via `byEmail` (§5.2). **Figure 2A:** all twelve AWS services now sit in labelled groups
+> (added *API & identity*, *Async & scheduling*, *Secrets & email*), the three Lambda nodes' broken
+> `pos:` is restored so labels line up, and JWT verification is shown on the **API Gateway
+> authorizer** rather than an `app-fn`→Cognito call. The companion `docs/Customer-Journey.md` §4
+> `ACTIVE → REVOKED` label is aligned to include auto-revoke on refund/chargeback.
 
 ---
 
@@ -94,7 +108,8 @@ These two views show **what is actually deployed at launch** — nothing else (t
 automated-payment ingress lives in Appendix A only): **(A)** the runtime **request & data flow**,
 and **(B)** the **trust zones** and the IAM seams between them. Figure 2A groups services by
 boundary (each group's logo sits in the title), gives every AWS service its logo, and labels each
-arrow with the connection type; the step numbers 1–5 trace a member session. The AWS
+arrow with the connection type. The numbered steps trace a member's **read** session (1–4); **step
+5 is the admin-initiated grant** that provisioning consumes — a separate actor flow. The AWS
 Well-Architected review of this design lives in `docs/Well-Architected-Review.md`.
 
 > **Rendering note.** Figure 2A is a Mermaid `flowchart` (Mermaid ≥ 11.3) whose nodes use the
@@ -112,16 +127,15 @@ flowchart LR
 
     subgraph ext["🌐 External SaaS — PCI / scheduling"]
         zef["Zeffy<br/>donations + read-only API"]
-        cal["Calendly / Cal.com"]
+        cal["Cal.com"]
     end
 
     subgraph aws["☁️ AWS Cloud"]
-        gw@{ icon: "logos:aws-api-gateway", form: "square", label: "API Gateway (JWT authorizer)", pos: "b" }
-        cog@{ icon: "logos:aws-cognito", form: "square", label: "Cognito (MFA required)", pos: "b" }
-        sqs@{ icon: "logos:aws-sqs", form: "square", label: "SQS + DLQ", pos: "b" }
-        evb@{ icon: "logos:aws-eventbridge", form: "square", label: "EventBridge Scheduler", pos: "b" }
-        ssm@{ icon: "logos:aws-systems-manager", form: "square", label: "SSM Param Store", pos: "b" }
-        ses@{ icon: "logos:aws-ses", form: "square", label: "SES", pos: "b" }
+
+        subgraph entry["🔐 API & identity"]
+            gw@{ icon: "logos:aws-api-gateway", form: "square", label: "API Gateway (JWT authorizer)", pos: "b" }
+            cog@{ icon: "logos:aws-cognito", form: "square", label: "Cognito (MFA required)", pos: "b" }
+        end
 
         subgraph edge["☁️ Edge — cached"]
             amp@{ icon: "logos:aws-amplify", form: "square", label: "Amplify Hosting", pos: "b" }
@@ -134,9 +148,19 @@ flowchart LR
             lsys@{ icon: "logos:aws-lambda", form: "square", label: "system-fn", pos: "b" }
         end
 
+        subgraph async["⚙️ Async & scheduling"]
+            sqs@{ icon: "logos:aws-sqs", form: "square", label: "SQS + DLQ", pos: "b" }
+            evb@{ icon: "logos:aws-eventbridge", form: "square", label: "EventBridge Scheduler", pos: "b" }
+        end
+
+        subgraph shared["🔑 Secrets & email"]
+            ssm@{ icon: "logos:aws-systems-manager", form: "square", label: "SSM Param Store", pos: "b" }
+            ses@{ icon: "logos:aws-ses", form: "square", label: "SES", pos: "b" }
+        end
+
         subgraph data["🗄️ Data — least privilege"]
-            ddb@{ icon: "logos:aws-dynamodb", form: "square", label: "DynamoDB", pos: "b" }
             s3c@{ icon: "logos:aws-s3", form: "square", label: "Curriculum S3", pos: "b" }
+            ddb@{ icon: "logos:aws-dynamodb", form: "square", label: "DynamoDB", pos: "b" }
         end
     end
 
@@ -144,9 +168,9 @@ flowchart LR
     browser -->|"2) API (HTTPS)"| gw
     browser -.->|"donate link-out"| zef
     browser -.->|"book interview"| cal
+    gw -.->|"JWT authorizer (JWKS)"| cog
     gw -->|"intake"| lpub
     gw -->|"JWT routes"| lapp
-    lapp -->|"verify JWT / group / window"| cog
     lapp -.->|"3) gate ok → Set-Cookie"| browser
     lapp -->|"read signing key"| ssm
     browser -->|"4) curriculum + signed cookies"| cfc
@@ -159,7 +183,7 @@ flowchart LR
     lsys -->|"AdminCreateUser"| cog
     lsys -->|"welcome / expiry mail"| ses
     lpub -->|"PutItem Applications"| ddb
-    lapp -->|"read/write key-scoped"| ddb
+    lapp -->|"status/window + key-scoped R/W"| ddb
     lsys -->|"write Members"| ddb
 ```
 
@@ -264,7 +288,7 @@ destination/DLQ** so a failed expiry/reconcile run is visible, not silent (§11)
 | Async provisioning | **SQS + DLQ** | see rationale below |
 | Transactional email | **Amazon SES** | production access + SPF/DKIM/DMARC are launch checklist items (§16) |
 | Payment / access verification | **Zeffy (external, hosted) + read-only Payments API** | Card entry on Zeffy (SAQ-A); `system-fn` **polls the read-only API to verify supporter donations** and auto-provision (matched by email, idempotent on Zeffy payment ID). **No webhook, no card data.** Read-only API key in SSM SecureString |
-| Scheduling | **Calendly or Cal.com free tier** | decide at setup; no architectural impact (matches `Service-Tradeoff-Analysis.md`) |
+| Scheduling | **Cal.com free tier** | decide at setup; no architectural impact (matches `Service-Tradeoff-Analysis.md`) |
 | Expiry / reminders / donation reconcile | **EventBridge Scheduler → `system-fn`** | one schedule drives the Zeffy reconcile poll (verify donations) + expiry sweep + SES reminders |
 | Secrets | **Two keys** — CloudFront signing key (first-party) + **Zeffy read-only API key** (third-party) | Both in **SSM Parameter Store SecureString** (free, KMS-encrypted): signing key read-scoped to `app-fn`; Zeffy key read-scoped to `system-fn`. The Zeffy key is **read-only** (low blast radius, manual quarterly rotation — `Ops-Runbook.md`), so **Secrets Manager** is still not needed; it enters only with the Stripe phase (Appendix A) |
 | Platform audit trail | **CloudTrail** (multi-region, log validation) → **S3 Object Lock** | data events on `AuditLog` + `Members` (§7.1) |
@@ -301,7 +325,7 @@ state-machine writes use conditional expressions (idempotency + optimistic locki
 | `accessBasis` | string | `beneficiary` \| `supporter` (set at decision) |
 | `version` | number | optimistic-lock counter |
 | `interviewAt`, `decidedBy`, `decidedAt`, `rejectReason` | string | vetting metadata |
-| `expiresAt` | number (epoch) | **DynamoDB TTL** — set to final-state + 12 months for `REJECTED`/lapsed applications so PII auto-purges (`Platform-SRS.md` §6) |
+| `expiresAt` | number (epoch) | **DynamoDB TTL** — set to final-state + 12 months for `REJECTED`/lapsed applications so PII auto-purges (`Platform-SRS.md` §6). **Lapsed** = a non-terminal pre-`ACTIVE` application (`DONATION_REQUIRED` never paid, `INTERVIEW_SCHEDULED` no-show) with no state change for the configured staleness window; the scheduled sweep stamps `expiresAt` on these (§9.3) |
 | `createdAt`, `updatedAt` | string (ISO-8601) | |
 | GSI `byStatus` | PK `status`, SK `createdAt` | admin queue |
 | GSI `byEmail` | PK `email` | dedupe / re-application lookup |
@@ -371,7 +395,15 @@ the **Zeffy reconcile poll** (or by an admin via the dashboard fallback); **no S
 - Expiry sweep → query `Members.byStatusAccessEnds`: `status = ACTIVE AND accessEndsAt <= now`.
 - Gating check → `StageLocks.get(memberId, stageKey)` + prerequisite eval on **every** learning
   read/write, including curriculum fetches (§9.2).
-- Re-application → `Applications.byEmail`.
+- Re-application → `Applications.byEmail` (looked up for prior history / cooldown). Re-apply writes
+  a **new** `Applications` row with a fresh `applicationId`, which becomes the provisioning dedupe
+  key for that cycle (§9A.1).
+- **Status ownership (no dual source of truth).** Once an application is provisioned,
+  **`Members.status` is authoritative** for the `ACTIVE`/`EXPIRED`/`REVOKED` phase — sign-in and the
+  expiry sweep read/write only `Members`. `Applications.status` **freezes** at the granting decision
+  (`APPROVED_BENEFICIARY`/`DONATION_CONFIRMED`) and is **not** advanced by expiry or revocation; the
+  admin members view derives a provisioned member's live status from `Members`, while
+  `Applications.byStatus` is the **pre-provisioning** queue only.
 
 ---
 
@@ -411,6 +443,11 @@ flowchart LR
     Z -- no --> LK[403 stage_locked]
     Z -- yes --> OK[Serve / issue signed cookies]
 ```
+
+> The window and stage-lock branches apply to **student learning routes**; **admin routes**
+> short-circuit to *Serve* right after the group check (admins have no access window and no
+> per-stage locks). `EXPIRED` and `REVOKED` both resolve to `/access/expired` (the access-ended
+> page) — the distinction is preserved in `Members.status` and the audit log, not in the redirect.
 
 ### 6.2 Infrastructure roles (IAM least privilege & separation of duties)
 
@@ -614,6 +651,16 @@ Each transition is a conditional `UpdateItem`. Two security-critical grants exis
   redeliveries are no-ops. Provisioning is the same idempotent `PutItem Members` with
   `attribute_not_exists(memberId)` used everywhere. A **refunded** payment seen on a later poll
   transitions `ACTIVE → REVOKED` conditionally.
+- **Re-activation of a returning member** (`EXPIRED`/`REVOKED` → re-apply → `ACTIVE`) is a
+  **distinct transition, not a fresh provision.** Because `memberId` is the member's persistent
+  Cognito `sub`, the `Members` row already exists, so the first-grant primitive
+  (`PutItem … attribute_not_exists(memberId)`) is the **wrong tool** — it would fail its condition,
+  no-op, and silently leave the member `EXPIRED`/`REVOKED`. Re-activation is instead a conditional
+  **`UpdateItem`** (`if status IN ('EXPIRED','REVOKED')` → set `status='ACTIVE'`, new
+  `accessStartsAt`/`accessEndsAt`, bump `version`); `AdminCreateUser` is skipped (the existing-account
+  case the `UsernameExistsException` branch already anticipates). First grants and re-activations
+  therefore share the conditional-write discipline but use different write primitives — provisioning
+  branches on whether the `Members` row exists.
 
 `version` gives optimistic locking on concurrent admin edits. (`PAID_AUTO → ACTIVE` via signed
 webhook remains a future-phase transition — Appendix A.)
@@ -667,7 +714,10 @@ issuance, and can re-lock.
 members to `EXPIRED` (conditional), and sends SES reminders ahead of window close. Expired
 sessions land on `/access/expired`. **On the same schedule**, `system-fn` runs the **Zeffy
 reconcile poll** (§9.1): it verifies new donations against the read-only API and auto-provisions
-matched supporters, and auto-`REVOKED`s any donation it finds refunded or charged back.
+matched supporters, and auto-`REVOKED`s any donation it finds refunded or charged back. The same
+sweep **stamps `expiresAt` on lapsed pre-`ACTIVE` applications** (`DONATION_REQUIRED` never paid /
+`INTERVIEW_SCHEDULED` no-show, stale past the staleness window — §5.1) so their PII TTL-purges
+without a manual step.
 
 ---
 
@@ -682,7 +732,8 @@ donations are entirely external. Three failure modes, re-validated for rev. 2:
 |-----------|-------------------|-------|
 | Admin grant | Double-click, two admins, retry | Conditional `APPROVED → ACTIVE`; `version` lock. Second attempt no-ops |
 | Supporter auto-grant (Zeffy poll) | Overlapping poll cycles, re-seen payment | `Donations` conditional put on `zeffyPaymentId` (`attribute_not_exists`); then `PutItem Members` with `attribute_not_exists(memberId)`; refund seen later → conditional `ACTIVE → REVOKED` |
-| SQS → `system-fn` | At-least-once redelivery | `PutItem` Members with `attribute_not_exists(memberId)`; `UsernameExistsException` treated as success; dedupe key = `applicationId` |
+| SQS → `system-fn` (first grant) | At-least-once redelivery | `PutItem` Members with `attribute_not_exists(memberId)`; `UsernameExistsException` treated as success; dedupe key = `applicationId` |
+| SQS → `system-fn` (re-activation) | Returning `EXPIRED`/`REVOKED` member re-applies | Conditional `UpdateItem` `if status IN ('EXPIRED','REVOKED')` → `ACTIVE`; `AdminCreateUser` skipped (account already exists); re-runs no-op once `ACTIVE` |
 | Deliverable submit / stage advance | Resubmit, retry | Conditional writes on `Progress`/`StageLocks`; advancing twice no-ops |
 | Audit append | Worker retry | `eventId` derived deterministically from `action+targetId+requestId`, conditional-put |
 | SES email | At-least-once retry | `notificationSentAt` flag set by conditional update before send |

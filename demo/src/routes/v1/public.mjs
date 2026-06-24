@@ -8,6 +8,9 @@ import { route, badRequest } from './_helpers.mjs';
 
 const r = Router();
 
+// Accepted `accessChoice` values that mean "I want to fund a seat" (self-serve supporter).
+const SUPPORTER_CHOICES = new Set(['supporter', 'fund_a_seat', 'donor']);
+
 r.post(
   '/',
   route(async (req, res) => {
@@ -33,7 +36,46 @@ r.post(
       ageBracket: b.ageBracket,
       guardianConsentAt: b.guardianConsentAt,
     });
+
+    // Self-serve supporter: choosing to fund a seat skips the interview entirely
+    // (Customer-Journey §4). The applicant moves straight to DONATION_REQUIRED, then donates.
+    if (SUPPORTER_CHOICES.has(b.accessChoice)) {
+      const updated = await lc.chooseFundASeat(app.applicationId, { actorId: 'self' });
+      return res.status(201).json({
+        applicationId: app.applicationId,
+        status: updated.status, // DONATION_REQUIRED
+        accessBasis: 'supporter',
+        next: 'donate',
+        // Demo stand-in for the Zeffy hosted-donation link-out; POST here to simulate paying.
+        donateUrl: `/api/v1/applications/${app.applicationId}/donate`,
+      });
+    }
+
     res.status(201).json({ applicationId: app.applicationId, status: app.status });
+  }),
+);
+
+// Self-serve donation (public, no auth). Demo stand-in for: the applicant donates on Zeffy's
+// hosted page AND system-fn's read-only poll verifies the payment. On verification it
+// auto-provisions access — NO admin interview, NO manual approval (Customer-Journey §5.1).
+// Production NEVER trusts a client "I paid" signal; the verification is server-side (see
+// services/lifecycle.mjs selfServeSupporterGrant). Idempotent on repeat calls.
+r.post(
+  '/:id/donate',
+  route(async (req, res) => {
+    const out = await lc.selfServeSupporterGrant(req.params.id, {
+      actorId: 'system',
+      zeffyPaymentId: req.body?.zeffyPaymentId,
+    });
+    res.status(out.alreadyProvisioned ? 200 : 201).json({
+      applicationId: req.params.id,
+      status: lc.STATUS.ACTIVE,
+      memberId: out.memberId,
+      accessBasis: 'supporter',
+      alreadyProvisioned: out.alreadyProvisioned,
+      // DEMO ONLY: prod emails a temp password via SES and never returns it in an API response.
+      demoLogin: out.tempPassword ? { email: out.application?.email, tempPassword: out.tempPassword } : undefined,
+    });
   }),
 );
 

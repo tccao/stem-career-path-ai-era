@@ -110,6 +110,32 @@ describe('Student app API', () => {
     assert.equal(view.stages[0].days[0].deliverableUrl, 'https://test.com/');
   });
 
+  test('task ticks persist to the DB and come back on the next path read', async () => {
+    const { token } = await makeStudent('full_roadmap');
+    const save = await api('/api/v1/app/stages/pillar1/tasks', { method: 'PUT', token, body: { checked: [0, 2] } });
+    assert.equal(save.status, 200);
+    const view = await save.json();
+    assert.deepEqual(view.stages[0].checkedTasks, [0, 2]);
+    // a fresh read returns the persisted ticks (proves it is in the database, not just the response)
+    const reread = await (await api('/api/v1/app/path', { token })).json();
+    assert.deepEqual(reread.stages[0].checkedTasks, [0, 2]);
+  });
+
+  test('task ticks are sanitized: out-of-range/duplicate indices are dropped, ticking does not complete the stage', async () => {
+    const { token } = await makeStudent('full_roadmap');
+    const view = await (await api('/api/v1/app/stages/pillar1/tasks', { method: 'PUT', token, body: { checked: [1, 1, -3, 9999, 'x'] } })).json();
+    assert.deepEqual(view.stages[0].checkedTasks, [1]);
+    assert.equal(view.stages[0].state, 'active'); // still active — ticking is not submitting
+    assert.equal(view.progressPct, 0);
+  });
+
+  test('saving ticks on a locked stage -> 403 stage_locked (server-side gate)', async () => {
+    const { token } = await makeStudent('full_roadmap');
+    const r = await api('/api/v1/app/stages/pillar3/tasks', { method: 'PUT', token, body: { checked: [0] } });
+    assert.equal(r.status, 403);
+    assert.equal((await r.json()).error, 'stage_locked');
+  });
+
   test('submitting a locked stage -> 403 stage_locked (server-side gate)', async () => {
     const { token } = await makeStudent('fast_track');
     const r = await api('/api/v1/app/stages/wk1-day3/submit', {

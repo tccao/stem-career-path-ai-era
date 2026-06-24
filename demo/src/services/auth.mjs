@@ -1,9 +1,10 @@
 // DEMO auth shim — a deliberately small stand-in for Amazon Cognito (see ADR-001).
-// It issues an HMAC-signed, JWT-shaped token carrying { sub, email, role }. The role claim
+// It issues a signed JWT token carrying { sub, email, role }. The role claim
 // is what the admin route guard checks server-side — exactly the trust boundary Cognito
 // groups enforce in production (Arch §6.1). NOT production auth: no MFA, no refresh, no rotation.
 
 import crypto from 'node:crypto';
+import jwt from 'jsonwebtoken';
 import { config } from '../config.mjs';
 import * as demoAuth from '../repositories/demoAuth.mjs';
 
@@ -26,30 +27,20 @@ export function verifyPassword(password, stored) {
   }
 }
 
-const b64url = (obj) => Buffer.from(JSON.stringify(obj)).toString('base64url');
-const sign = (data) =>
-  crypto.createHmac('sha256', config.authSecret).update(data).digest('base64url');
-
 export function createToken(payload, { ttlSeconds = 3600 } = {}) {
-  const now = Math.floor(Date.now() / 1000);
-  const head = b64url({ alg: 'HS256', typ: 'JWT' });
-  const body = b64url({ ...payload, iat: now, exp: now + ttlSeconds });
-  return `${head}.${body}.${sign(`${head}.${body}`)}`;
+  return jwt.sign(payload, config.authSecret, {
+    algorithm: 'HS256',
+    expiresIn: ttlSeconds,
+  });
 }
 
 export function verifyToken(token) {
   if (!token) return null;
-  const [head, body, sig] = token.split('.');
-  if (!head || !body || !sig) return null;
-  if (sign(`${head}.${body}`) !== sig) return null;
-  let claims;
   try {
-    claims = JSON.parse(Buffer.from(body, 'base64url').toString());
+    return jwt.verify(token, config.authSecret, { algorithms: ['HS256'] });
   } catch {
     return null;
   }
-  if (claims.exp && claims.exp < Math.floor(Date.now() / 1000)) return null;
-  return claims;
 }
 
 export async function login(email, password) {
@@ -57,6 +48,26 @@ export async function login(email, password) {
   if (!cred || !verifyPassword(password, cred.passwordHash)) return null;
   const token = createToken({ sub: cred.memberId, email, role: cred.role });
   return { token, user: { memberId: cred.memberId, email, role: cred.role } };
+}
+
+// Demo stand-in for Cognito AdminCreateUser. Production: system-fn creates the Cognito user with a
+// temporary password (force-change on first sign-in) and SES emails it. Here we mint a DemoAuth
+// credential with a generated temp password and RETURN it so the caller can surface it the way a
+// welcome email would (demo only — a real API never returns a password).
+export function generateTempPassword() {
+  return `cfg-${crypto.randomBytes(5).toString('hex')}`; // demo-only, human-typable
+}
+
+export async function createDemoCredential({ email, memberId, role = 'student' }) {
+  const tempPassword = generateTempPassword();
+  await demoAuth.putCredential({
+    email,
+    memberId,
+    role,
+    passwordHash: hashPassword(tempPassword),
+    mustChangePassword: true, // mirrors Cognito force-change; not enforced in the demo
+  });
+  return { tempPassword };
 }
 
 // ---- Express middleware (server-side route guards, Arch §6.1) ----

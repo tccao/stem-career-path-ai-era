@@ -52,6 +52,14 @@ r.post(
   ),
 );
 
+// Persist proof-of-work checkbox ticks for a stage (server re-derives gating; locked -> 403).
+r.put(
+  '/stages/:stageKey/tasks',
+  route(async (req, res) =>
+    res.json(await student.saveStageTasks(req.member, req.params.stageKey, req.body?.checked)),
+  ),
+);
+
 r.get(
   '/progress',
   route(async (req, res) => res.json({ items: await progressRepo.listProgress(req.member.memberId) })),

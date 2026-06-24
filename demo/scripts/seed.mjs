@@ -115,6 +115,13 @@ async function seedSampleApplications() {
   const sam = await lc.submitApplication(applicant('sam@student.edu', "Sam O'Connor"));
   await lc.requireDonation(sam.applicationId, { actorId: ADMIN.memberId });
 
+  // Self-serve supporter: funded a seat at /apply and donated — auto-granted, no admin step.
+  const taylor = await lc.submitApplication(
+    applicant('taylor@supporter.org', 'Taylor Quinn', { preferredTrack: 'fast_track' }),
+  );
+  await lc.chooseFundASeat(taylor.applicationId, { actorId: 'self' });
+  await lc.selfServeSupporterGrant(taylor.applicationId, { zeffyPaymentId: 'zf_seed_taylor' });
+
   // Two provisioned students, one per learning path (for the student dashboard)
   await provisionStudent(STUDENT_B.email, 'Lee Nakamura', 'fast_track', STUDENT_B.password);
   await provisionStudent(STUDENT_A.email, 'Ava Okafor', 'full_roadmap', STUDENT_A.password);

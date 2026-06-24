@@ -7,7 +7,7 @@ Guidance for AI agents working in this repo. Tables are CSV (token-lean). Read t
 Code For Good nonprofit project, owner Tinh Cao. Two horizons in one repo:
 
 - **V1 — static landing page (BUILT).** Single marketing HTML file (`STEM Career Path Landing Page.html`, renamed to `index.html` for hosting). Plain HTML + embedded CSS + minimal JS. AWS static hosting.
-- **V2 — vetted-access learning platform (PLANNED, NOT BUILT).** AWS serverless app: apply → vet/donate → grant → learn → expire. Fully designed in `docs/`; no code yet.
+- **V2 — vetted-access learning platform (PLANNED; runnable local demo built).** AWS serverless app: apply → vet/donate → grant → learn → expire. Production is unbuilt and fully designed in `docs/`; a **runnable local demo** of the whole flow — incl. self-serve donate auto-grant and credential issuance — lives in `demo/` (Node + AWS SDK v3 over a local cloud; see `demo/docs/Demo-Architecture.md`).
 
 Source of truth: `docs/Project SRS.md` (V1) and `docs/Platform-SRS.md` (V2).
 
@@ -19,6 +19,7 @@ mock-dashboard.html, mock-booking.html  # V2 UI mocks
 assets/{images,icons}/              # codeforgood-logo.png, cohort/profile imgs
 references/                         # CodeForGood_index.html + roadmap PDFs (source of truth) 
 docs/                               # all V2 planning (see Doc map)
+demo/                               # runnable local V2 prototype — Node/Express + DynamoDB; see demo/docs/
 requirements.txt                    # validation apt deps (tidy, xmllint); venv via `uv venv --python 3.14`
 ```
 
@@ -34,6 +35,8 @@ docs/Sitemap-and-Wireframes.md,V2 zones routes wireframes nav-by-role
 docs/Service-Tradeoff-Analysis.md,V2 board-facing cost/service justification
 docs/Well-Architected-Review.md,V2 AWS WA review findings (applied in Arch Rev.4)
 docs/Ops-Runbook.md,V2 weekly checklist alarms restore/rotation procedures
+demo/docs/Demo-Architecture.md,how the runnable local demo works (Mermaid) + demo↔AWS mapping — incl. self-serve donate auto-grant + provision-issues-credential
+demo/docs/Demo-Walkthrough.md,guided ~15-min tour of the running demo (admin state machine + self-serve donate + student roadmap/fast-track + expiry/gating) keyed to the seeded cast
 ```
 
 `docs/Sprint-Planning_Sitemap-and-Wireframes.md` is RETIRED — do not use.
@@ -68,7 +71,7 @@ xml/well-formed,xmllint --noout index.html
 
 ## V2 — planned platform (design reference)
 
-> Not built. When implementing, `docs/Architecture-Design.md` is authoritative; this is the index.
+> Production not built — but a runnable local prototype lives in `demo/` (`demo/docs/Demo-Architecture.md` maps it to this design). When implementing for real, `docs/Architecture-Design.md` is authoritative; this is the index.
 
 Principles: serverless monolith, scale-to-zero pay-per-use, stateless (JWT), **server-side enforcement of roles/windows/content-gating** (never trust client), least privilege, everything privileged audited, no card data in-stack, idempotent (conditional-write) transitions, defer anything without a traffic trigger.
 
@@ -163,6 +166,46 @@ audit events carry IDs + status codes only,immutable log must never trap PII
 Cost target: gross ≤ $200/yr at pilot scale, net $0 against the $1,000 AWS nonprofit credit (single canonical figure). No always-on compute; no fixed-cost add-on without a documented trigger.
 
 Minors: under-13 not accepted (COPPA); 13–17 require guardian consent before interview. `/apply` runs the age/consent gate before the donate link-out.
+
+---
+
+## Local tooling (verified present — a future session can run these)
+
+```csv
+tool,version/path,use
+node + npx,v24.16.0 (nvm),JS runtime backing mmdc
+mmdc,11.15.0 (mermaid-cli),render+syntax-validate Mermaid headless — non-zero/stderr on parse error
+markdownlint-cli2,v0.22.1,lint docs/*.md + CLAUDE.md (config: .markdownlint*.json*) — `npx markdownlint-cli2 CLAUDE.md`
+chromium,snap 149 — real binary /snap/chromium/current/usr/lib/chromium-browser/chrome,Puppeteer backend for mmdc + demo UI tests (the puppeteer-bundled Chrome is ABSENT — point at this + run --no-sandbox)
+puppeteer-core + axe-core,demo/ devDeps (`npm i -D`),student-SPA E2E (`npm run test:e2e`) — drives system Chromium via CHROME_BIN (default snap path above); no browser download
+tidy,apt,HTML validate (index.html)
+xmllint,apt,XML well-formed check
+uv,managed,Python 3.14 venv
+python3,system,quick scripts (e.g. graph subgraph/end + edge-endpoint checks)
+```
+
+**Render/validate a Mermaid diagram headless (incl. Fig 2A AWS `logos:` icons).** The puppeteer-bundled Chrome is missing, so pass snap Chromium with the sandbox off (snap confinement blocks puppeteer's sandbox):
+
+```bash
+printf '{ "executablePath": "/snap/chromium/current/usr/lib/chromium-browser/chrome", "args": ["--no-sandbox","--disable-setuid-sandbox","--disable-gpu"] }' > /tmp/pptr.json
+# --iconPacks pulls the iconify logos pack so logos:aws-* resolve (network needed); omit for plain graphs
+mmdc -p /tmp/pptr.json --iconPacks @iconify-json/logos -i diagram.mmd -o out.svg
+```
+
+Verified: renders Fig 2A with all subgroup labels + 12 embedded AWS logos. CLI is for validation/CI; the VS Code built-in preview / `assets/diagrams/architecture-2A.html` stay the interactive logo-accurate path.
+
+**Run the demo test suites (`demo/`).** All suites need a local DynamoDB engine at the configured endpoint. The app auto-loads `demo/.env` (`process.loadEnvFile`, try/catch) — `cp .env.example .env` once (defaults to MiniStack `:4566`) and tests/scripts pick it up; only export `AWS_ENDPOINT_URL` (+ region/creds) if you skip the `.env`. E2E tooling (`puppeteer-core` + `axe-core`) is already a devDep — `npm ci` installs it; no browser download (it reuses the snap Chromium):
+
+```bash
+cd demo
+cp .env.example .env                                       # auto-loaded; endpoint defaults to :4566
+npm run cloud:up && npm run db:reset && npm run db:seed    # local cloud + tables + seed
+npm test            # backend/API suite (test/**)
+npm run test:e2e    # student-SPA E2E (e2e/** — puppeteer-core + axe-core)
+npm run test:all    # both
+```
+
+`e2e/` starts the Express app in-process (no `npm start` needed) and drives `public/app.html` with `puppeteer-core` against a system Chromium — override the binary with `CHROME_BIN` (defaults to the snap path above; `--no-sandbox` because snap blocks the sandbox). Shared helpers + axe-core injection live in `e2e/_support.mjs`; add new SPA tests as `e2e/*.test.mjs`.
 
 ## Conventions for agents
 
