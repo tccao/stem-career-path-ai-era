@@ -4,70 +4,118 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Code For Good · Admin Dashboard (Demo)</title>
+  <link rel="icon" href="assets/icons/codeforgood-logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&amp;family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
   <style>
+    /* ===== DESIGN TOKENS (shared with the student app — app.html) ===== */
     :root {
-      --cfg-purple: #6a0dad;
-      --cfg-purple-dark: #4b0082;
-      --cfg-lavender: #b19cd9;
-      --bg: #f7f4fb;
-      --card: #ffffff;
-      --line: #e7e0f0;
-      --ink: #2d2d2d;
-      --muted: #6b6577;
-      --ok: #1b8a4b;
-      --warn: #b26a00;
-      --bad: #b3261e;
+      --p-dark:#3a006b; --p:#6a0dad; --p-bright:#8b1ad1; --magenta:#c026d3; --violet:#7c3aed;
+      --lav:#b19cd9; --lav-soft:#efe7fb; --mint:#22d3a8; --coral:#ff5d73; --gold:#ffc24b;
+      --teal:#0ea5b7; --teal-dark:#0c7d8c; --teal-soft:#e2f7fa;
+      --grad-hero:linear-gradient(135deg,#1e1b4b 0%,#4c1d95 45%,#6d28d9 75%,#c026d3 100%);
+      --grad-accent:linear-gradient(135deg,#6d28d9,#c026d3);
+      --grad-mint:linear-gradient(135deg,#10b981,#22d3a8);
+      --grad-teal:linear-gradient(135deg,#0c7d8c,#0ea5b7);
+      --font-head:'Space Grotesk','Inter',system-ui,sans-serif;
+      --font-body:'Inter',system-ui,'Segoe UI',Arial,sans-serif;
+      --r:16px; --r-lg:24px; --r-pill:999px;
+      --sh:0 10px 30px rgba(76,5,124,.08); --sh-lg:0 24px 60px rgba(76,5,124,.20);
+      /* legacy admin aliases — retained so existing rules + JS stay valid */
+      --cfg-purple:#6a0dad; --cfg-purple-dark:#4b0082; --cfg-lavender:#b19cd9;
+      --bg:#faf8fd; --card:#ffffff; --line:#eee9f4; --ink:#1c1130; --muted:#6b5b86;
+      --ok:#1b8a4b; --warn:#b26a00; --bad:#b3261e;
     }
-    * { box-sizing: border-box; }
-    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      background: var(--bg); color: var(--ink); }
+    *,*::before,*::after { box-sizing: border-box; }
+    body { margin: 0; font-family: var(--font-body); background: var(--bg); color: var(--ink);
+      -webkit-font-smoothing:antialiased; }
+    h1,h2,h3,h4 { font-family: var(--font-head); letter-spacing:-.02em; }
     a { color: var(--cfg-purple); }
-    .topbar { display: flex; align-items: center; justify-content: space-between;
-      padding: 14px 22px; color: #fff;
-      background: linear-gradient(90deg, var(--cfg-purple-dark), var(--cfg-purple)); }
-    .topbar .brand { font-weight: 700; letter-spacing: .2px; }
-    .topbar .brand small { display:block; font-weight:400; opacity:.85; font-size:.72rem; }
-    .topbar .who { font-size: .85rem; opacity: .95; }
-    .topbar button { background: rgba(255,255,255,.15); color:#fff; border:1px solid rgba(255,255,255,.35);
-      border-radius:6px; padding:6px 12px; cursor:pointer; }
-    .wrap { max-width: 1180px; margin: 22px auto; padding: 0 18px; }
+    /* ===== GLASSY TOP BAR (mirrors app.html) ===== */
+    .topbar { position:sticky; top:0; z-index:50; display:flex; align-items:center; justify-content:space-between;
+      gap:16px; padding:11px 24px; backdrop-filter:saturate(140%) blur(10px); -webkit-backdrop-filter:saturate(140%) blur(10px);
+      background:rgba(255,255,255,.72); border-bottom:1px solid var(--line); }
+    .topbar .brand { display:flex; align-items:center; gap:11px; font-weight:800; color:var(--p-dark); text-decoration:none; }
+    .topbar .brand img { width:34px; height:34px; object-fit:contain; border-radius:10px; }
+    .topbar .brand span { white-space:nowrap; font-size:1rem; }
+    .topbar .brand small { display:block; font-weight:700; font-size:.6rem; letter-spacing:.16em; text-transform:uppercase; color:var(--magenta); }
+    .topbar-right { display:flex; align-items:center; gap:13px; }
+    .topbar .who { font-size:.84rem; font-weight:700; color:var(--p-dark); }
+    .topbar button { background:#fff; color:var(--p-dark); border:1px solid var(--line); border-radius:var(--r-pill);
+      padding:8px 15px; font:inherit; font-size:.8rem; font-weight:700; cursor:pointer; }
+    .topbar button:hover { background:var(--lav-soft); }
+    .wrap { max-width: 1180px; margin: 26px auto; padding: 0 18px; }
     .hidden { display: none !important; }
 
-    /* login */
-    .login-card { max-width: 380px; margin: 8vh auto; background: var(--card); border:1px solid var(--line);
-      border-radius: 14px; padding: 28px; box-shadow: 0 6px 24px rgba(75,0,130,.08); }
-    .login-card h1 { font-size: 1.25rem; margin: 0 0 4px; color: var(--cfg-purple-dark); }
-    .login-card p { margin: 0 0 18px; color: var(--muted); font-size: .9rem; }
+    /* login — mirrors the student app sign-in (app.html) */
+    .login-wrap { min-height:100vh; display:grid; place-items:center; padding:20px;
+      background:radial-gradient(1100px 560px at 100% -10%, #f6ecff, transparent), var(--bg); }
+    .login-card { width:100%; max-width:400px; margin:0; background:var(--card); border:1px solid var(--line);
+      border-radius:16px; padding:32px; box-shadow:0 18px 48px rgba(75,0,130,.12); }
+    .login-card .brand { display:flex; align-items:center; gap:11px; font-weight:800; font-size:1.05rem;
+      color:var(--cfg-purple-dark); margin-bottom:20px; }
+    .login-card .brand img { width:36px; height:36px; border-radius:10px; }
+    .login-card h1 { font-size:1.5rem; margin:0 0 6px; color: var(--cfg-purple-dark); }
+    .login-card p { margin:0 0 16px; color: var(--muted); font-size: .9rem; }
+    .login-card label { font-size:.72rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; margin:14px 0 5px; }
+    .login-card input { padding:12px 13px; border-radius:12px; background:#faf7fd; }
+    .login-card input:focus { outline:3px solid rgba(109,40,217,.16); border-color:var(--cfg-purple); background:#fff; }
+    #loginBtn { width:100%; margin-top:18px; padding:12px 16px; border-radius:999px; font-size:.95rem; font-weight:700;
+      background:linear-gradient(135deg, var(--cfg-purple), var(--cfg-purple-dark));
+      box-shadow:0 10px 26px rgba(106,13,173,.28); }
+    #loginBtn:hover { transform:translateY(-1px);
+      background:linear-gradient(135deg, var(--cfg-purple-dark), var(--cfg-purple)); }
     label { display:block; font-size:.8rem; color:var(--muted); margin: 12px 0 5px; }
-    input, select { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:.95rem; }
-    .btn { background: var(--cfg-purple); color:#fff; border:none; border-radius:8px; padding:10px 16px;
-      font-size:.9rem; cursor:pointer; }
-    .btn:hover { background: var(--cfg-purple-dark); }
-    .btn.sec { background:#fff; color:var(--cfg-purple); border:1px solid var(--cfg-lavender); }
-    .btn.warn { background:#fff; color:var(--warn); border:1px solid #e7c9a0; }
-    .btn.bad { background:#fff; color:var(--bad); border:1px solid #e7b0ac; }
-    .btn:disabled { opacity:.45; cursor:not-allowed; }
+    input, select { width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:12px; font:inherit; font-size:.95rem; background:#faf7fd; }
+    input:focus, select:focus { outline:3px solid rgba(109,40,217,.16); border-color:var(--cfg-purple); background:#fff; }
+    .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; background:var(--grad-accent);
+      color:#fff; border:none; border-radius:var(--r-pill); padding:10px 18px; font:inherit; font-size:.9rem;
+      font-weight:700; cursor:pointer; transition:transform .15s, box-shadow .15s; box-shadow:0 8px 20px rgba(160,28,175,.22); }
+    .btn:hover { transform:translateY(-1px); box-shadow:0 12px 26px rgba(160,28,175,.3); }
+    .btn.sec { background:#fff; color:var(--cfg-purple); border:1px solid var(--cfg-lavender); box-shadow:none; }
+    .btn.sec:hover { background:var(--lav-soft); }
+    .btn.warn { background:#fff; color:var(--warn); border:1px solid #e7c9a0; box-shadow:none; }
+    .btn.bad { background:#fff; color:var(--bad); border:1px solid #e7b0ac; box-shadow:none; }
+    .btn.warn:hover, .btn.bad:hover { transform:translateY(-1px); }
+    .btn:disabled { opacity:.45; cursor:not-allowed; transform:none; box-shadow:none; }
     .hint { font-size:.78rem; color:var(--muted); margin-top:10px; }
     .demo-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
     .demo-actions .btn { flex:1; min-width:160px; padding:8px 12px; font-size:.78rem; }
+    .login-foot { margin-top:16px; padding-top:14px; border-top:1px solid var(--line); font-size:.78rem; color:var(--muted); text-align:center; }
+    .login-foot a { color:var(--cfg-purple-dark); font-weight:700; text-decoration:none; }
+    .login-foot a:hover { text-decoration:underline; }
 
-    /* kpis */
-    .kpis { display:grid; grid-template-columns: repeat(6, 1fr); gap:12px; margin-bottom:20px; }
-    .kpi { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; text-align:center; }
-    .kpi .n { font-size:1.5rem; font-weight:700; color:var(--cfg-purple-dark); }
-    .kpi .l { font-size:.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; margin-top:4px; }
+    /* kpis — momentum chips (mirrors app.html .chip) */
+    .kpis { display:grid; grid-template-columns: repeat(6, 1fr); gap:14px; margin-bottom:22px; }
+    .kpi { position:relative; overflow:hidden; background:var(--card); border:1px solid var(--line);
+      border-radius:var(--r); padding:16px; box-shadow:var(--sh); }
+    .kpi::before { content:''; position:absolute; left:0; top:0; bottom:0; width:5px; background:var(--grad-accent); }
+    .kpi .n { font-family:var(--font-head); font-size:1.85rem; font-weight:900; letter-spacing:-.03em;
+      background:var(--grad-accent); -webkit-background-clip:text; background-clip:text; color:transparent; }
+    .kpi .l { font-size:.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; font-weight:700; margin-top:6px; }
+    /* state-coded accents along the access state machine (≤5 hues, shared with app.html chips) */
+    .kpi.gold::before  { background:linear-gradient(180deg,#ffc24b,#ff9d2e); }
+    .kpi.coral::before { background:linear-gradient(180deg,#ff5d73,#e11d48); }
+    .kpi.teal::before  { background:var(--grad-teal); }
+    .kpi.mint::before  { background:var(--grad-mint); }
+    .kpi.gold .n  { background-image:linear-gradient(135deg,#e0890f,#ff9d2e); }
+    .kpi.coral .n { background-image:linear-gradient(135deg,#ff5d73,#e11d48); }
+    .kpi.teal .n  { background-image:var(--grad-teal); }
+    .kpi.mint .n  { background-image:var(--grad-mint); }
 
-    .tabs { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
-    .tab { padding:7px 13px; border-radius:999px; border:1px solid var(--line); background:#fff;
-      cursor:pointer; font-size:.82rem; color:var(--muted); }
-    .tab.active { background:var(--cfg-purple); color:#fff; border-color:var(--cfg-purple); }
+    .tabs { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
+    .tab { padding:8px 15px; border-radius:var(--r-pill); border:1px solid var(--line); background:#fff;
+      cursor:pointer; font:inherit; font-size:.82rem; font-weight:700; color:var(--muted); }
+    .tab:hover { background:var(--lav-soft); }
+    .tab.active { background:var(--grad-accent); color:#fff; border-color:transparent; }
 
     .cols { display:grid; grid-template-columns: 1.1fr 1fr; gap:18px; }
-    .panel { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; }
-    .panel h2 { font-size:.95rem; margin:0 0 12px; color:var(--cfg-purple-dark); }
+    .panel { background:var(--card); border:1px solid var(--line); border-radius:var(--r-lg); padding:22px; box-shadow:var(--sh); }
+    .panel h2 { font-size:1.05rem; margin:0 0 14px; color:var(--cfg-purple-dark); }
     .row { display:flex; justify-content:space-between; align-items:center; padding:10px 8px;
       border-bottom:1px solid var(--line); cursor:pointer; border-radius:6px; }
-    .row:hover { background:#faf7ff; }
+    .row:hover { background:var(--lav-soft); }
     .row .nm { font-weight:600; font-size:.9rem; }
     .row .sub { font-size:.76rem; color:var(--muted); }
     .pill { font-size:.68rem; padding:3px 9px; border-radius:999px; background:#f0e9fa; color:var(--cfg-purple-dark); white-space:nowrap; }
@@ -91,7 +139,7 @@
     th, td { text-align:left; padding:9px 8px; font-size:.83rem; border-bottom:1px solid var(--line); }
     th { color:var(--muted); font-weight:600; font-size:.72rem; text-transform:uppercase; }
     .member-row { cursor:pointer; }
-    .member-row:hover { background:#faf7ff; }
+    .member-row:hover { background:var(--lav-soft); }
     .progress-mini { min-width:130px; }
     .progress-mini .bar { height:7px; border-radius:999px; background:#ede5f5; overflow:hidden; margin-bottom:5px; }
     .progress-mini .bar span { display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,var(--cfg-purple),var(--cfg-lavender)); }
@@ -117,27 +165,32 @@
   </style>
 </head>
 <body>
-  <div class="topbar">
-    <div class="brand">Code For Good · Admin <small>V2 demo — vetted-access platform</small></div>
-    <div id="session" class="hidden"><span class="who" id="who"></span>
+  <div class="topbar hidden" id="topbar">
+    <a class="brand" href="index.html">
+      <img src="assets/icons/codeforgood-logo.png" alt="Code For Good" onerror="this.style.display='none'">
+      <span>Code For Good · Admin <small>V2 demo — vetted-access platform</small></span>
+    </a>
+    <div id="session" class="topbar-right hidden"><span class="who" id="who"></span>
       <button id="logoutBtn">Log out</button></div>
   </div>
 
   <!-- LOGIN -->
-  <div id="login" class="wrap">
+  <div id="login" class="login-wrap">
     <div class="login-card">
+      <div class="brand"><img src="assets/icons/codeforgood-logo.png" alt="Code For Good" onerror="this.style.display='none'"><span>Code For Good</span></div>
       <h1>Admin sign in</h1>
       <p>Demo authentication (stands in for Cognito). Presenter accounts are loaded locally.</p>
       <label for="email">Email</label>
       <input id="email" type="email" autocomplete="username" />
       <label for="password">Password</label>
       <input id="password" type="password" autocomplete="current-password" />
-      <div style="margin-top:16px;"><button class="btn" id="loginBtn" style="width:100%;">Sign in</button></div>
+      <button class="btn" id="loginBtn">Sign in</button>
       <div class="hint" id="loginMsg"></div>
       <div class="demo-actions">
         <button class="btn sec" id="fillAdminBtn" type="button">Fill demo admin</button>
       </div>
       <div class="hint">For public demos, keep credentials in presenter notes.</div>
+      <div class="login-foot"><a href="index.html">← Back to site</a> · <a href="app.html">Student login</a></div>
     </div>
   </div>
 
@@ -230,11 +283,11 @@
     }
     function logout() {
       token = null; sessionStorage.removeItem('cfg_admin_token');
-      $('app').classList.add('hidden'); $('session').classList.add('hidden'); $('login').classList.remove('hidden');
+      $('app').classList.add('hidden'); $('session').classList.add('hidden'); $('topbar').classList.add('hidden'); $('login').classList.remove('hidden');
     }
 
     function showApp(user) {
-      $('login').classList.add('hidden'); $('app').classList.remove('hidden'); $('session').classList.remove('hidden');
+      $('login').classList.add('hidden'); $('app').classList.remove('hidden'); $('session').classList.remove('hidden'); $('topbar').classList.remove('hidden');
       $('who').textContent = (user?.email || 'admin') + ' · admin';
       renderTabs(); refresh();
     }
@@ -264,12 +317,12 @@
     async function loadOverview() {
       const { counts } = await api('/admin/overview');
       const cards = [
-        ['SUBMITTED', 'Submitted'], ['INTERVIEW_SCHEDULED', 'Interview'],
-        ['DONATION_REQUIRED', 'Donation req'], ['APPROVED_BENEFICIARY', 'Approved'],
-        ['DONATION_CONFIRMED', 'Confirmed'], ['ACTIVE_MEMBERS', 'Active members'],
+        ['SUBMITTED', 'Submitted', ''], ['INTERVIEW_SCHEDULED', 'Interview', 'gold'],
+        ['DONATION_REQUIRED', 'Donation req', 'coral'], ['APPROVED_BENEFICIARY', 'Approved', 'teal'],
+        ['DONATION_CONFIRMED', 'Confirmed', 'teal'], ['ACTIVE_MEMBERS', 'Active members', 'mint'],
       ];
-      $('kpis').innerHTML = cards.map(([k, l]) =>
-        `<div class="kpi"><div class="n">${counts[k] ?? 0}</div><div class="l">${l}</div></div>`).join('');
+      $('kpis').innerHTML = cards.map(([k, l, c]) =>
+        `<div class="kpi ${c}"><div class="n">${counts[k] ?? 0}</div><div class="l">${l}</div></div>`).join('');
     }
 
     async function loadQueue() {
