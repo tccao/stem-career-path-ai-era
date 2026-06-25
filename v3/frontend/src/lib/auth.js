@@ -32,19 +32,18 @@ export async function completeSignInIfPresent() {
   return cred.user;
 }
 
-// Minimal signed-out UI: email field + "send link" button wired to requestSignInLink.
+// Minimal signed-out UI (themed): email field + "send link" button → requestSignInLink.
 export function mountLogin(root, heading = 'Sign in') {
   root.innerHTML = '';
   const wrap = document.createElement('div');
-  wrap.style.cssText = 'max-width:22rem;margin:3rem auto;font-family:system-ui;display:grid;gap:.6rem';
+  wrap.className = 'login';
   const h = document.createElement('h2'); h.textContent = heading;
   const input = document.createElement('input');
   input.type = 'email'; input.placeholder = 'you@example.com'; input.autocomplete = 'email';
-  input.style.cssText = 'padding:.6rem;font-size:1rem';
+  input.className = 'cfg-input';
   const btn = document.createElement('button');
-  btn.textContent = 'Email me a sign-in link';
-  btn.style.cssText = 'padding:.6rem;font-size:1rem;cursor:pointer';
-  const msg = document.createElement('p'); msg.style.cssText = 'min-height:1.2rem;color:#444';
+  btn.textContent = 'Email me a sign-in link'; btn.className = 'btn btn-purple';
+  const msg = document.createElement('p'); msg.className = 'cfg-msg';
   btn.onclick = async () => {
     const email = input.value.trim();
     if (!email) { msg.textContent = 'Enter your email.'; return; }
