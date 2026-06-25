@@ -194,6 +194,8 @@ mmdc -p /tmp/pptr.json --iconPacks @iconify-json/logos -i diagram.mmd -o out.svg
 
 Verified: renders Fig 2A with all subgroup labels + 12 embedded AWS logos. CLI is for validation/CI; the VS Code built-in preview / `assets/diagrams/architecture-2A.html` stay the interactive logo-accurate path.
 
+**Export docs to HTML/PDF with AWS logos (yzane "Markdown PDF").** The extension's default mermaid build never calls `registerIconPacks`, so `logos:aws-*` icons export as blue `?` boxes. `.vscode/settings.json` sets `markdown-pdf.mermaidServer` to a path-independent `data:` URI shim (CDN mermaid 11 + `registerIconPacks` for the `logos` pack) — a `file://` bundle would break when the export is opened in a Windows browser on WSL. Needs internet at view time. Details + how to re-encode the shim: `assets/diagrams/README-mermaid-logos.md`. After editing the setting, reload the window and re-export.
+
 **Run the demo test suites (`demo/`).** All suites need a local DynamoDB engine at the configured endpoint. The app auto-loads `demo/.env` (`process.loadEnvFile`, try/catch) — `cp .env.example .env` once (defaults to MiniStack `:4566`) and tests/scripts pick it up; only export `AWS_ENDPOINT_URL` (+ region/creds) if you skip the `.env`. E2E tooling (`puppeteer-core` + `axe-core`) is already a devDep — `npm ci` installs it; no browser download (it reuses the snap Chromium):
 
 ```bash

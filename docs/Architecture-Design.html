@@ -1,0 +1,1804 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Architecture-Design.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> or <div class="page"></div> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="data:text/javascript;base64,ZG9jdW1lbnQud3JpdGUoJzxzY3JpcHQgc3JjPSJodHRwczovL2Nkbi5qc2RlbGl2ci5uZXQvbnBtL21lcm1haWRAMTEvZGlzdC9tZXJtYWlkLm1pbi5qcyI+PFwvc2NyaXB0PicpO2RvY3VtZW50LndyaXRlKCc8c2NyaXB0Pm1lcm1haWQucmVnaXN0ZXJJY29uUGFja3MoW3tuYW1lOiJsb2dvcyIsbG9hZGVyOmZ1bmN0aW9uKCl7cmV0dXJuIGZldGNoKCJodHRwczovL2Nkbi5qc2RlbGl2ci5uZXQvbnBtL0BpY29uaWZ5LWpzb24vbG9nb3NAMS9pY29ucy5qc29uIikudGhlbihmdW5jdGlvbihyKXtyZXR1cm4gci5qc29uKCk7fSk7fX1dKTs8XC9zY3JpcHQ+Jyk7"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<h1 id="architecture-design--stem-career-path-ai-era">Architecture Design — STEM Career Path (AI Era)</h1>
+<p><strong>Project:</strong> STEM Graduates Career Path — AI Era (Code For Good)
+<strong>Doc type:</strong> Build-ready architecture &amp; security design (AWS serverless)
+<strong>Owner:</strong> Tinh Cao
+<strong>Status:</strong> Rev. 5 — state-cycle &amp; data-flow audit corrections applied (re-activation transition, status ownership, lapsed-application TTL, Figure 2A grouping/authorizer fix); Rev. 4 applied AWS Well-Architected review findings (<code>docs/Well-Architected-Review.md</code>); self-serve supporter access (Zeffy read-only poll) added in Rev. 3
+<strong>Source of truth:</strong> <code>docs/Platform-SRS.md</code> (platform) · <code>docs/Project SRS.md</code> (Phase-0 landing page)
+<strong>Companion docs:</strong> <code>docs/Sitemap-and-Wireframes.md</code> · <code>docs/Customer-Journey.md</code> ·
+<code>docs/Service-Tradeoff-Analysis.md</code> · <code>docs/Ops-Runbook.md</code>
+<strong>Focus areas:</strong> audit trail, role separation, server-side gating, <strong>lowest-cost launch on
+Amplify + AWS serverless</strong>, single-maintainer operability</p>
+<blockquote>
+<p><strong>Rev. 2 changes at a glance.</strong> This revision applies every fix from the senior architecture
+review: launch-state architecture with <strong>no Stripe machinery</strong> (moved to Appendix A); <strong>3-function</strong>
+compute split; gated curriculum served from a <strong>private-S3 origin behind a CloudFront key group
+via short-TTL signed cookies</strong> issued after the gating check (closing the §9.2/§9A.3 contradiction
+while keeping edge-cached read economics); hash chain <strong>dropped</strong> in favor of IAM append-only + CloudTrail data events +
+WORM exports; <strong>mandatory admin MFA</strong>; PITR + deletion protection on all tables; PII-free audit
+events with per-table retention TTLs; <strong>WAF and Cognito Plus deferred to phase-2 triggers</strong>
+(aligning with <code>Service-Tradeoff-Analysis.md</code>); the <strong>$1,000 nonprofit credit target</strong> as the
+single canonical figure; and §6.3 split into Day-1 actual vs. target governance.</p>
+<p><strong>Rev. 3 change — self-serve supporter access without an interview.</strong> Supporters now donate on
+Zeffy and are <strong>auto-provisioned within minutes</strong>: <code>system-fn</code> polls Zeffy's <strong>read-only Payments
+API</strong> on a schedule, verifies the payment, matches it to the application <strong>by email</strong> (idempotent
+on the Zeffy payment ID), and grants access — <code>DONATION_REQUIRED</code> → <code>DONATION_CONFIRMED</code>
+(set by <strong>system</strong>) → <code>ACTIVE</code>; admin dashboard-confirm remains a fallback. First sign-in uses a
+Cognito <strong>temporary password</strong> (force-change) + MFA setup — <strong>no password is stored in our
+database</strong> (Cognito holds the credential). The age/consent gate moves <strong>before</strong> the donate step;
+refunds/chargebacks trigger an audited auto-<code>REVOKED</code>. Still <strong>$0 fees, no webhook, no card
+data</strong> — the only addition is a <strong>read-only Zeffy API key</strong> in SSM. Stripe (seconds-level
+activation) stays the Appendix A upgrade.</p>
+<p><strong>Rev. 4 change — Well-Architected hardening.</strong> Applied the review's prose corrections:
+<strong>MFA REQUIRED pool-wide</strong> (TOTP admins / email-OTP students — corrects the per-group phrasing),
+<strong>signed-cookie cross-domain topology</strong> (§9.2), <strong>explicit CloudWatch log-retention</strong>, <strong>SAM</strong> as
+the IaC tool with <strong>canary deploy + alarm rollback</strong>, <strong>arm64/Graviton</strong> Lambdas, a
+<strong>customer-managed KMS CMK</strong> on <code>AuditLog</code> + the WORM bucket (pending board cost sign-off),
+<strong>CORS lockdown + <code>public-fn</code> input validation</strong>, <strong>Object Lock set at bucket creation</strong>, a
+<strong><code>system-fn</code> async on-failure DLQ</strong>, a stated <strong>single-region DR posture</strong>, <strong>Cost Anomaly
+Detection</strong>, and an explicit <strong>Sustainability</strong> section (§12.1). Findings + status:
+<code>docs/Well-Architected-Review.md</code>.</p>
+<p><strong>Rev. 5 change — state-cycle &amp; flow audit corrections.</strong> Closed gaps found auditing the access
+machine end-to-end. <strong>(1) Re-activation</strong> of a returning <code>EXPIRED</code>/<code>REVOKED</code> member is now a
+distinct conditional <code>UpdateItem</code>, not the first-grant <code>PutItem attribute_not_exists(memberId)</code>
+(which would silently no-op against the persistent <code>Members</code> row) — §9.1, §9A.1. <strong>(2) Status
+ownership</strong> is stated explicitly: <code>Members.status</code> is authoritative post-provisioning,
+<code>Applications.status</code> freezes at the grant decision (§5.2). <strong>(3) &quot;Lapsed&quot;</strong> is defined and the
+scheduled sweep now stamps <code>expiresAt</code> on stale pre-<code>ACTIVE</code> applications (§5.1, §9.3).
+<strong>(4) Re-apply</strong> writes a <strong>new</strong> <code>Applications</code> row — the provisioning dedupe key — with cooldown
+looked up via <code>byEmail</code> (§5.2). <strong>Figure 2A:</strong> all twelve AWS services now sit in labelled groups
+(added <em>API &amp; identity</em>, <em>Async &amp; scheduling</em>, <em>Secrets &amp; email</em>), the three Lambda nodes' broken
+<code>pos:</code> is restored so labels line up, and JWT verification is shown on the <strong>API Gateway
+authorizer</strong> rather than an <code>app-fn</code>→Cognito call. The companion <code>docs/Customer-Journey.md</code> §4
+<code>ACTIVE → REVOKED</code> label is aligned to include auto-revoke on refund/chargeback.</p>
+</blockquote>
+<hr>
+<h2 id="1-goals-principles--constraints">1. Goals, principles &amp; constraints</h2>
+<p>The platform is a <strong>vetted-access learning app</strong>: only Admin-provisioned emails become accounts,
+free seats are gated by a human interview, and a donation path (Zeffy, fully external) self-funds
+the rest. It must be <strong>cheap at rest</strong> (a nonprofit running near-zero traffic between cohorts),
+<strong>operable by one volunteer</strong> (see <code>Platform-SRS.md</code> §3 — team of one, no cohort yet), and
+<strong>accountable</strong> (every privileged action traceable).</p>
+<p>Design principles:</p>
+<ol>
+<li><strong>Serverless monolith</strong> — one codebase, deployed as <strong>three</strong> thin Lambda entrypoints split
+along trust boundaries (§3). Monolith simplicity, infrastructure role separation where it
+actually matters.</li>
+<li><strong>Scale-to-zero, pay-per-use</strong> — Lambda + DynamoDB on-demand + Cognito Essentials; no idle
+servers, no fixed-cost add-ons without a documented trigger (§14).</li>
+<li><strong>Stateless app</strong> — all session state in JWTs (Cognito); any instance serves any request.</li>
+<li><strong>Server-side enforcement</strong> — roles, access windows, and <strong>content gating</strong> are enforced in
+the backend on every request, never trusted from the client (§9.2 — including the curriculum
+bytes themselves).</li>
+<li><strong>Least privilege everywhere</strong> — scoped IAM per function; only the system function can mint
+accounts.</li>
+<li><strong>Everything privileged is audited</strong> — two audit layers (platform + application), append-only
+by IAM, tamper-evident via WORM export (§7).</li>
+<li><strong>Card data never touches the app; access is granted only on a verified basis</strong> — donations run
+on <strong>Zeffy's hosted platform</strong> (the site links out; Zeffy holds donor and card data, PCI
+SAQ-A). <strong>Beneficiaries</strong> are admin-granted after the interview; <strong>supporters self-serve</strong> —
+<code>system-fn</code> <strong>polls Zeffy's read-only Payments API</strong> to <em>verify</em> the donation, then
+auto-provisions (matched by email, idempotent on the Zeffy payment ID). There is <strong>no payment
+webhook and no card data</strong> in the stack; the only payment secret is a <strong>read-only Zeffy API
+key</strong> (SSM SecureString) used solely to verify donations. Automated Stripe Checkout + signed
+webhooks remains a documented future phase (<strong>Appendix A</strong>) for seconds-level activation.</li>
+<li><strong>Idempotent state transitions</strong> — conditional writes so retries, double-clicks, or duplicate
+async messages can't double-provision or skip the gate (§9, §9A).</li>
+<li><strong>Sized for the real team</strong> — one maintainer, zero current users. Anything that exists only to
+serve a hypothetical future (extra functions, WAF rules, payment plumbing, multi-account
+governance) is deferred behind an explicit trigger (§14) rather than built now.</li>
+</ol>
+<blockquote>
+<p><strong>Cost note.</strong> Cognito's free tier is <strong>10,000 MAU</strong> on the <strong>Essentials</strong> tier (default for
+new user pools); threat protection lives in the <strong>Plus</strong> tier at ~$0.02/MAU and is a phase-2
+item. The canonical credit figure is the <strong>$1,000 AWS nonprofit credit target</strong> from
+<code>Service-Tradeoff-Analysis.md</code> §4.2 (the previous &quot;$2,000/yr&quot; claim in this doc was wrong and
+is withdrawn). Full cost posture: §12.</p>
+</blockquote>
+<hr>
+<h2 id="2-architecture-at-a-glance-launch-state">2. Architecture at a glance (launch state)</h2>
+<p>These two views show <strong>what is actually deployed at launch</strong> — nothing else (the future
+automated-payment ingress lives in Appendix A only): <strong>(A)</strong> the runtime <strong>request &amp; data flow</strong>,
+and <strong>(B)</strong> the <strong>trust zones</strong> and the IAM seams between them. Figure 2A groups services by
+boundary (each group's logo sits in the title), gives every AWS service its logo, and labels each
+arrow with the connection type. The numbered steps trace a member's <strong>read</strong> session (1–4); <strong>step
+5 is the admin-initiated grant</strong> that provisioning consumes — a separate actor flow. The AWS
+Well-Architected review of this design lives in <code>docs/Well-Architected-Review.md</code>.</p>
+<blockquote>
+<p><strong>Rendering note.</strong> Figure 2A is a Mermaid <code>flowchart</code> (Mermaid ≥ 11.3) whose nodes use the
+iconify <strong><code>logos</code></strong> icon pack via the icon-shape syntax (<code>id@{ icon: &quot;logos:aws-…&quot; }</code>). GitHub
+renders the graph and labels, but the AWS logos appear only where the renderer has registered the
+pack (<code>mermaid.registerIconPacks([{ name: &quot;logos&quot;, icons }])</code>). A self-contained preview that
+registers it and renders the real logos is in <code>assets/diagrams/architecture-2A.html</code>.
+(<code>flowchart</code> is used instead of <code>architecture-beta</code> because that diagram type cannot label edges.)</p>
+</blockquote>
+<p><strong>Figure 2A — request &amp; data flow.</strong></p>
+<pre><code class="language-mermaid"><div class="mermaid">flowchart LR
+    browser["🌐 Browser SPA"]
+
+    subgraph ext["🌐 External SaaS — PCI / scheduling"]
+        zef["Zeffy<br/>donations + read-only API"]
+        cal["Cal.com"]
+    end
+
+    subgraph aws["☁️ AWS Cloud"]
+
+        subgraph entry["🔐 API & identity"]
+            gw@{ icon: "logos:aws-api-gateway", form: "square", label: "API Gateway (JWT authorizer)", pos: "b" }
+            cog@{ icon: "logos:aws-cognito", form: "square", label: "Cognito (MFA required)", pos: "b" }
+        end
+
+        subgraph edge["☁️ Edge — cached"]
+            amp@{ icon: "logos:aws-amplify", form: "square", label: "Amplify Hosting", pos: "b" }
+            cfc@{ icon: "logos:aws-cloudfront", form: "square", label: "CloudFront (curriculum)", pos: "b" }
+        end
+
+        subgraph compute["λ Compute — 3 Lambdas"]
+            lpub@{ icon: "logos:aws-lambda", form: "square", label: "public-fn", pos: "b" }
+            lapp@{ icon: "logos:aws-lambda", form: "square", label: "app-fn", pos: "b" }
+            lsys@{ icon: "logos:aws-lambda", form: "square", label: "system-fn", pos: "b" }
+        end
+
+        subgraph async["⚙️ Async & scheduling"]
+            sqs@{ icon: "logos:aws-sqs", form: "square", label: "SQS + DLQ", pos: "b" }
+            evb@{ icon: "logos:aws-eventbridge", form: "square", label: "EventBridge Scheduler", pos: "b" }
+        end
+
+        subgraph shared["🔑 Secrets & email"]
+            ssm@{ icon: "logos:aws-systems-manager", form: "square", label: "SSM Param Store", pos: "b" }
+            ses@{ icon: "logos:aws-ses", form: "square", label: "SES", pos: "b" }
+        end
+
+        subgraph data["🗄️ Data — least privilege"]
+            s3c@{ icon: "logos:aws-s3", form: "square", label: "Curriculum S3", pos: "b" }
+            ddb@{ icon: "logos:aws-dynamodb", form: "square", label: "DynamoDB", pos: "b" }
+        end
+    end
+
+    browser -->|"1) site + SPA (HTTPS)"| amp
+    browser -->|"2) API (HTTPS)"| gw
+    browser -.->|"donate link-out"| zef
+    browser -.->|"book interview"| cal
+    gw -.->|"JWT authorizer (JWKS)"| cog
+    gw -->|"intake"| lpub
+    gw -->|"JWT routes"| lapp
+    lapp -.->|"3) gate ok → Set-Cookie"| browser
+    lapp -->|"read signing key"| ssm
+    browser -->|"4) curriculum + signed cookies"| cfc
+    cfc -->|"OAC"| s3c
+    lapp -->|"5) enqueue grant"| sqs
+    sqs -->|"consume"| lsys
+    evb -->|"reconcile poll + expiry sweep"| lsys
+    lsys -.->|"poll → verify payment"| zef
+    lsys -->|"read Zeffy key"| ssm
+    lsys -->|"AdminCreateUser"| cog
+    lsys -->|"welcome / expiry mail"| ses
+    lpub -->|"PutItem Applications"| ddb
+    lapp -->|"status/window + key-scoped R/W"| ddb
+    lsys -->|"write Members"| ddb
+</div></code></pre>
+<p><strong>Figure 2B — trust zones &amp; IAM seams.</strong> The same components, grouped by trust boundary, with the
+three IAM invariants that hold the security model together.</p>
+<pre><code class="language-mermaid"><div class="mermaid">flowchart TB
+    classDef untrust fill:#ffebee,stroke:#c62828,color:#b71c1c
+    classDef trust   fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20
+    classDef sys     fill:#fce4ec,stroke:#ad1457,color:#880e4f
+    classDef data    fill:#f1f8e9,stroke:#558b2f,color:#33691e
+    classDef audit   fill:#eceff1,stroke:#37474f,color:#263238
+
+    subgraph Z0["Zone 0 · Unauthenticated internet"]
+      Lpub["public-fn — POST /apply only<br/>smallest blast radius"]:::untrust
+    end
+    subgraph Z1["Zone 1 · Authenticated humans (JWT)"]
+      Lapp["app-fn — student + admin routes<br/>in-handler group check<br/>mints signed cookies · enqueues grants"]:::trust
+    end
+    subgraph Z2["Zone 2 · System (no internet ingress)"]
+      Lsys["system-fn — SOLE holder of AdminCreateUser<br/>provision · expiry · SES<br/>Zeffy read-only reconcile poll → verify payment"]:::sys
+    end
+    subgraph Z3["Zone 3 · Data (least-privilege, key-scoped)"]
+      DDB[("App + member tables<br/>PITR + deletion protection")]:::data
+      S3C[("Curriculum S3 — OAC-only")]:::data
+    end
+    subgraph Z4["Zone 4 · Immutable audit"]
+      AUD[("AuditLog — append-only by IAM")]:::audit
+      CT["CloudTrail data events"]:::audit
+      WORM[("S3 WORM — Object Lock")]:::audit
+    end
+
+    INV["Key IAM invariants<br/>1 · internet-facing code (Z0/Z1) cannot mint accounts — only Z2 holds AdminCreateUser<br/>2 · no role may Update/Delete AuditLog<br/>3 · curriculum S3 reachable only via CloudFront OAC<br/>4 · supporter access requires a server-verified Zeffy payment — never a client signal"]
+
+    Lpub ==>|PutItem Applications only| DDB
+    Lapp ==>|read/write key-scoped| DDB
+    Lapp ==>|enqueue grant — cannot mint| Lsys
+    Lsys ==>|write Members| DDB
+    Lpub -->|append| AUD
+    Lapp -->|append| AUD
+    Lsys -->|append| AUD
+    CT --> WORM
+    AUD -->|daily export| WORM
+</div></code></pre>
+<p><strong>Read path:</strong> the browser loads the public site and SPA shell from Amplify Hosting's managed CDN.
+<strong>Gated content path:</strong> curriculum lives in a <strong>private S3 bucket</strong> reachable only through a
+<strong>dedicated CloudFront distribution</strong> locked to a CloudFront <strong>key group</strong>; <code>app-fn</code> checks the
+member's status, window, and <code>StageLocks</code>, then issues <strong>short-TTL CloudFront signed cookies</strong>
+scoped to that member's permitted path. The browser then reads curriculum <strong>directly from
+CloudFront edge caches</strong> — no Lambda per asset (§9.2, §9A.3). <strong>Write/API path:</strong> the SPA calls API Gateway, which routes by trust boundary. <strong>Donations:</strong> a link-out to
+Zeffy; an admin confirms in the Zeffy dashboard and clicks <em>Grant</em>, which enqueues to SQS;
+<code>system-fn</code> — the only holder of <code>AdminCreateUser</code> — provisions the account.</p>
+<hr>
+<h2 id="3-compute--application-topology">3. Compute &amp; application topology</h2>
+<p>A single repository compiles to <strong>three</strong> Lambda functions, partitioned by trust boundary so each
+gets a least-privilege execution role (§6.2). Shared domain logic lives in common modules; each
+function is a thin adapter. (Open decision §15.4 is <strong>resolved</strong>: the previous 6-function split
+is the <em>target</em> shape if a second maintainer joins — kept in Appendix B — but launch ships three.)</p>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Trigger</th>
+<th>Trust boundary</th>
+<th>Job</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>public-fn</code></td>
+<td><code>POST /apply</code>, public reads</td>
+<td>Unauthenticated internet</td>
+<td>Application intake only; smallest blast radius</td>
+</tr>
+<tr>
+<td><code>app-fn</code></td>
+<td><code>/app/*</code>, <code>/admin/*</code> (JWT-authorized)</td>
+<td>Authenticated humans</td>
+<td>Student + admin routes; the <strong>group claim check</strong> (<code>student</code> vs <code>admin</code>) is enforced in the handler on every request (§6.1); enqueues grants; <strong>cannot</strong> create Cognito users</td>
+</tr>
+<tr>
+<td><code>system-fn</code></td>
+<td>SQS (provisioning) + EventBridge Scheduler (reconcile poll + expiry)</td>
+<td>System, no internet ingress</td>
+<td><strong>Sole holder of <code>cognito-idp:AdminCreateUser</code></strong>; provisioning; <strong>Zeffy read-only reconcile poll → verify donation → auto-provision supporters</strong> (matched by email, idempotent on Zeffy payment ID); expiry sweep; SES sends</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Why this split and not six.</strong> The one security-critical separation is that <strong>internet-facing
+code cannot mint accounts</strong> — that's preserved: <code>app-fn</code> can only enqueue, <code>system-fn</code> has no
+route. Splitting student/admin handlers into separate functions adds IAM surface a single
+maintainer must keep coherent, for marginal gain over the in-handler group check that would be
+required anyway. Six functions return when there are two maintainers (§14 trigger, Appendix B).</p>
+</blockquote>
+<p>Stateless: no in-memory sessions; concurrent invocations are safe. Frontend is a static SPA on
+<strong>Amplify Hosting</strong> (resolved — it is Code For Good's existing platform; see
+<code>Service-Tradeoff-Analysis.md</code> §6.2), using relative asset paths.</p>
+<p><strong>Runtime &amp; consumers:</strong> functions run on a <strong>pinned arm64/Graviton runtime</strong> (~20% cheaper and
+faster; small bundles bound cold starts — provisioned concurrency stays deferred, §9A.4).
+<code>system-fn</code>'s SQS consumer uses <strong>partial batch response</strong> (<code>ReportBatchItemFailures</code>) and a
+sensible <strong>reserved concurrency</strong> so one poison message can't re-drive a whole batch and a burst
+can't throttle it into redelivery storms. Its <strong>async (EventBridge) invocations have an on-failure
+destination/DLQ</strong> so a failed expiry/reconcile run is visible, not silent (§11).</p>
+<hr>
+<h2 id="4-aws-service-mapping-launch">4. AWS service mapping (launch)</h2>
+<table>
+<thead>
+<tr>
+<th>Need</th>
+<th>Service</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Static frontend hosting</td>
+<td><strong>Amplify Hosting</strong></td>
+<td>Resolved; managed CDN included; no S3+CloudFront migration unless §14 trigger fires</td>
+</tr>
+<tr>
+<td>Edge protection</td>
+<td><strong>No WAF at launch</strong> — API Gateway throttling + Cognito lockout + app limits (§8); the curriculum CloudFront distribution also carries no WAF</td>
+<td>AWS WAF is a <strong>phase-2 trigger</strong> (§14); avoids the $15/mo Amplify-WAF fee + rule costs</td>
+</tr>
+<tr>
+<td>API / routing</td>
+<td><strong>API Gateway HTTP API</strong></td>
+<td>Cognito JWT authorizer; stage + per-route throttling; <strong>CORS locked to the Amplify origin(s)</strong>; HTTP API has <strong>no built-in request validation</strong> — <code>public-fn</code> validates <code>/apply</code> input in code; <strong>access logging on</strong></td>
+</tr>
+<tr>
+<td>Compute</td>
+<td><strong>AWS Lambda</strong> ×3 (§3) — pinned runtime, <strong>arm64/Graviton</strong></td>
+<td>scale-to-zero; ~20% cheaper + faster; small bundles bound cold starts</td>
+</tr>
+<tr>
+<td>Identity, sessions, roles</td>
+<td><strong>Cognito User Pool — Essentials</strong></td>
+<td>groups <code>student</code>/<code>admin</code>; <strong>MFA REQUIRED pool-wide</strong> (TOTP admins / email-OTP students; no SMS); no self-sign-up</td>
+</tr>
+<tr>
+<td>App / member data</td>
+<td><strong>DynamoDB on-demand</strong></td>
+<td>conditional writes; <strong>PITR + deletion protection on every table</strong>; TTL retention (§5)</td>
+</tr>
+<tr>
+<td>Application audit log</td>
+<td><strong>DynamoDB <code>AuditLog</code></strong></td>
+<td>append-only by IAM; PII-free events; daily incremental export to WORM bucket (§7)</td>
+</tr>
+<tr>
+<td>Gated curriculum</td>
+<td><strong>S3 (private) + dedicated CloudFront (key group)</strong></td>
+<td>bucket reachable only via CloudFront OAC; <code>app-fn</code> issues short-TTL <strong>CloudFront signed cookies</strong> after the gating check; reads are edge-cached, zero Lambda per asset (§9.2)</td>
+</tr>
+<tr>
+<td>Async provisioning</td>
+<td><strong>SQS + DLQ</strong></td>
+<td>see rationale below</td>
+</tr>
+<tr>
+<td>Transactional email</td>
+<td><strong>Amazon SES</strong></td>
+<td>production access + SPF/DKIM/DMARC are launch checklist items (§16)</td>
+</tr>
+<tr>
+<td>Payment / access verification</td>
+<td><strong>Zeffy (external, hosted) + read-only Payments API</strong></td>
+<td>Card entry on Zeffy (SAQ-A); <code>system-fn</code> <strong>polls the read-only API to verify supporter donations</strong> and auto-provision (matched by email, idempotent on Zeffy payment ID). <strong>No webhook, no card data.</strong> Read-only API key in SSM SecureString</td>
+</tr>
+<tr>
+<td>Scheduling</td>
+<td><strong>Cal.com free tier</strong></td>
+<td>decide at setup; no architectural impact (matches <code>Service-Tradeoff-Analysis.md</code>)</td>
+</tr>
+<tr>
+<td>Expiry / reminders / donation reconcile</td>
+<td><strong>EventBridge Scheduler → <code>system-fn</code></strong></td>
+<td>one schedule drives the Zeffy reconcile poll (verify donations) + expiry sweep + SES reminders</td>
+</tr>
+<tr>
+<td>Secrets</td>
+<td><strong>Two keys</strong> — CloudFront signing key (first-party) + <strong>Zeffy read-only API key</strong> (third-party)</td>
+<td>Both in <strong>SSM Parameter Store SecureString</strong> (free, KMS-encrypted): signing key read-scoped to <code>app-fn</code>; Zeffy key read-scoped to <code>system-fn</code>. The Zeffy key is <strong>read-only</strong> (low blast radius, manual quarterly rotation — <code>Ops-Runbook.md</code>), so <strong>Secrets Manager</strong> is still not needed; it enters only with the Stripe phase (Appendix A)</td>
+</tr>
+<tr>
+<td>Platform audit trail</td>
+<td><strong>CloudTrail</strong> (multi-region, log validation) → <strong>S3 Object Lock</strong></td>
+<td>data events on <code>AuditLog</code> + <code>Members</code> (§7.1)</td>
+</tr>
+<tr>
+<td>Encryption (KMS)</td>
+<td><strong>AWS-managed keys</strong> for most stores; <strong>customer-managed CMK</strong> for <code>AuditLog</code> + the WORM bucket</td>
+<td>the CMK key policy denies the maintainer key-administration, completing the &quot;ultimate authority controls <em>access</em>, never the ability to erase the record&quot; SoD (§6.3, §7). ~$1/mo per CMK — the one item needing <strong>board cost sign-off</strong></td>
+</tr>
+<tr>
+<td>Logs / metrics / alarms</td>
+<td><strong>CloudWatch</strong></td>
+<td>structured JSON; <strong>explicit log-group retention set in IaC</strong> (≈30–90 d app logs; longer for trail) — never the default never-expire; <strong>Cost Anomaly Detection</strong> alongside the budget alarm; destinations in <code>Ops-Runbook.md</code></td>
+</tr>
+<tr>
+<td>Tracing</td>
+<td><strong>None at launch</strong></td>
+<td>X-Ray is enable-when-investigating, not a standing cost</td>
+</tr>
+<tr>
+<td>IaC</td>
+<td><strong>AWS SAM</strong> (chosen; §13)</td>
+<td>one stack per environment; templated PITR / deletion-protection / TTL / log-retention; canary deploy with alarm rollback</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Why keep SQS at launch (decided, not assumed).</strong> The producer is one admin clicking <em>Grant</em> a
+few dozen times per cohort, so a synchronous call would work. SQS stays because it costs
+effectively $0 at this volume and buys three things: durable retry if Cognito/SES hiccups
+mid-provision, a DLQ that turns a failed grant into a visible queue item instead of a silent
+error, and the IAM seam that keeps <code>AdminCreateUser</code> out of every internet-facing role. It is
+also the seam the future payment phase plugs into without rework (Appendix A).</p>
+</blockquote>
+<hr>
+<h2 id="5-data-model">5. Data model</h2>
+<p>DynamoDB, on-demand, purpose tables. <strong>Every table: PITR enabled + deletion protection on.</strong> All
+state-machine writes use conditional expressions (idempotency + optimistic locking).</p>
+<h3 id="51-tables">5.1 Tables</h3>
+<p><strong><code>Applications</code></strong> — one row per access request.</p>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>applicationId</code> (PK)</td>
+<td>string (ULID)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>email</code></td>
+<td>string</td>
+<td>applicant email (login identity later)</td>
+</tr>
+<tr>
+<td><code>fullName</code>, <code>stage</code>, <code>preferredTrack</code>, <code>background</code>, <code>links</code></td>
+<td>string</td>
+<td>from <code>/apply</code> form</td>
+</tr>
+<tr>
+<td><code>ageBracket</code>, <code>guardianConsentAt</code></td>
+<td>string</td>
+<td><strong>consent gate</strong> (<code>Platform-SRS.md</code> §6): under-13 not accepted; 13–17 require guardian acknowledgment</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>string</td>
+<td>state machine value (Customer-Journey §4)</td>
+</tr>
+<tr>
+<td><code>accessBasis</code></td>
+<td>string</td>
+<td><code>beneficiary</code> | <code>supporter</code> (set at decision)</td>
+</tr>
+<tr>
+<td><code>version</code></td>
+<td>number</td>
+<td>optimistic-lock counter</td>
+</tr>
+<tr>
+<td><code>interviewAt</code>, <code>decidedBy</code>, <code>decidedAt</code>, <code>rejectReason</code></td>
+<td>string</td>
+<td>vetting metadata</td>
+</tr>
+<tr>
+<td><code>expiresAt</code></td>
+<td>number (epoch)</td>
+<td><strong>DynamoDB TTL</strong> — set to final-state + 12 months for <code>REJECTED</code>/lapsed applications so PII auto-purges (<code>Platform-SRS.md</code> §6). <strong>Lapsed</strong> = a non-terminal pre-<code>ACTIVE</code> application (<code>DONATION_REQUIRED</code> never paid, <code>INTERVIEW_SCHEDULED</code> no-show) with no state change for the configured staleness window; the scheduled sweep stamps <code>expiresAt</code> on these (§9.3)</td>
+</tr>
+<tr>
+<td><code>createdAt</code>, <code>updatedAt</code></td>
+<td>string (ISO-8601)</td>
+<td></td>
+</tr>
+<tr>
+<td>GSI <code>byStatus</code></td>
+<td>PK <code>status</code>, SK <code>createdAt</code></td>
+<td>admin queue</td>
+</tr>
+<tr>
+<td>GSI <code>byEmail</code></td>
+<td>PK <code>email</code></td>
+<td>dedupe / re-application lookup</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>Members</code></strong> — one row per provisioned account.</p>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>memberId</code> (PK)</td>
+<td>string = Cognito <code>sub</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>email</code>, <code>fullName</code>, <code>track</code></td>
+<td>string</td>
+<td></td>
+</tr>
+<tr>
+<td><code>role</code></td>
+<td>string</td>
+<td><code>student</code> | <code>admin</code> (mirrors Cognito group)</td>
+</tr>
+<tr>
+<td><code>accessBasis</code></td>
+<td>string</td>
+<td><code>beneficiary</code> | <code>supporter</code></td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>string</td>
+<td><code>ACTIVE</code> | <code>EXPIRED</code> | <code>REVOKED</code></td>
+</tr>
+<tr>
+<td><code>accessStartsAt</code>, <code>accessEndsAt</code></td>
+<td>string</td>
+<td>access window (null end = no expiry)</td>
+</tr>
+<tr>
+<td><code>path</code>, <code>specializationTrack</code></td>
+<td>string</td>
+<td><code>A_full_roadmap</code> | <code>B_fast_track</code> (+ optional tag)</td>
+</tr>
+<tr>
+<td><code>grantedBy</code>, <code>grantedAt</code></td>
+<td>string</td>
+<td>audit linkage</td>
+</tr>
+<tr>
+<td>GSI <code>byStatusAccessEnds</code></td>
+<td><strong>PK <code>status</code>, SK <code>accessEndsAt</code></strong></td>
+<td>expiry sweep queries <code>status = ACTIVE AND accessEndsAt &lt;= now</code> — a real key-condition query, not a scan (fixes review finding 12)</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>Donations</code></strong> — payment references only; <strong>never</strong> card data. At launch records are written by
+the <strong>Zeffy reconcile poll</strong> (or by an admin via the dashboard fallback); <strong>no Stripe fields</strong> (the
+<code>stripeEventId</code> idempotency design stays in Appendix A).</p>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>donationId</code> (PK)</td>
+<td>string (ULID)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>applicationId</code></td>
+<td>string</td>
+<td>links to the access request (matched by email at reconcile)</td>
+</tr>
+<tr>
+<td><code>provider</code></td>
+<td>string</td>
+<td><code>zeffy</code> | <code>manual</code></td>
+</tr>
+<tr>
+<td><code>zeffyPaymentId</code></td>
+<td>string</td>
+<td>Zeffy's payment ID — <strong>idempotency key</strong>; dedupes repeated poll cycles</td>
+</tr>
+<tr>
+<td><code>reference</code></td>
+<td>string</td>
+<td>Zeffy transaction reference (auto-captured by the poll, or admin-entered)</td>
+</tr>
+<tr>
+<td><code>amount</code>, <code>currency</code></td>
+<td></td>
+<td>verified ≥ access threshold before grant; also impact reporting</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>string</td>
+<td><code>confirmed</code> | <code>refunded</code> (a <code>refunded</code> poll result triggers auto-<code>REVOKED</code>)</td>
+</tr>
+<tr>
+<td><code>confirmedBy</code>, <code>confirmedAt</code></td>
+<td>string</td>
+<td><code>system</code> (poll) or the admin (fallback)</td>
+</tr>
+<tr>
+<td>GSI <code>byZeffyPaymentId</code></td>
+<td>PK <code>zeffyPaymentId</code></td>
+<td>dedupe / refund lookup</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>Progress</code></strong> — proof-of-work submissions (deliverables = external links).</p>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>memberId</code> (PK), <code>stageKey</code> (SK)</td>
+<td></td>
+<td>e.g. <code>A#pillar2#unit3</code>, <code>B#wk1#day1</code></td>
+</tr>
+<tr>
+<td><code>state</code></td>
+<td>string</td>
+<td><code>locked</code> | <code>active</code> | <code>submitted</code> | <code>complete</code></td>
+</tr>
+<tr>
+<td><code>deliverableUrl</code>, <code>verifiedBy</code>, <code>verifiedAt</code>, <code>badge</code></td>
+<td>string</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>StageLocks</code></strong> — explicit gating + override flags (server-side enforced, §9.2).</p>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>memberId</code> (PK), <code>stageKey</code> (SK)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>locked</code></td>
+<td>bool</td>
+<td>computed from prerequisites</td>
+</tr>
+<tr>
+<td><code>overrideBy</code>, <code>overrideAt</code>, <code>overrideReason</code></td>
+<td>string</td>
+<td>Admin override (audited)</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>Notes</code></strong> — <code>/app/notes</code>, member-private.</p>
+<p><strong><code>AuditLog</code></strong> — append-only business audit (§7.2). Separate table, separate IAM.</p>
+<blockquote>
+<p><strong>Receipt uploads: removed from launch.</strong> The prior design let unauthenticated <code>public-fn</code>
+mint presigned PUTs to a receipts bucket (review finding 14: an anonymous upload surface that
+also contradicted the state machine's ordering). At launch the admin's confirmation source is
+the <strong>Zeffy dashboard</strong>, so no upload path is needed at all — the receipts bucket, its
+lifecycle rules, and the public-fn S3 write permission are deleted from the build. If a manual
+receipt path is ever needed, it returns as a per-application tokened upload available only in
+<code>DONATION_REQUIRED</code> (Appendix A).</p>
+</blockquote>
+<h3 id="52-key-access-patterns">5.2 Key access patterns</h3>
+<ul>
+<li>Admin queue → <code>Applications.byStatus = SUBMITTED | …</code>.</li>
+<li>Sign-in eligibility → <code>Members.get(sub)</code>: <code>status=ACTIVE</code> and <code>now &lt; accessEndsAt</code>.</li>
+<li>Expiry sweep → query <code>Members.byStatusAccessEnds</code>: <code>status = ACTIVE AND accessEndsAt &lt;= now</code>.</li>
+<li>Gating check → <code>StageLocks.get(memberId, stageKey)</code> + prerequisite eval on <strong>every</strong> learning
+read/write, including curriculum fetches (§9.2).</li>
+<li>Re-application → <code>Applications.byEmail</code> (looked up for prior history / cooldown). Re-apply writes
+a <strong>new</strong> <code>Applications</code> row with a fresh <code>applicationId</code>, which becomes the provisioning dedupe
+key for that cycle (§9A.1).</li>
+<li><strong>Status ownership (no dual source of truth).</strong> Once an application is provisioned,
+<strong><code>Members.status</code> is authoritative</strong> for the <code>ACTIVE</code>/<code>EXPIRED</code>/<code>REVOKED</code> phase — sign-in and the
+expiry sweep read/write only <code>Members</code>. <code>Applications.status</code> <strong>freezes</strong> at the granting decision
+(<code>APPROVED_BENEFICIARY</code>/<code>DONATION_CONFIRMED</code>) and is <strong>not</strong> advanced by expiry or revocation; the
+admin members view derives a provisioned member's live status from <code>Members</code>, while
+<code>Applications.byStatus</code> is the <strong>pre-provisioning</strong> queue only.</li>
+</ul>
+<hr>
+<h2 id="6-identity--role-separation">6. Identity &amp; role separation</h2>
+<h3 id="61-end-user-roles-application-rbac">6.1 End-user roles (application RBAC)</h3>
+<ul>
+<li><strong>Source of truth:</strong> Cognito User Pool <strong>groups</strong> — <code>student</code>, <code>admin</code>. Group membership is set
+at provisioning and is the only thing that grants role.</li>
+<li><strong>MFA is mandatory for every account.</strong> Cognito MFA is a <strong>pool-level</strong> setting (<code>REQUIRED</code>)
+with no per-group mode, so requiring it pool-wide is both the buildable option and a security
+upgrade over admin-only MFA (corrects the earlier &quot;admin-group MFA&quot; phrasing — Well-Architected
+review §2.1). <strong>Admins</strong> enrol <strong>TOTP</strong>; <strong>students</strong> use <strong>email-OTP</strong> (Cognito email-message
+MFA via the in-stack SES domain — low friction, ≈$0; fall back to TOTP if email-OTP is
+unavailable on the chosen tier/region). <strong>SMS MFA is not used</strong> (toll-fraud + per-message cost).
+Admin-created users complete MFA enrolment (an <code>MFA_SETUP</code> challenge) on first sign-in alongside
+setting their password. The admin credential never gets to be single-factor while we budget for
+anything else.</li>
+<li><strong>Token:</strong> API Gateway HTTP API uses a <strong>Cognito JWT authorizer</strong>; the access token carries
+<code>cognito:groups</code>. <code>app-fn</code> re-verifies the group claim per route (defense in depth — and the
+mechanism that lets one function serve both areas safely, §3).</li>
+<li><strong>Route guards (server-side):</strong> unauthenticated → <code>/login</code>; wrong group → <code>/access/denied</code>;
+<code>Members.status != ACTIVE</code> or window lapsed → <code>/access/expired</code>; stage locked → <strong><code>403</code> with a
+machine-readable <code>reason: &quot;stage_locked&quot;</code> body</strong> (was <code>423</code> — a WebDAV code; finding 15).</li>
+<li><strong><code>accessBasis</code> is not a permission</strong> — beneficiary vs supporter see the identical app.</li>
+<li><strong>Admin override</strong> (unlock/re-lock) is admin-only and always audited (§7.4).</li>
+</ul>
+<pre><code class="language-mermaid"><div class="mermaid">flowchart LR
+    R[Request to guarded route] --> A{Valid JWT?}
+    A -- no --> L[/login/]
+    A -- yes --> G{Group matches area?}
+    G -- no --> D[/access/denied/]
+    G -- yes --> S{status=ACTIVE<br/>& within window?}
+    S -- no --> E[/access/expired/]
+    S -- yes --> Z{Stage unlocked<br/>or admin override?}
+    Z -- no --> LK[403 stage_locked]
+    Z -- yes --> OK[Serve / issue signed cookies]
+</div></code></pre>
+<blockquote>
+<p>The window and stage-lock branches apply to <strong>student learning routes</strong>; <strong>admin routes</strong>
+short-circuit to <em>Serve</em> right after the group check (admins have no access window and no
+per-stage locks). <code>EXPIRED</code> and <code>REVOKED</code> both resolve to <code>/access/expired</code> (the access-ended
+page) — the distinction is preserved in <code>Members.status</code> and the audit log, not in the redirect.</p>
+</blockquote>
+<h3 id="62-infrastructure-roles-iam-least-privilege--separation-of-duties">6.2 Infrastructure roles (IAM least privilege &amp; separation of duties)</h3>
+<p>Each Lambda gets its own execution role. The critical separation-of-duties rule survives the
+3-function collapse: <strong>no internet-facing code can create accounts.</strong></p>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Can do</th>
+<th>Cannot do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>public-fn</code></td>
+<td><code>PutItem</code> Applications; append AuditLog</td>
+<td>read Members; touch Cognito or SQS; any S3 access</td>
+</tr>
+<tr>
+<td><code>app-fn</code></td>
+<td>read/write Applications, Members, Progress, StageLocks, Notes, Donations (key-scoped for student routes); <strong>enqueue</strong> to the provisioning queue; <strong>mint CloudFront signed cookies</strong> for the curriculum distribution (read the signing key from SSM Parameter Store); append AuditLog</td>
+<td><code>AdminCreateUser</code> or any Cognito admin write; consume from SQS; delete or update AuditLog items; read curriculum S3 directly (only CloudFront's OAC can)</td>
+</tr>
+<tr>
+<td><code>system-fn</code></td>
+<td>consume SQS; <code>cognito-idp:AdminCreateUser</code> / <code>AdminAddUserToGroup</code>; write Members &amp; Donations; <strong>read the Zeffy read-only API key from SSM</strong>; send SES; append AuditLog; run the expiry query + <strong>Zeffy reconcile poll</strong></td>
+<td>serve any API route; delete audit data; read Notes; read the CloudFront signing key</td>
+</tr>
+</tbody>
+</table>
+<p>Cross-cutting IAM rules:</p>
+<ul>
+<li><strong>No <code>*</code> resources</strong> — per table/index, per bucket+prefix, per key.</li>
+<li><strong>AuditLog is append-only by policy</strong> — every role may <code>dynamodb:PutItem</code> to <code>AuditLog</code>;
+<strong>no role anywhere</strong> has <code>UpdateItem</code>/<code>DeleteItem</code> on it (§7.3).</li>
+<li><strong>Two secrets at launch, both in SSM SecureString</strong> — the CloudFront signing key (first-party,
+read-scoped to <code>app-fn</code>) and the <strong>Zeffy read-only API key</strong> (third-party, read-scoped to
+<code>system-fn</code>). Both KMS-encrypted. The Zeffy key is <strong>read-only</strong> (low blast radius, manual
+rotation per <code>Ops-Runbook.md</code>), so <strong>Secrets Manager is still not deployed</strong> — it returns only
+with the Stripe phase (Appendix A), whose write-capable, rotated keys justify it.</li>
+<li><strong>Human AWS access</strong> — see §6.3.</li>
+</ul>
+<h3 id="63-governance--access-hierarchy">6.3 Governance &amp; access hierarchy</h3>
+<p>The review (finding 4) was right: the previous version of this section described a multi-account,
+multi-custodian control structure that a one-person team cannot operate, presented as if it
+existed. It is now split honestly.</p>
+<h4 id="day-1-actual-what-the-board-is-approving-now">Day-1 actual (what the board is approving now)</h4>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>Implementation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AWS account</td>
+<td><strong>One</strong> account; the platform is its only workload</td>
+</tr>
+<tr>
+<td>Root credentials</td>
+<td>Sealed: hardware/TOTP MFA on root, credentials + MFA recovery lodged with a <strong>named board custodian</strong> (not the website admin). Root is never used for operations. This single step gives the board real, revocable ultimate authority today</td>
+</tr>
+<tr>
+<td>Website admin (the maintainer)</td>
+<td>A dedicated IAM identity (or Identity Center user) with <strong>MFA required</strong>, scoped to the app's resources; <strong>no ability to disable CloudTrail, delete the audit buckets, or administer the audit KMS CMK key policy</strong> (explicit deny)</td>
+</tr>
+<tr>
+<td>Application admin</td>
+<td>Cognito <code>admin</code> group, acting only through <code>app-fn</code>, MFA mandatory, every action audited</td>
+</tr>
+<tr>
+<td>Machine</td>
+<td>Per-function least-privilege roles (§6.2)</td>
+</tr>
+<tr>
+<td>Billing</td>
+<td>Billing alerts (budget threshold) delivered to <strong>both</strong> the maintainer and the board contact (<code>Ops-Runbook.md</code>)</td>
+</tr>
+<tr>
+<td>Separation-of-duties honesty</td>
+<td>With one human, Tiers 1–2 are the same person. The compensating controls are: sealed root held by the board, the explicit-deny on audit infrastructure, CloudTrail on everything the admin does, and the board's standing ability to rotate the admin's access</td>
+</tr>
+</tbody>
+</table>
+<h4 id="target-state-adopt-when-the-trigger-fires--see-14">Target state (adopt when the trigger fires — see §14)</h4>
+<p>AWS Organizations with a board-held management account, SCPs (deny CloudTrail tampering, deny
+audit-bucket deletion, region restriction), IAM Identity Center permission sets, and an alarmed
+break-glass role — the full hierarchy preserved in Appendix B. <strong>Trigger:</strong> a second maintainer
+or board custodian is named, or the program graduates from pilot. Audit immutability (append-only
+IAM + Object Lock) holds in both states: ultimate authority means control over <em>access</em>, never
+the ability to erase the record.</p>
+<hr>
+<h2 id="7-audit-trail--audit-logging">7. Audit trail &amp; audit logging</h2>
+<p>Two complementary layers. <strong>CloudTrail</strong> answers &quot;what happened to the AWS resources&quot;; the
+<strong>application AuditLog</strong> answers &quot;what happened to a member/application, and who decided it.&quot;</p>
+<pre><code class="language-mermaid"><div class="mermaid">flowchart LR
+    FN[Lambda handlers] -->|business event, PII-free| AUD[(DynamoDB AuditLog<br/>append-only by IAM)]
+    FN -->|structured JSON| CWL[CloudWatch Logs]
+    AUD -->|daily incremental export| WORM[(S3 audit bucket<br/>Object Lock WORM)]
+    CT[CloudTrail<br/>mgmt + data events] --> WORM
+    CT --> CWL
+    CWL --> AL[Metric filters / alarms<br/>→ Ops-Runbook contacts]
+</div></code></pre>
+<h3 id="71-layer-1--platform-audit-trail-cloudtrail">7.1 Layer 1 — platform audit trail (CloudTrail)</h3>
+<ul>
+<li><strong>Multi-region trail</strong>, management events + <strong>data events on <code>AuditLog</code> and <code>Members</code></strong> (the
+two tables whose silent modification would matter most; per-event cost is negligible at pilot
+volume).</li>
+<li><strong>Log-file integrity validation ON</strong>; delivered to a dedicated S3 bucket with <strong>Object Lock
+(WORM) + versioning set at bucket creation</strong> (Object Lock cannot be retrofit), <strong>SSE-KMS using a
+customer-managed CMK whose key policy the maintainer cannot administer</strong> (so the audit record
+can't be silently re-encrypted or destroyed), block-public, restrictive bucket policy; lifecycle
+to Glacier. The <code>AuditLog</code> table uses the same CMK.</li>
+<li><strong>Streamed to CloudWatch Logs</strong> for metric filters/alarms (root usage, IAM changes, any
+<code>AuditLog</code> delete attempt, trail delivery failure).</li>
+</ul>
+<h3 id="72-layer-2--application-audit-log-business-events">7.2 Layer 2 — application audit log (business events)</h3>
+<p>Every privileged or state-changing action appends one event. <strong>Events carry IDs and state codes
+only — never names, emails, free text, or form contents</strong> (review finding 6: PII inside an
+immutable log can never be deleted, so it never goes in). Canonical schema:</p>
+<pre class="hljs"><code><div><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;eventId&quot;</span><span class="hljs-punctuation">:</span>   <span class="hljs-string">&quot;01J9...ULID&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;ts&quot;</span><span class="hljs-punctuation">:</span>        <span class="hljs-string">&quot;2026-06-09T12:00:00.000Z&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;actorId&quot;</span><span class="hljs-punctuation">:</span>   <span class="hljs-string">&quot;cognito-sub | system&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;actorRole&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;admin | student | system&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;action&quot;</span><span class="hljs-punctuation">:</span>    <span class="hljs-string">&quot;APPLICATION_APPROVED&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;targetType&quot;</span><span class="hljs-punctuation">:</span><span class="hljs-string">&quot;application | member | donation | stage&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;targetId&quot;</span><span class="hljs-punctuation">:</span>  <span class="hljs-string">&quot;01J8...&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;before&quot;</span><span class="hljs-punctuation">:</span>    <span class="hljs-punctuation">{</span> <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;INTERVIEW_SCHEDULED&quot;</span> <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;after&quot;</span><span class="hljs-punctuation">:</span>     <span class="hljs-punctuation">{</span> <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;APPROVED_BENEFICIARY&quot;</span> <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;reasonCode&quot;</span><span class="hljs-punctuation">:</span><span class="hljs-string">&quot;ELIGIBLE&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;requestId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;apigw-request-id&quot;</span>
+<span class="hljs-punctuation">}</span>
+</div></code></pre>
+<p>PK = <code>targetType#targetId</code>, SK = <code>ts#eventId</code> (per-entity history); GSI <code>byActor</code> and <code>byAction</code>.
+<code>before</code>/<code>after</code> are <strong>status fields only</strong>. Free-text reasons (e.g., reject rationale) live on
+the entity row (where retention TTLs apply), referenced by ID — not in the immutable log.
+<code>sourceIp</code> is recorded <strong>only</strong> on authentication-security events, nowhere else.</p>
+<h3 id="73-tamper-evidence-hash-chain-dropped--finding-5">7.3 Tamper-evidence (hash chain dropped — finding 5)</h3>
+<p>The previous design specified a <code>prevHash</code>/<code>hash</code> chain. It is <strong>removed</strong>: under concurrent
+appends a chain needs a serialization point DynamoDB doesn't naturally give (two writers reading
+the same tail fork the chain), and the design named a &quot;verifier job&quot; that existed nowhere else —
+write-path complexity with no realized assurance. The controls that actually carry the
+tamper-evidence requirement, all already in the design:</p>
+<ol>
+<li><strong>Append-only by IAM</strong> — no role can update or delete AuditLog items; a compromised function
+can add events but cannot rewrite history.</li>
+<li><strong>CloudTrail data events on the table</strong> — an independent, integrity-validated record of every
+item-level operation, written to WORM storage outside the application's control.</li>
+<li><strong>Daily incremental PITR export to the Object-Lock bucket</strong> — yesterday's log becomes
+physically immutable; any later divergence between table and export is detectable with a diff.</li>
+<li><strong>PITR</strong> on the table for recovery.</li>
+</ol>
+<h3 id="74-what-is-audited-minimum-set">7.4 What is audited (minimum set)</h3>
+<p>Access lifecycle transitions (<code>SUBMITTED → … → ACTIVE → EXPIRED/REVOKED</code>, <code>REJECTED</code>); admin
+decisions (approve, reject, request-info, provision, extend, revoke, stage override/re-lock) with
+actor + target + before/after status + reason code; auth events (sign-in success/failure, resets,
+lockouts, MFA changes); donation confirmations (<code>confirmedBy</code>, reference ID); and admin
+PII reads/exports (recommended).</p>
+<h3 id="75-retention-access--query">7.5 Retention, access &amp; query</h3>
+<p>AuditLog ≥ 2 years (raise to match donor/grant obligations; the PII-free schema makes long
+retention safe); CloudTrail to Glacier long-term. Admins read audit views in-app (read-only); raw
+table/CloudTrail access requires the MFA-gated AWS identity (§6.3). Athena over the WORM bucket
+remains available for investigations — run ad hoc, not provisioned.</p>
+<hr>
+<h2 id="8-rate-limiting--abuse-protection-lean-launch">8. Rate limiting &amp; abuse protection (lean launch)</h2>
+<p>The review confirmed what <code>Service-Tradeoff-Analysis.md</code> already recommended: <strong>no WAF at
+launch.</strong> Against a $25–200/year total run cost, Amplify-attached WAF (~$15/mo integration +
+$1/rule/mo + request fees) would be the largest line item in the entire stack, bought before any
+user exists to abuse anything. Launch protection is two layers, with WAF as a triggered phase-2
+addition (§14):</p>
+<h3 id="81-layer-1--api-gateway-per-api-throughput">8.1 Layer 1 — API Gateway (per-API throughput)</h3>
+<p>HTTP API <strong>stage-level throttling</strong>: steady rate/burst sized from expected cohort concurrency
+(e.g., 50 rps / 100 burst for the pilot — revisit per §9A.2), well under account defaults. This
+caps total spend and shields Lambda concurrency no matter what the internet does. Tighter
+<strong>per-route throttles</strong> on the abuse-prone routes: <code>POST /apply</code> and the auth-adjacent routes.
+<strong>API Gateway access logging</strong> is enabled to CloudWatch (separate from Lambda logs) — the cleanest
+source of the abuse evidence the §8.3/§14 WAF trigger relies on.</p>
+<h3 id="82-layer-2--application-level-per-user--per-action">8.2 Layer 2 — application level (per-user / per-action)</h3>
+<ul>
+<li><strong>Sign-in:</strong> Cognito's built-in lockout on repeated failures (Essentials), feeding the audit
+log. Risk-based adaptive auth (Plus tier) is a §14 trigger.</li>
+<li><strong>Per-user action limits:</strong> a DynamoDB fixed-window counter keyed <code>userId#action#window</code> for
+abusable writes (deliverable submission, note spam). 429 over budget. Reads need no per-user
+limit (§9A.3).</li>
+<li><strong><code>/apply</code> abuse:</strong> server-side dedupe via <code>Applications.byEmail</code> + the per-route throttle +
+a honeypot field + <strong>strict input validation in <code>public-fn</code></strong> (size/shape/age-gate — HTTP API
+has no built-in request validation). Worst case, junk applications cost one DynamoDB write each
+and sit in a human-reviewed queue — annoying, not dangerous, and TTL-purged. <strong>Residual risk
+(explicitly accepted):</strong> <code>/apply</code> is the sole unauthenticated write path and holds minors' PII;
+with no WAF at launch this is accepted under the compensating controls above, and <code>/apply</code> + the
+donate funnel are <strong>first in line</strong> for the §14 WAF trigger.</li>
+</ul>
+<h3 id="83-phase-2--aws-waf-when-triggered">8.3 Phase 2 — AWS WAF (when triggered)</h3>
+<p>When the §14 trigger fires (observed credential-stuffing, scraping, or sustained junk traffic in
+CloudWatch — or cohort &gt; 250), attach WAF with the rule set preserved from rev. 1: blanket
+rate rule, login protection keyed on <strong>IP + UA</strong> (not IP alone — shared campus NAT, §9A.2),
+<code>/apply</code> rule, managed Common/Known-Bad-Inputs/IP-reputation groups, sensitive rules starting in
+Count mode. If WAF becomes necessary, also re-evaluate Amplify vs S3+CloudFront hosting purely on
+the integration-fee math (<code>Service-Tradeoff-Analysis.md</code> §4.3).</p>
+<hr>
+<h2 id="9-access-enforcement-state-machine--gating">9. Access enforcement (state machine + gating)</h2>
+<p>The Customer-Journey state machine is enforced <strong>server-side</strong> with conditional writes; the
+client never decides eligibility.</p>
+<h3 id="91-idempotent-transitions">9.1 Idempotent transitions</h3>
+<p>Each transition is a conditional <code>UpdateItem</code>. Two security-critical grants exist at launch:</p>
+<ul>
+<li><strong>Beneficiary grant</strong> (<code>APPROVED_BENEFICIARY → ACTIVE</code>) — admin-initiated, runs only
+<code>if status = 'APPROVED_BENEFICIARY'</code>. A double-click, retry, or duplicate SQS message fails the
+condition harmlessly.</li>
+<li><strong>Supporter auto-grant</strong> (<code>DONATION_REQUIRED → DONATION_CONFIRMED → ACTIVE</code>) — driven by the
+<strong>Zeffy reconcile poll</strong>, never by a client. <code>system-fn</code> verifies the payment against Zeffy's
+read-only API, matches it to the application <strong>by email</strong>, and writes the <code>Donations</code> row with a
+<strong>conditional put on <code>zeffyPaymentId</code></strong> (<code>attribute_not_exists</code>) so repeated poll cycles and
+redeliveries are no-ops. Provisioning is the same idempotent <code>PutItem Members</code> with
+<code>attribute_not_exists(memberId)</code> used everywhere. A <strong>refunded</strong> payment seen on a later poll
+transitions <code>ACTIVE → REVOKED</code> conditionally.</li>
+<li><strong>Re-activation of a returning member</strong> (<code>EXPIRED</code>/<code>REVOKED</code> → re-apply → <code>ACTIVE</code>) is a
+<strong>distinct transition, not a fresh provision.</strong> Because <code>memberId</code> is the member's persistent
+Cognito <code>sub</code>, the <code>Members</code> row already exists, so the first-grant primitive
+(<code>PutItem … attribute_not_exists(memberId)</code>) is the <strong>wrong tool</strong> — it would fail its condition,
+no-op, and silently leave the member <code>EXPIRED</code>/<code>REVOKED</code>. Re-activation is instead a conditional
+<strong><code>UpdateItem</code></strong> (<code>if status IN ('EXPIRED','REVOKED')</code> → set <code>status='ACTIVE'</code>, new
+<code>accessStartsAt</code>/<code>accessEndsAt</code>, bump <code>version</code>); <code>AdminCreateUser</code> is skipped (the existing-account
+case the <code>UsernameExistsException</code> branch already anticipates). First grants and re-activations
+therefore share the conditional-write discipline but use different write primitives — provisioning
+branches on whether the <code>Members</code> row exists.</li>
+</ul>
+<p><code>version</code> gives optimistic locking on concurrent admin edits. (<code>PAID_AUTO → ACTIVE</code> via signed
+webhook remains a future-phase transition — Appendix A.)</p>
+<h3 id="92-content-gating--server-side-via-cloudfront-signed-cookies-finding-2-resolved">9.2 Content gating — server-side via CloudFront signed cookies (finding 2 resolved)</h3>
+<p>Rev. 1 contradicted itself: §9.2 promised a server-side check on every learning read while §9A.3
+served the curriculum as public static CDN content — meaning locked stages were only hidden in
+the UI. Resolved with <strong>CloudFront signed cookies</strong>, the option the review flagged as most
+consistent with the §9A.3 read-scaling strategy: it keeps the edge-cached economics <em>and</em> makes
+the gate a real server-side control.</p>
+<ul>
+<li><strong>Public content</strong> (marketing site, SPA shell, program overview) stays static on Amplify
+Hosting's CDN — cacheable, zero backend cost.</li>
+<li><strong>Gated curriculum</strong> (stage content, templates, walkthroughs) lives in a <strong>private S3 bucket</strong>
+reachable only through a <strong>dedicated CloudFront distribution</strong> (origin access control; the
+bucket itself is never publicly readable), and that distribution is locked to a <strong>CloudFront
+key group</strong> — CloudFront serves an object only when the request carries valid <strong>signed cookies</strong>.</li>
+<li><strong>Issuance is the gate.</strong> When a member opens the app (and again on stage unlock / navigation),
+<code>app-fn</code> verifies JWT → group → <code>Members.status</code> + window → <code>StageLocks</code> + prerequisites, and
+only then <strong>sets short-TTL CloudFront signed cookies</strong>
+(<code>CloudFront-Policy</code> / <code>-Signature</code> / <code>-Key-Pair-Id</code>) whose policy is <strong>scoped to that member's
+permitted curriculum path</strong> (unlocked stages only). The signing key is a first-party CloudFront
+key held in <strong>SSM Parameter Store SecureString</strong>, read-scoped to <code>app-fn</code> (§4, §6.2).</li>
+<li><strong>Reads are then edge-cached with zero Lambda per asset.</strong> The browser fetches curriculum
+directly from CloudFront with the cookies attached; <code>app-fn</code> is touched only at cookie issuance,
+not per object — restoring the read-scaling economics §9A.3 wanted, which a per-object
+presigned-GET design would have surrendered (every asset read would hit Lambda).</li>
+<li><strong>Revocation latency = cookie TTL (stated trade-off).</strong> A member revoked or expired mid-session
+keeps access until the cookies lapse, so the TTL is kept <strong>short (15–30 min)</strong> and cookies are
+<strong>re-issued on navigation / stage change</strong>, where <code>app-fn</code> re-checks <code>Members.status</code> — bounding
+revocation to one TTL window. Cookies are path-scoped per member, so a leaked cookie exposes only
+that member's already-unlocked stages, and only until it expires.</li>
+<li><strong>Domain &amp; cookie topology (required).</strong> Signed cookies reach the curriculum distribution only
+if they share a registrable parent domain. Deploy Amplify, API Gateway, and the curriculum
+CloudFront under <strong>one parent</strong> — e.g. <code>app.</code> / <code>api.</code> / <code>cdn.example.org</code> — and set cookies
+<code>Domain=.example.org; Secure; SameSite=None; HttpOnly; Path=&lt;scoped prefix&gt;</code>. <code>SameSite=None</code> is
+required because the curriculum host differs from the app host; without it the gate <strong>silently
+fails in the browser</strong> (every gated fetch 403s) while passing unit tests. Verify with a real
+cross-host browser fetch (§16).</li>
+</ul>
+<p>A stage stays <strong>visible but not enterable (🔒)</strong> until prerequisites are met — its path sits
+outside the issued cookie's policy, so CloudFront refuses it; it is not merely a UI affordance.
+Admin override sets <code>overrideBy/At/Reason</code>, is audited, widens the cookie policy on the next
+issuance, and can re-lock.</p>
+<h3 id="93-expiry-reminders--donation-reconcile">9.3 Expiry, reminders &amp; donation reconcile</h3>
+<p><code>system-fn</code> on EventBridge Scheduler queries <code>Members.byStatusAccessEnds</code>
+(<code>status = ACTIVE AND accessEndsAt &lt;= now</code> — a key-condition query, finding 12), transitions due
+members to <code>EXPIRED</code> (conditional), and sends SES reminders ahead of window close. Expired
+sessions land on <code>/access/expired</code>. <strong>On the same schedule</strong>, <code>system-fn</code> runs the <strong>Zeffy
+reconcile poll</strong> (§9.1): it verifies new donations against the read-only API and auto-provisions
+matched supporters, and auto-<code>REVOKED</code>s any donation it finds refunded or charged back. The same
+sweep <strong>stamps <code>expiresAt</code> on lapsed pre-<code>ACTIVE</code> applications</strong> (<code>DONATION_REQUIRED</code> never paid /
+<code>INTERVIEW_SCHEDULED</code> no-show, stale past the staleness window — §5.1) so their PII TTL-purges
+without a manual step.</p>
+<hr>
+<h2 id="9a-stress-test--scaling-posture">9A. Stress test &amp; scaling posture</h2>
+<p>Dominant traffic: students signing in and reading during an active cohort. Writes are rare;
+donations are entirely external. Three failure modes, re-validated for rev. 2:</p>
+<h3 id="9a1-idempotency--can-a-retry-double-act">9A.1 Idempotency — can a retry double-act?</h3>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>Duplicate trigger</th>
+<th>Guard</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Admin grant</td>
+<td>Double-click, two admins, retry</td>
+<td>Conditional <code>APPROVED → ACTIVE</code>; <code>version</code> lock. Second attempt no-ops</td>
+</tr>
+<tr>
+<td>Supporter auto-grant (Zeffy poll)</td>
+<td>Overlapping poll cycles, re-seen payment</td>
+<td><code>Donations</code> conditional put on <code>zeffyPaymentId</code> (<code>attribute_not_exists</code>); then <code>PutItem Members</code> with <code>attribute_not_exists(memberId)</code>; refund seen later → conditional <code>ACTIVE → REVOKED</code></td>
+</tr>
+<tr>
+<td>SQS → <code>system-fn</code> (first grant)</td>
+<td>At-least-once redelivery</td>
+<td><code>PutItem</code> Members with <code>attribute_not_exists(memberId)</code>; <code>UsernameExistsException</code> treated as success; dedupe key = <code>applicationId</code></td>
+</tr>
+<tr>
+<td>SQS → <code>system-fn</code> (re-activation)</td>
+<td>Returning <code>EXPIRED</code>/<code>REVOKED</code> member re-applies</td>
+<td>Conditional <code>UpdateItem</code> <code>if status IN ('EXPIRED','REVOKED')</code> → <code>ACTIVE</code>; <code>AdminCreateUser</code> skipped (account already exists); re-runs no-op once <code>ACTIVE</code></td>
+</tr>
+<tr>
+<td>Deliverable submit / stage advance</td>
+<td>Resubmit, retry</td>
+<td>Conditional writes on <code>Progress</code>/<code>StageLocks</code>; advancing twice no-ops</td>
+</tr>
+<tr>
+<td>Audit append</td>
+<td>Worker retry</td>
+<td><code>eventId</code> derived deterministically from <code>action+targetId+requestId</code>, conditional-put</td>
+</tr>
+<tr>
+<td>SES email</td>
+<td>At-least-once retry</td>
+<td><code>notificationSentAt</code> flag set by conditional update before send</td>
+</tr>
+<tr>
+<td>Expiry sweep</td>
+<td>Scheduler overlap</td>
+<td><code>ACTIVE → EXPIRED</code> only <code>if status='ACTIVE' and accessEndsAt&lt;=now</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Principle:</strong> every state transition is a conditional write; every async consumer tolerates
+at-least-once delivery. Retries are safe by construction, and there is no money-moving automation
+to replay.</p>
+<h3 id="9a2-rate-limiting--what-throttles-first-under-a-synchronized-cohort-login">9A.2 Rate limiting — what throttles first under a synchronized cohort login?</h3>
+<ol>
+<li><strong>Cognito sign-in throttling</strong> — most likely first limit. Mitigate: client backoff with
+jitter, staggered start comms, monitor <code>ThrottledRequests</code>, request a quota increase before a
+large cohort. Sign-in is once per session, so the burst is brief.</li>
+<li><strong>API Gateway stage throttle sizing</strong> — size rate/burst from cohort concurrency with headroom.</li>
+<li><strong>Shared campus NAT</strong> — the reason any future WAF login rule must key on IP + UA, never IP
+alone (§8.3). At launch, with no WAF, there is nothing to mis-tune here.</li>
+<li><strong>Per-user app limits</strong> stay on writes only.</li>
+</ol>
+<h3 id="9a3-read-heavy-scaling">9A.3 Read-heavy scaling</h3>
+<ul>
+<li><strong>Public content</strong> is edge-cached on Amplify's CDN — zero backend.</li>
+<li><strong>Gated curriculum is edge-cached on CloudFront</strong> — after <code>app-fn</code> issues signed cookies once
+per session/stage, asset reads are served from CloudFront edge with <strong>zero Lambda per object</strong>
+(§9.2). This closes the rev. 1 static-content bypass <em>without</em> giving up read-scaling.</li>
+<li><strong>Auth is stateless after login</strong> — the JWT authorizer validates against cached JWKS; Cognito is
+touched only at login/refresh. Access-token TTL ~1 h. Revocation latency: <strong>API access</strong> is
+bounded per-request by <code>app-fn</code>'s <code>Members.status</code> check; <strong>curriculum access</strong> is bounded by the
+signed-cookie TTL (kept short, re-checked at each cookie re-issuance — §9.2).</li>
+<li><strong><code>app-fn</code> is hit at cookie issuance, not per asset</strong> — at pilot scale a handful of issuances per
+member per session, free-tier Lambda volume; per-student data keys (<code>memberId</code>) spread DynamoDB
+load — no hot partition. Eventually-consistent reads for learning data.</li>
+<li><strong>Lambda autoscales</strong> to the few-hundred-concurrent range trivially; reserved concurrency caps
+blast radius. Provisioned concurrency deferred.</li>
+</ul>
+<p><strong>Bottleneck ranking:</strong> (1) Cognito sign-in burst; (2) API GW throttle sizing; (3) DynamoDB hot
+key only if shared content is mis-placed in Dynamo — keep shared content in S3/CloudFront, not
+Dynamo. Signed-cookie issuance is once per session/stage (not per object), so it is not a
+read-path bottleneck. Every one is configuration, not architecture.</p>
+<h3 id="9a4-add-only-if-scale-demands-it">9A.4 Add only if scale demands it</h3>
+<p>DAX/ElastiCache, a Cognito quota increase, provisioned concurrency, and CloudFront cache-policy /
+response-header tuning for the curriculum distribution — all deferred behind §11 metrics.
+(Signed-cookie curriculum delivery is already the launch design, §9.2, not a deferred item.)</p>
+<hr>
+<h2 id="10-security-controls-summary">10. Security controls summary</h2>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>How it's enforced</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Allowlist + verified entry</td>
+<td>No public sign-up; accounts only via <code>system-fn</code> — beneficiaries after an <strong>admin grant</strong>, supporters after a <strong>server-verified Zeffy donation</strong> (read-only API poll). Every account ties to an application (+ payment for supporters)</td>
+</tr>
+<tr>
+<td>Two-path integrity</td>
+<td>Conditional transitions; <code>ACTIVE</code> reachable <strong>only</strong> via (a) admin grant after the interview [beneficiary] or (b) <strong>server-side payment verification</strong> against Zeffy's read-only API [supporter] — never from an unverified client signal</td>
+</tr>
+<tr>
+<td>Payment isolation</td>
+<td>Card entry only on Zeffy (PCI SAQ-A); in-stack holds <strong>no card data, no webhook</strong> — only a <strong>read-only API key</strong> (SSM) to verify donations + a payment reference</td>
+</tr>
+<tr>
+<td>Refund/chargeback safety</td>
+<td>Reconcile poll detects a refunded/charged-back payment → <strong>audited auto-<code>REVOKED</code></strong> if access was granted (§9.1, §9.3)</td>
+</tr>
+<tr>
+<td>Protected routes <strong>and content</strong></td>
+<td>Cognito JWT authorizer + server-side group/window/gating checks; curriculum in private S3 behind a <strong>CloudFront key group</strong>, reachable only with short-TTL <strong>signed cookies</strong> that <code>app-fn</code> issues after the gating check (§9.2)</td>
+</tr>
+<tr>
+<td>Least privilege + separation of duties</td>
+<td>Per-function IAM; internet-facing code cannot mint accounts (§6.2)</td>
+</tr>
+<tr>
+<td>Account hardening</td>
+<td><strong>MFA REQUIRED for every account</strong> (TOTP admins / email-OTP students) and on all human AWS identities (§6.1, §6.3)</td>
+</tr>
+<tr>
+<td>Gated progression</td>
+<td>Server-side <code>StageLocks</code>; overrides audited (§9.2)</td>
+</tr>
+<tr>
+<td>Comprehensive audit</td>
+<td>CloudTrail (validated, WORM) + append-only PII-free AuditLog + daily WORM export (§7)</td>
+</tr>
+<tr>
+<td>Abuse limiting</td>
+<td>API GW throttling + Cognito lockout + per-user write limits; WAF on trigger (§8)</td>
+</tr>
+<tr>
+<td>Revocable &amp; expiring</td>
+<td>Admin revoke + scheduled expiry; revocation reaches API access on the next request and content access within the signed-cookie TTL (kept short; re-checked at each cookie re-issuance, §9.2)</td>
+</tr>
+<tr>
+<td>Data protection &amp; privacy</td>
+<td>SSE at rest, TLS in transit, private buckets, retention TTLs, PII-free audit events, minors' consent gate (§5.1, <code>Platform-SRS.md</code> §6)</td>
+</tr>
+<tr>
+<td>Durability</td>
+<td>PITR + deletion protection on all tables; tested restore procedure (<code>Ops-Runbook.md</code>)</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="11-observability--alerting-owned-not-aspirational">11. Observability &amp; alerting (owned, not aspirational)</h2>
+<ul>
+<li><strong>Structured JSON logs</strong> to CloudWatch (one event per line). X-Ray off by default.</li>
+<li><strong>Alarms — each with a named destination</strong> (full routing table in <code>Ops-Runbook.md</code>):
+<ul>
+<li><em>Maintainer (ops alias):</em> 5xx rate, Lambda errors/throttles, <strong>SQS DLQ depth &gt; 0</strong>, <strong><code>system-fn</code>
+async on-failure DLQ depth &gt; 0</strong> (expiry/reconcile), <strong>Zeffy reconcile-poll errors /
+unmatched-donation backlog</strong>, login-failure spikes, SES bounce-rate.</li>
+<li><em>Maintainer + board contact:</em> root-account usage, CloudTrail delivery failure or tampering,
+any <code>AuditLog</code> delete attempt, <strong>billing over budget threshold</strong>.</li>
+</ul>
+</li>
+<li><strong>Operating cadence:</strong> this is a one-person, best-effort program — response is the <strong>weekly
+15-minute checklist</strong> in <code>Ops-Runbook.md</code> (DLQ empty, trail delivering, budget on track), with
+the severe-alarm subset escalating to the board contact. No 24/7 pretense.</li>
+<li><strong>Dashboards:</strong> applications by status, active members, expiring-soon.</li>
+</ul>
+<hr>
+<h2 id="12-cost-posture-launch--optimal-lean-structure">12. Cost posture (launch — optimal lean structure)</h2>
+<p>Near-zero at rest, no fixed-cost line items. Canonical credit figure: the <strong>$1,000 AWS nonprofit
+credit target</strong> (<code>Service-Tradeoff-Analysis.md</code> §4.2/§5 — incl. the $95-per-$1,000 program fee,
+max $5,000). At launch there is <strong>no per-donation processing fee</strong> (Zeffy is $0 to the
+nonprofit).</p>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Driver</th>
+<th>Pilot expectation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Amplify Hosting</td>
+<td>build minutes + GB served</td>
+<td>$0–25/yr</td>
+</tr>
+<tr>
+<td>Lambda ×3</td>
+<td>invocations + ms</td>
+<td>free tier</td>
+</tr>
+<tr>
+<td>API Gateway HTTP API</td>
+<td>per-million requests</td>
+<td>$0–25/yr</td>
+</tr>
+<tr>
+<td>DynamoDB on-demand (+PITR)</td>
+<td>requests + GB-month</td>
+<td>$0–15/yr</td>
+</tr>
+<tr>
+<td>S3 (curriculum, WORM exports, trail)</td>
+<td>GB + requests</td>
+<td>$0–10/yr</td>
+</tr>
+<tr>
+<td>CloudFront (curriculum dist.)</td>
+<td>GB served + requests</td>
+<td>$0–10/yr (free-tier egress; <strong>no WAF</strong>)</td>
+</tr>
+<tr>
+<td>Cognito Essentials</td>
+<td>MAU</td>
+<td>$0 (≤10k MAU free)</td>
+</tr>
+<tr>
+<td>SES</td>
+<td>per-1k emails</td>
+<td>$1–10/yr</td>
+</tr>
+<tr>
+<td>CloudTrail + CloudWatch</td>
+<td>data events (~$0.10/100k) + alarms + logs</td>
+<td>$5–50/yr</td>
+</tr>
+<tr>
+<td>SQS / EventBridge</td>
+<td>volume</td>
+<td>~$0</td>
+</tr>
+<tr>
+<td><strong>Gross total</strong></td>
+<td></td>
+<td><strong>≈ $25–200/yr</strong> — matching <code>Service-Tradeoff-Analysis.md</code> §4.2</td>
+</tr>
+<tr>
+<td><strong>Net after credit target</strong></td>
+<td></td>
+<td><strong>$0</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Removed from rev. 1's launch bill:</strong> AWS WAF (~$300/yr — was the largest single line item,
+now phase-2), Cognito Plus (~$0.02/MAU, phase-2), Secrets Manager (the one launch secret — the
+CloudFront signing key — lives in free SSM Parameter Store instead), X-Ray
+(enable-when-investigating), and the receipts bucket + lifecycle (path deleted). Note the
+curriculum CloudFront distribution added in §9.2 is <strong>not</strong> the WAF-fronting, whole-site
+CloudFront rev. 1 implied: it is a small <strong>curriculum-only</strong> distribution with a key group, <strong>no
+WAF attached</strong>, inside the free-tier egress band (~$0). The public site still uses Amplify's
+managed CDN.</p>
+<p><strong>Cost guardrails.</strong> Beyond the $10/mo budget alarm (<code>Ops-Runbook.md</code>), <strong>AWS Cost Anomaly
+Detection</strong> (free) runs on the account to catch a runaway-retry or misconfig spike days before a
+monthly threshold would. Explicit CloudWatch log-group retention (§13) closes the one realistic
+unplanned-cost leak.</p>
+<h3 id="121-sustainability-well-architected-pillar-6">12.1 Sustainability (Well-Architected pillar 6)</h3>
+<p>The architecture scores well on sustainability almost by construction — worth stating explicitly:
+<strong>scale-to-zero serverless</strong> means no idle compute drawing power between cohorts; <strong>managed
+services at high multi-tenant utilisation</strong> (Lambda, DynamoDB on-demand, Cognito, SES) are more
+carbon-efficient per unit of work than an always-on server; <strong>edge caching</strong> of curriculum avoids
+redundant origin compute and data movement; <strong>data-minimisation + retention TTLs</strong> keep the
+stored-data footprint small. The one concrete lever is <strong>arm64/Graviton</strong> (§3/§4) — more
+performance per watt than x86 — already adopted.</p>
+<hr>
+<h2 id="13-environments-iac--deployment">13. Environments, IaC &amp; deployment</h2>
+<ul>
+<li><strong>IaC:</strong> <strong>AWS SAM</strong> (chosen over CDK for a single maintainer — less abstraction, first-class
+serverless deploy/rollback); one stack per environment (<code>dev</code>, <code>prod</code>); no click-ops in prod.
+Templated: <strong>PITR + deletion protection + TTL</strong> on tables; <strong>explicit CloudWatch log-group
+retention</strong> (≈30–90 d app logs, longer for trail) so nothing defaults to never-expire; the
+<strong>WORM audit bucket created with Object Lock + versioning at creation</strong> (Object Lock cannot be
+retrofit); <strong>Lambda runtime pinned, arm64/Graviton</strong>; a <strong><code>system-fn</code> async on-failure
+destination/DLQ</strong>.</li>
+<li><strong>CI/CD:</strong> GitHub → build → deploy; least-privilege deploy role; manual approval to prod;
+<strong>canary/linear Lambda deployment with automatic rollback on a CloudWatch alarm</strong> (SAM
+<code>DeploymentPreference</code>) — cheap blast-radius insurance for a solo maintainer.</li>
+<li><strong>Frontend:</strong> SPA build → Amplify Hosting; relative asset paths; <strong>custom domain under the
+shared parent</strong> (§9.2 cookie topology).</li>
+<li><strong>Disaster recovery (stated posture):</strong> <strong>single-region</strong> deployment; PITR is <strong>in-region</strong>
+(RPO ≤ 24 h, RTO ≤ 1 business day, board-accepted). A regional outage waits on AWS recovery; an
+optional <strong>cross-region copy of the WORM export + periodic DynamoDB backup</strong> buys true
+off-region durability if the board later wants it.</li>
+<li><strong>Single-maintainer friendliness:</strong> one repo, clear module boundaries; the 3-function split
+lives in the deploy template, not the day-to-day editing experience. Operations live in
+<code>Ops-Runbook.md</code>, written for a student volunteer.</li>
+</ul>
+<hr>
+<h2 id="14-phase-triggers--migration-path">14. Phase triggers &amp; migration path</h2>
+<p>Deferred items return only when their trigger fires — this table is the contract that keeps the
+launch lean without losing the roadmap:</p>
+<table>
+<thead>
+<tr>
+<th>Deferred item</th>
+<th>Trigger to adopt</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>AWS WAF</strong> (rule set preserved in §8.3)</td>
+<td>Observed credential-stuffing / scraping / sustained junk traffic in CloudWatch, or cohort &gt; 250</td>
+</tr>
+<tr>
+<td><strong>Cognito Plus</strong> (adaptive auth)</td>
+<td>Same evidence class as WAF, or board mandate</td>
+</tr>
+<tr>
+<td><strong>6-function split</strong> (Appendix B)</td>
+<td>Second maintainer joins</td>
+</tr>
+<tr>
+<td><strong>AWS Organizations + SCPs</strong> (§6.3 target)</td>
+<td>Second board custodian named, or program exits pilot</td>
+</tr>
+<tr>
+<td><strong>Stripe hosted Checkout + webhooks</strong> (Appendix A)</td>
+<td>Seconds-level activation becomes a hard requirement, <strong>the Zeffy read-only poll proves brittle</strong> (missed/late payments, Beta-API changes), recurring billing is introduced, or the board approves the fee trade-off (<code>Service-Tradeoff-Analysis.md</code> §6.7.1)</td>
+</tr>
+<tr>
+<td><strong>App Runner / Fargate + Aurora</strong></td>
+<td>Always-warm or relational needs; same codebase migrates — trust boundaries, audit layers, and throttling carry over unchanged</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="15-open-decisions--risks">15. Open decisions &amp; risks</h2>
+<ol>
+<li><s>Credential type</s> — <strong>resolved:</strong> email + password (Cognito), <code>/auth/*</code> flows.</li>
+<li><s>Cognito Plus from day one</s> — <strong>resolved:</strong> no; §14 trigger.</li>
+<li><s>WAF at launch</s> — <strong>resolved:</strong> no; §8.3/§14 trigger (also resolves the rev. 1 conflict with
+<code>Service-Tradeoff-Analysis.md</code>).</li>
+<li><s>Function split granularity</s> — <strong>resolved:</strong> 3 functions at launch; 6 on trigger.</li>
+<li><s>Admin MFA</s> — <strong>resolved:</strong> mandatory (§6.1).</li>
+<li><strong>Audit retention window</strong> — ≥ 2 years adopted; confirm against donor/grant reporting
+obligations and record in <code>/admin/settings</code>.</li>
+<li><s>Refund/chargeback at launch</s> — <strong>resolved:</strong> the Zeffy reconcile poll triggers an audited
+auto-<code>REVOKED</code> on a detected refund/chargeback; manual admin revoke remains. Revisit automation
+depth with the Stripe phase.</li>
+<li><strong>Admin &quot;view as student&quot;</strong> — if built, it is an audited, read-only mode.</li>
+<li><s>Interview always-required vs donor-only</s> — <strong>resolved:</strong> supporters self-serve with <strong>no
+interview</strong> (gated on a server-verified donation); the interview remains the beneficiary gate.</li>
+<li><strong>Minors policy</strong> — <code>Platform-SRS.md</code> §6 sets under-13 exclusion + 13–17 guardian consent;
+awaiting board ratification.</li>
+</ol>
+<hr>
+<h2 id="16-build-checklist-acceptance-criteria--launch-state">16. Build checklist (acceptance criteria — launch state)</h2>
+<ul>
+<li><input type="checkbox" id="checkbox0"><label for="checkbox0">Cognito user pool, Essentials tier; groups <code>student</code>/<code>admin</code>; <strong>no self-sign-up</strong>;</label>
+<strong>MFA REQUIRED pool-wide</strong> (TOTP admins / email-OTP students; no SMS); admin-created users
+complete MFA enrolment on first sign-in.</li>
+<li><input type="checkbox" id="checkbox1"><label for="checkbox1">API Gateway HTTP API with Cognito JWT authorizer; stage throttling + per-route throttles on</label>
+<code>/apply</code> and auth routes.</li>
+<li><input type="checkbox" id="checkbox2"><label for="checkbox2"><strong>Three</strong> Lambda functions (<code>public-fn</code>, <code>app-fn</code>, <code>system-fn</code>), each with a least-privilege</label>
+execution role; only <code>system-fn</code> holds <code>AdminCreateUser</code>.</li>
+<li><input type="checkbox" id="checkbox3"><label for="checkbox3">Donations on <strong>Zeffy hosted</strong> (link-out; <strong>no webhook, no card data</strong>); supporter grants</label>
+flow via the <strong><code>system-fn</code> Zeffy read-only reconcile poll → verify → auto-provision</strong>
+(admin → SQS → <code>system-fn</code> remains the beneficiary/fallback path).</li>
+<li><input type="checkbox" id="checkbox4"><label for="checkbox4"><strong>Self-serve supporter path:</strong> <code>/apply</code> runs the <strong>age/consent gate before</strong> the Donate</label>
+(Zeffy) link-out; the <strong>reconcile poll</strong> verifies donations against Zeffy's read-only API,
+<strong>matches by email</strong>, writes <code>Donations</code> with a <strong>conditional put on <code>zeffyPaymentId</code></strong>, and
+<strong>auto-provisions</strong> within minutes; <strong>admin dashboard-confirm</strong> is the email-mismatch
+fallback. Verified by tests: (a) a matching paid donation auto-grants <code>ACTIVE</code>; (b) repeated
+poll cycles for the same payment are no-ops; (c) a refunded payment auto-<code>REVOKED</code>s.</li>
+<li><input type="checkbox" id="checkbox5"><label for="checkbox5"><strong>First-login credential:</strong> <code>system-fn</code> creates the Cognito user with a <strong>temporary</label>
+password</strong> (<code>AdminCreateUser</code>, <code>FORCE_CHANGE_PASSWORD</code>), delivered by the SES welcome email;
+first sign-in forces <strong>password change + MFA setup</strong>. <strong>No password is stored in any
+DynamoDB table</strong> (Cognito holds the credential; <code>Members</code> holds the account record).</li>
+<li><input type="checkbox" id="checkbox6"><label for="checkbox6"><strong>Zeffy read-only API key</strong> in SSM SecureString, <strong>read-scoped to <code>system-fn</code></strong> only;</label>
+rotation procedure in <code>Ops-Runbook.md</code>.</li>
+<li><input type="checkbox" id="checkbox7"><label for="checkbox7">DynamoDB tables with conditional-write transitions; idempotent admin grant</label>
+(<code>APPROVED → ACTIVE</code> conditional); <strong>PITR + deletion protection + TTL retention on every
+table</strong>; <code>Members.byStatusAccessEnds</code> GSI (PK <code>status</code>, SK <code>accessEndsAt</code>).</li>
+<li><input type="checkbox" id="checkbox8"><label for="checkbox8"><strong>Gated curriculum in a private S3 bucket fronted by a dedicated CloudFront distribution</strong></label>
+(OAC; bucket not publicly readable) locked to a <strong>CloudFront key group</strong>; <code>app-fn</code> issues
+short-TTL <strong>signed cookies</strong> scoped to the member's permitted path only after the gating
+check, with the signing key in <strong>SSM Parameter Store SecureString</strong>. Verified by integration
+tests: (a) a <code>locked</code> stage and an <code>EXPIRED</code> member are <strong>refused cookies</strong> (<code>403</code> + reason);
+(b) curriculum is <strong>not fetchable from CloudFront without valid signed cookies</strong>; (c) the S3
+origin is <strong>not reachable directly</strong> (only via CloudFront OAC).</li>
+<li><input type="checkbox" id="checkbox9"><label for="checkbox9"><strong>Custom domains under one parent</strong> for Amplify / API Gateway / curriculum CloudFront</label>
+(e.g. <code>app.</code> / <code>api.</code> / <code>cdn.&lt;parent&gt;</code>); signed cookies set <code>Domain=.&lt;parent&gt;; Secure;     SameSite=None; HttpOnly</code>. Integration test: a real cross-host browser fetch of a curriculum
+object succeeds with cookies and 403s without them.</li>
+<li><input type="checkbox" id="checkbox10"><label for="checkbox10">Server-side enforcement of role, window, and stage gating (client never decides); <code>403</code> +</label>
+reason body for locked stages.</li>
+<li><input type="checkbox" id="checkbox11"><label for="checkbox11"><strong>AuditLog</strong> append-only (no Update/Delete in any IAM policy), <strong>PII-free event schema</strong>,</label>
+PITR on, <strong>daily incremental export to the Object-Lock bucket</strong>.</li>
+<li><input type="checkbox" id="checkbox12"><label for="checkbox12"><strong>CloudTrail</strong> multi-region, log validation on, data events on <code>AuditLog</code> + <code>Members</code>,</label>
+delivered to the Object-Lock bucket.</li>
+<li><input type="checkbox" id="checkbox13"><label for="checkbox13"><code>/apply</code> includes the <strong>age/consent gate</strong> (<code>Platform-SRS.md</code> §6) + honeypot + email dedupe</label>
++ <strong>strict server-side input validation</strong>; HTTP API <strong>CORS locked to the Amplify origin</strong>.</li>
+<li><input type="checkbox" id="checkbox14"><label for="checkbox14"><strong>SES production access approved; SPF + DKIM + DMARC configured</strong> on the sending domain;</label>
+bounce/complaint notifications routed to the ops alias.</li>
+<li><input type="checkbox" id="checkbox15"><label for="checkbox15">EventBridge-scheduled expiry + SES reminders; <code>/access/expired</code> reached on lapse.</label></li>
+<li><input type="checkbox" id="checkbox16"><label for="checkbox16">CloudWatch alarms wired to the <code>Ops-Runbook.md</code> routing table, incl. SQS DLQ depth,</label>
+<strong><code>system-fn</code> async on-failure DLQ depth</strong>, <strong>reconcile-poll errors / unmatched-donation
+backlog</strong>, login-failure spikes, AuditLog delete attempts, billing budget (+ <strong>Cost Anomaly
+Detection</strong>); billing alert reaches the <strong>board contact</strong>.</li>
+<li><input type="checkbox" id="checkbox17"><label for="checkbox17">Day-1 governance in place: root sealed (MFA, board custodian), maintainer identity</label>
+MFA-required with explicit deny on CloudTrail/audit-bucket tampering (§6.3).</li>
+<li><input type="checkbox" id="checkbox18"><label for="checkbox18">IaC (<strong>SAM</strong>) per environment; least-privilege deploy role; prod approval gate; <strong>canary</label>
+deploy with alarm rollback</strong>. Templated: <strong>explicit log-group retention</strong>, <strong>arm64 runtime</strong>,
+<strong><code>system-fn</code> async on-failure DLQ</strong>, <strong>WORM bucket Object Lock + versioning at creation</strong>,
+<strong>customer-managed KMS CMK on <code>AuditLog</code> + WORM bucket</strong>.</li>
+<li><input type="checkbox" id="checkbox19"><label for="checkbox19"><strong>Restore procedure tested once</strong> (table → PITR restore → verify) and recorded in</label>
+<code>Ops-Runbook.md</code>.</li>
+<li><input type="checkbox" id="checkbox20"><label for="checkbox20">Dry-run cohort passes the end-to-end acceptance flow (<code>Platform-SRS.md</code> §10).</label></li>
+</ul>
+<hr>
+<h2 id="appendix-a--future-phase-automated-payments-stripe">Appendix A — Future phase: automated payments (Stripe)</h2>
+<p><strong>Not in the launch build.</strong> Launch self-serve supporters are handled by the <strong>Zeffy read-only
+reconcile poll</strong> (§9.1) — $0 fees, near-instant (minutes). Everything in this appendix (Stripe,
+<strong>seconds-level</strong> webhook activation) activates only on the §14 trigger and a board decision on
+processing fees (<code>Service-Tradeoff-Analysis.md</code> §6.7.1).</p>
+<p>Design (preserved from rev. 1, unchanged in substance): Stripe hosted Checkout (PCI SAQ-A);
+<code>POST /webhooks/stripe</code> handled by a dedicated <code>webhook-fn</code> that verifies the <strong>Stripe
+signature</strong>, then performs a <strong>conditional create</strong> on <code>Donations.byStripeEventId</code> (a GSI added
+in this phase) so duplicate webhook deliveries are no-ops; on first delivery it marks the
+application <code>PAID_AUTO</code> and <strong>enqueues to the same SQS provisioning queue</strong> — <code>webhook-fn</code> can
+update payment status but <strong>cannot create accounts</strong> (the separation the launch design already
+enforces). <code>PAID_AUTO → ACTIVE</code> becomes a valid automated transition in the state machine.
+Additions in this phase: Secrets Manager (Stripe keys, rotated, read-scoped to <code>webhook-fn</code>), a
+WAF rate rule scoped to the webhook route (with Stripe IP allow-listing), refund/chargeback
+handling (auto-revoke vs. admin review — open decision), and the optional per-application tokened
+receipt-upload path for manual payments (short-TTL presigned PUT, content-type/length limits,
+available only in <code>DONATION_REQUIRED</code>).</p>
+<h2 id="appendix-b--target-shapes-adopt-on-14-triggers">Appendix B — Target shapes (adopt on §14 triggers)</h2>
+<p><strong>6-function split</strong> (two maintainers+): <code>public-fn</code> / <code>student-fn</code> / <code>admin-fn</code> /
+<code>webhook-fn</code> / <code>provisioning-fn</code> / <code>expiry-scheduler-fn</code>, per the rev. 1 trust-boundary and IAM
+tables — the security-critical property (payment path and internet-facing code cannot mint
+accounts) is identical; the split adds per-boundary blast-radius reduction at the cost of more
+IAM/deploy surface.</p>
+<p><strong>Organizations governance</strong> (second custodian+): board-held management account; workload in a
+member account; SCPs denying CloudTrail tampering, audit-bucket deletion, region sprawl, and IAM
+changes that would remove board access; IAM Identity Center permission sets for humans; alarmed
+break-glass role. Root remains sealed in both states; audit immutability holds across every tier.</p>
+
+</body>
+</html>
