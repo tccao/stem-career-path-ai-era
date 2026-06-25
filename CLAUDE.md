@@ -171,6 +171,19 @@ Minors: under-13 not accepted (COPPA); 13–17 require guardian consent before i
 
 ## Local tooling (verified present — a future session can run these)
 
+**Execution boundary (READ FIRST if the working dir is a `\\wsl.localhost\...` UNC path).** When the repo is opened from Windows over the `\\wsl.localhost\ubuntu\...` share, the Bash/PowerShell tools run on the **Windows** side (Git Bash/MINGW64 — `uname` shows `MINGW64_NT … Msys`, `HOME=/c/Users/...`), NOT inside WSL Ubuntu. All the tools below (node/npm/mmdc/uv/tidy/etc.) live in the **WSL Linux** userland and are invisible to Windows — `node`/`npm` will be "not found", `~` resolves to the Windows home (so `~/.nvm` does not exist), and the UNC share can read/write files but cannot execute Linux binaries. Bridge into WSL for every command, and use a **login+interactive** shell so `.bashrc` sources nvm (a plain `wsl.exe node` hits a stray system node, not the project's v24.16.0):
+
+```bash
+# WRONG from Windows: node --version          → not recognized
+# WRONG:              wsl.exe node --version   → v22.23.0 (system node, no nvm)
+# RIGHT: login+interactive shell sources nvm → v24.16.0 + npm 11.17.0
+wsl.exe bash -lic 'cd /home/tinhc/stem-career-path-ai-era/demo && npm run cloud:up'
+```
+
+(If you are already inside a native WSL/Linux shell, skip the bridge and run commands directly.)
+
+**Git operations.** WSL has its own `gh` auth (`gh auth login --web` as `tccao`; token at `~/.config/gh/hosts.yml`, plaintext since no keyring) and `gh` is wired as the git credential helper (`git config credential.https://github.com.helper` → `!/usr/bin/gh auth git-credential`). So push/PR natively through the bridge — `wsl.exe bash -lic 'cd /home/tinhc/stem-career-path-ai-era && git push && gh pr create ...'`. Do NOT push from the Windows side: Windows `gh.exe auth token` returns empty across interop (keyring unreachable), and a plain WSL `git push` with no helper hangs on a credential prompt.
+
 ```csv
 tool,version/path,use
 node + npx,v24.16.0 (nvm),JS runtime backing mmdc
