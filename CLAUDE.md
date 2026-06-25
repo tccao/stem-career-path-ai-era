@@ -182,6 +182,8 @@ wsl.exe bash -lic 'cd /home/tinhc/stem-career-path-ai-era/demo && npm run cloud:
 
 (If you are already inside a native WSL/Linux shell, skip the bridge and run commands directly.)
 
+**Git operations.** WSL has its own `gh` auth (`gh auth login --web` as `tccao`; token at `~/.config/gh/hosts.yml`, plaintext since no keyring) and `gh` is wired as the git credential helper (`git config credential.https://github.com.helper` → `!/usr/bin/gh auth git-credential`). So push/PR natively through the bridge — `wsl.exe bash -lic 'cd /home/tinhc/stem-career-path-ai-era && git push && gh pr create ...'`. Do NOT push from the Windows side: Windows `gh.exe auth token` returns empty across interop (keyring unreachable), and a plain WSL `git push` with no helper hangs on a credential prompt.
+
 ```csv
 tool,version/path,use
 node + npx,v24.16.0 (nvm),JS runtime backing mmdc
