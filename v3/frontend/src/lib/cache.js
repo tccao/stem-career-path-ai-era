@@ -4,7 +4,10 @@ let _curriculum = null;
 
 export async function loadCurriculum() {
   if (_curriculum) return _curriculum;
-  const res = await fetch('/curriculum.json', { cache: 'force-cache' });
+  // 'no-cache' = always revalidate with the server (304 if unchanged) so a redeploy of
+  // curriculum.json is never served stale. (force-cache caused an empty dashboard after
+  // the curriculum was populated — the browser kept the old empty copy.)
+  const res = await fetch('/curriculum.json', { cache: 'no-cache' });
   _curriculum = await res.json();
   return _curriculum;
 }
