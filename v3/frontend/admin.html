@@ -3,12 +3,58 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Admin — STEM Career Path</title>
+  <title>Code For Good · Admin</title>
+  <link rel="icon" href="/codeforgood-logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-  <!-- === ADMIN SPA === -->
-  <!-- Admin signs in (Firebase Auth); all actions go through role-gated callables. -->
-  <main id="admin-root">Loading…</main>
-  <script type="module" src="/src/admin/overview.js"></script>
+  <div class="topbar hidden" id="topbar">
+    <a class="brand" href="/">
+      <img src="/codeforgood-logo.png" alt="Code For Good" onerror="this.style.display='none'">
+      <span>Code For Good · Admin<small>STEM Career Path</small></span>
+    </a>
+    <div class="topbar-right hidden" id="session"><span class="who" id="who"></span>
+      <button class="linkbtn" id="logoutBtn">Log out</button></div>
+  </div>
+
+  <!-- LOGIN (passwordless email-link) -->
+  <div id="login" class="login-wrap">
+    <div class="login-card">
+      <div class="brand"><img src="/codeforgood-logo.png" alt="Code For Good" onerror="this.style.display='none'"><span>Code For Good</span></div>
+      <h1>Admin sign in</h1>
+      <p>We'll email you a one-time sign-in link. Admin access requires a granted admin role.</p>
+      <label for="email">Email</label>
+      <input id="email" type="email" autocomplete="email" placeholder="you@example.com" />
+      <button class="btn btn-purple" id="loginBtn">Email me a sign-in link</button>
+      <div class="hint" id="loginMsg"></div>
+      <div class="login-foot"><a href="/">← Back to site</a> · <a href="/app.html">Student login</a></div>
+    </div>
+  </div>
+
+  <!-- APP -->
+  <div id="app" class="wrap hidden">
+    <div class="kpis" id="kpis"></div>
+    <div class="tabs" id="tabs"></div>
+    <div class="cols">
+      <div class="panel">
+        <h2 id="queueTitle">Applications</h2>
+        <div id="queue"></div>
+      </div>
+      <div class="panel detail">
+        <h2>Details</h2>
+        <div id="detail"><div class="empty">Select an application from the queue.</div></div>
+      </div>
+    </div>
+    <div class="panel members-wrap">
+      <h2>Members</h2>
+      <div id="members"></div>
+      <div id="memberProgress" class="progress-detail"><div class="empty">Select a member to review learning progress.</div></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <script type="module" src="/src/admin/admin.js"></script>
 </body>
 </html>
