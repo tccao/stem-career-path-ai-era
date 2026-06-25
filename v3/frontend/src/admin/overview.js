@@ -1,16 +1,23 @@
-// Admin overview = ONE read of the denormalized counters singleton (V3-Plan §4) — no scans.
-import { doc, getDoc } from 'firebase/firestore';
-import { onAuthStateChanged } from 'firebase/auth';
+// Admin overview (Spark/Functions-free). No trigger-maintained counters; tally applications
+// by status with a direct admin-gated read. Fine at pilot scale.
+import { collection, getDocs } from 'firebase/firestore';
 import { db, auth } from '../firebase.js';
+import { completeSignInIfPresent, onAuthStateChanged } from '../lib/auth.js';
 
 async function render() {
-  const snap = await getDoc(doc(db, 'counters', 'overview')); // 1 read; maintained by triggers
-  const c = snap.data() ?? {};
+  const snap = await getDocs(collection(db, 'applications')); // Rules: isAdmin
+  const counts = {};
+  snap.forEach((d) => { const s = d.data().status; counts[s] = (counts[s] ?? 0) + 1; });
   document.getElementById('admin-root').textContent =
-    `Submitted ${c.SUBMITTED ?? 0} · Granted ${c.GRANTED ?? 0} · Active ${c.ACTIVE ?? 0} · Ended ${c.ENDED ?? 0}`;
+    `Applications — ` + Object.entries(counts).map(([k, v]) => `${k}:${v}`).join('  ') || 'none';
 }
 
-onAuthStateChanged(auth, (user) => {
-  if (user) render(); // Rules require token.role == 'admin'
-  else document.getElementById('admin-root').textContent = 'Please sign in.';
-});
+(async () => {
+  await completeSignInIfPresent();
+  onAuthStateChanged(auth, (user) => {
+    if (user && !user.isAnonymous) render().catch((e) => {
+      document.getElementById('admin-root').textContent = `Not authorized (${e.code || e.message}).`;
+    });
+    else document.getElementById('admin-root').textContent = 'Sign in with your admin email link.';
+  });
+})();

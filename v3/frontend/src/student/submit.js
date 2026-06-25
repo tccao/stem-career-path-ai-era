@@ -1,11 +1,15 @@
-// Submit a stage deliverable. Server re-derives gating (never trusts the client) and,
-// on success, the aggregates trigger rebuilds memberDashboard (V3-Plan §4/§8).
-import { httpsCallable } from 'firebase/functions';
-import { fns } from '../firebase.js';
-
-const submitStage = httpsCallable(fns, 'submitStage');
+// Submit a stage deliverable (Spark/Functions-free). Writes the progress doc directly;
+// Firestore Rules require an ACTIVE, in-window student writing their OWN progress with
+// status='complete' (see firestore.rules). Strict next-stage gating is relaxed for MVP —
+// the SPA presents stages in order.
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { db, auth } from '../firebase.js';
 
 export async function submit(stageKey, deliverableUrl) {
-  const { data } = await submitStage({ stageKey, deliverableUrl });
-  return data; // { stageKey, status: 'complete', unlocked: '<nextStageKey>' }
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error('not signed in');
+  await setDoc(doc(db, 'members', uid, 'progress', stageKey), {
+    status: 'complete', deliverableUrl, completedAt: serverTimestamp(),
+  });
+  return { stageKey, status: 'complete' };
 }
