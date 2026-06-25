@@ -1,12 +1,9 @@
 {
-  "functions": { "source": "functions", "runtime": "nodejs20" },
+  "//": "Spark / Functions-free. Deploy target on Spark: `firebase deploy --only firestore:rules`. The functions/ dir is a Blaze reference and is NOT deployed (Spark cannot deploy Cloud Functions). No Storage on Spark.",
   "firestore": { "rules": "firestore.rules", "indexes": "firestore.indexes.json" },
-  "storage": { "rules": "storage.rules" },
   "emulators": {
     "auth": { "port": 9099 },
-    "functions": { "port": 5001 },
     "firestore": { "port": 8080 },
-    "storage": { "port": 9199 },
     "ui": { "enabled": true }
   }
 }

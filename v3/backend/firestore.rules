@@ -1,37 +1,59 @@
 rules_version = '2';
-// Server-side enforcement (V3-Plan §5). Authz comes from custom-token CLAIMS, so no
-// lookup reads are needed. All writes are denied to clients — only Cloud Functions
-// (admin SDK, which bypasses rules) mutate data. This keeps the audit log append-only
-// and prevents client-minted state.
+// Spark / Functions-free enforcement (Spark-Backend.md §3). Firestore Rules ARE the
+// client-facing trust boundary; the admin-cli (Admin SDK) bypasses these rules for
+// privileged writes. Authz comes from custom-token CLAIMS set by admin-cli/grant.mjs,
+// so no lookup reads are needed.
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isAdmin() { return request.auth != null && request.auth.token.role == 'admin'; }
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() { return isSignedIn() && request.auth.token.role == 'admin'; }
     function isActiveStudent(uid) {
-      return request.auth != null
+      return isSignedIn()
         && request.auth.uid == uid
         && request.auth.token.role == 'student'
         && request.auth.token.accessEnds > request.time.toMillis();
     }
 
-    // Student reads only their own denormalized dashboard (1 read renders the view).
-    match /memberDashboard/{uid} {
-      allow read: if isActiveStudent(uid);
-      allow write: if false;
+    // PUBLIC APPLY: an applicant (anonymous auth) may CREATE one SUBMITTED application.
+    // The age/consent gate is enforced HERE (under-13 denied; 13–17 needs guardian consent).
+    // No client reads/updates/deletes — the admin dashboard reads via isAdmin(); the
+    // admin-cli mutates via the Admin SDK (bypasses rules).
+    match /applications/{id} {
+      allow create: if isSignedIn()
+        && request.resource.data.status == 'SUBMITTED'
+        && request.resource.data.ageBracket in ['13-17', '18plus']
+        && (request.resource.data.ageBracket != '13-17' || request.resource.data.guardianConsent == true)
+        && request.resource.data.accessChoice in ['beneficiary', 'supporter']
+        && request.resource.data.keys().hasOnly(
+             ['status', 'accessChoice', 'email', 'name', 'ageBracket', 'guardianConsent', 'createdAt']);
+      allow read: if isAdmin();
+      allow update, delete: if false;
     }
 
-    // Admin-only reads; writes via Functions only.
-    match /applications/{id}      { allow read: if isAdmin();  allow write: if false; }
-    match /members/{uid}          { allow read: if isAdmin() || (request.auth != null && request.auth.uid == uid); allow write: if false; }
-    match /donations/{id}         { allow read: if isAdmin();  allow write: if false; }
-    match /counters/{id}          { allow read: if isAdmin();  allow write: if false; }
+    // Provisioned member record — written only by admin-cli (Admin SDK).
+    match /members/{uid} {
+      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
+      allow write: if false;
 
-    // Append-only, tamper-evident: never readable on hot paths, never client-writable.
-    match /auditLog/{id}          { allow read: if isAdmin();  allow write: if false; }
+      // Student self-attests completion of their OWN stage while ACTIVE + in-window.
+      // (Strict next-stage gating is relaxed for MVP — see Spark-Backend.md §3.)
+      match /progress/{stageKey} {
+        allow read: if isAdmin() || isActiveStudent(uid);
+        allow create, update: if isActiveStudent(uid)
+          && request.resource.data.status == 'complete'
+          && request.resource.data.keys().hasOnly(['status', 'deliverableUrl', 'completedAt']);
+        allow delete: if false;
+      }
+    }
 
-    // Single-use access codes are server-only end to end.
-    match /accessCodes/{hash}     { allow read, write: if false; }
+    // Admin-only reads; all writes via the Admin SDK only.
+    match /donations/{id} { allow read: if isAdmin(); allow write: if false; }
+    match /counters/{id}  { allow read: if isAdmin(); allow write: if false; }
 
-    match /{document=**}          { allow read, write: if false; }
+    // Append-only, tamper-evident: admin reads, never client-writable.
+    match /auditLog/{id}  { allow read: if isAdmin(); allow write: if false; }
+
+    match /{document=**}  { allow read, write: if false; }
   }
 }
