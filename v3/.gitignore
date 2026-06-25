@@ -11,4 +11,5 @@ frontend/.vite/
 *serviceaccount*.json
 *service-account*.json
 *-key.json
-firebase-adminsdk*.json
+*adminsdk*.json
+*firebase-adminsdk*.json
