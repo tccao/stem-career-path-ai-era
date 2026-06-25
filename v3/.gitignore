@@ -4,6 +4,7 @@ dist/
 *.log
 .env
 .env.*
+!.env.example
 frontend/.vite/
 
 # NEVER commit Firebase service-account keys (admin-cli credentials)
