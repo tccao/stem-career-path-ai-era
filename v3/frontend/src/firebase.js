@@ -1,11 +1,12 @@
 // Modular Firebase Web SDK init. Config values are public by design (security is
 // enforced by Firestore Rules + Functions, never by hiding these keys).
 // Fill from your Firebase project settings, or inject at build time via Vite env vars.
+// Spark / Functions-free: the app talks to Firestore + Auth directly (no Cloud Functions).
+// Enforcement is in Firestore Security Rules; privileged ops are done by the admin-cli.
 import { initializeApp } from 'firebase/app';
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
 } from 'firebase/firestore';
-import { getFunctions } from 'firebase/functions';
 import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
