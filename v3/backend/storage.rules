@@ -1,0 +1,11 @@
+rules_version = '2';
+// Gated curriculum bytes (V3-Plan §9). The bucket is private: NO client reads or writes.
+// Content is delivered only via short-TTL signed URLs minted by a Cloud Function after
+// the server-side gate check (getSignedAsset).
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
