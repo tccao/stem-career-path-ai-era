@@ -3,12 +3,90 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Student — STEM Career Path</title>
+  <title>Code For Good · My Learning Path</title>
+  <link rel="icon" href="/codeforgood-logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-  <!-- === STUDENT SPA === -->
-  <!-- /redeem?c=<code> redeems the magic link, then renders the gated learning path. -->
-  <main id="app-root">Loading…</main>
-  <script type="module" src="/src/student/dashboard.js"></script>
+  <!-- ===== LOGIN (passwordless email-link) ===== -->
+  <div id="login" class="login-wrap">
+    <div class="login-card">
+      <div class="brand"><img src="/codeforgood-logo.png" alt="Code For Good" onerror="this.style.display='none'"><span>Code For Good</span></div>
+      <h1>Sign in to your path</h1>
+      <p>We'll email you a one-time sign-in link — no password needed.</p>
+      <label for="email">Email</label>
+      <input id="email" type="email" autocomplete="email" placeholder="you@example.com" />
+      <button class="btn btn-purple" id="loginBtn">Email me a sign-in link</button>
+      <div class="hint" id="loginMsg"></div>
+      <div class="login-foot">Staff member? <a href="/admin.html">Admin login</a></div>
+    </div>
+  </div>
+
+  <!-- ===== APP ===== -->
+  <div id="app" class="hidden">
+    <header class="topbar">
+      <div style="display:flex; align-items:center; gap:14px;">
+        <button class="menu-btn" id="menuBtn" aria-label="Toggle menu" aria-controls="sidebar" aria-expanded="false">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
+        </button>
+        <a class="brand" href="/">
+          <img src="/codeforgood-logo.png" alt="Code For Good" onerror="this.style.display='none'">
+          <span>Code For Good<small>STEM Career Path</small></span>
+        </a>
+      </div>
+      <div class="topbar-right">
+        <div class="ring" id="progressRing" style="--v:0" aria-hidden="true"><b id="ringPct">0%</b></div>
+        <div class="user"><div class="avatar" id="avatar">S</div>
+          <div class="name" id="userName">Student<small>Student</small></div></div>
+        <button class="linkbtn" id="logoutBtn">Log out</button>
+      </div>
+    </header>
+
+    <div class="sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true"></div>
+    <aside class="sidebar" id="sidebar">
+      <div class="sb-prog">
+        <div class="lab">Path progress</div>
+        <div class="big"><span id="sbPct">0%</span></div>
+        <div class="track"><span id="sbBar" style="width:0%"></span></div>
+        <div class="sub" id="sbSub">0 of 0 stages complete</div>
+      </div>
+      <div class="nav-section">Learning</div>
+      <div class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg> Dashboard</div>
+      <div class="acc" data-open="true" id="pathAcc">
+        <button class="acc-head nav-item" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          <span id="pathNavLabel">My path</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg>
+        </button>
+        <div class="acc-body"><div class="acc-inner" id="pathTree"></div></div>
+      </div>
+      <div class="sidebar-foot">
+        <div class="nav-item" id="logoutNav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg> Log out</div>
+      </div>
+    </aside>
+
+    <main class="layout"><div class="main">
+      <div class="page-head">
+        <div><h1 id="welcome">Welcome back 👋</h1><p id="pathSub"></p></div>
+        <div class="access-chip">
+          <span class="status" id="accStatus"><span class="led"></span> ACTIVE</span>
+          <span class="sep"></span>
+          <span class="meta" id="accMeta"></span>
+        </div>
+      </div>
+      <div class="stats" id="stats"></div>
+      <div id="continueWrap"></div>
+      <div id="stageDetailWrap"></div>
+      <div class="section-title"><h2 id="pathwayTitle">Your pathway</h2></div>
+      <div class="journey" id="pathway"></div>
+      <div class="section-title"><h2>Earn-while-you-learn ladder</h2></div>
+      <div class="ladder" id="ladder"></div>
+    </div></main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <script type="module" src="/src/student/app.js"></script>
 </body>
 </html>

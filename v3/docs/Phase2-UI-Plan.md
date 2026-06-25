@@ -1,8 +1,18 @@
-# V3 Phase 2 — "Working app like V2" (Rev. 1)
+# V3 Phase 2 — "Working app like V2" (Rev. 2)
 
-Goal: bring the V3 student app to **visual + experiential parity with the V2 design** (the
-polished mock in [`../../mock-dashboard.html`](../../mock-dashboard.html)) while staying on the
-Spark/Functions-free backend and showing **only real data** (no fabricated metrics).
+Goal: bring the V3 student app to **full visual + experiential parity with the demo student app**
+([`../../demo/public/app.html`](../../demo/public/app.html) — the "vibrant redesign"), wired to
+the Spark/Functions-free Firebase backend, showing **real data** (no fabricated metrics).
+
+> **Rev. 2 — target is `demo/public/app.html`, not the tamer `mock-dashboard.html`.** The demo app
+> is the canonical look: Space Grotesk + Inter fonts; glassy blurred top bar with a conic
+> **progress ring**; gradient sidebar **progress card** + accordion path tree; **momentum chips**
+> with gradient-text values; a full-bleed **hero** that features the selected/active stage with a
+> "what to complete" checklist; a **stage-detail** card (requirement checkboxes gate a proof-of-work
+> URL submit); a **journey grid** of stage **nodes** (fast-track weeks drill down to day-cards;
+> roadmap shows pillar cards); and the **earn-while-you-learn ladder**. Hash routing (`#stage=`)
+> selects a stage; the hero + detail follow the selection. We port that design 1:1 and swap its
+> REST data source for a client-side view built from Firestore + the curriculum bundle.
 
 Builds on the live MVP ([`Spark-Backend.md`](Spark-Backend.md), [`MVP-Plan.md`](MVP-Plan.md)).
 Source of the design language: `mock-dashboard.html` (V2 UI mock) + `STEM Career Path Landing
