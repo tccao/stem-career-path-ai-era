@@ -1,0 +1,10 @@
+rules_version = '2';
+// NOT USED ON SPARK. New Firebase projects have no Cloud Storage bucket on the Spark plan
+// (Storage requires Blaze). V3 MVP serves curriculum from the Amplify static build and uses
+// external URLs for student deliverables — no Storage. Kept as a deny-all placeholder for a
+// future Blaze upgrade. See v3/docs/Spark-Backend.md §1.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} { allow read, write: if false; }
+  }
+}

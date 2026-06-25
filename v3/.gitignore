@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.firebase/
+*.log
+.env
+.env.*
+!.env.example
+frontend/.vite/
+
+# NEVER commit Firebase service-account keys (admin-cli credentials)
+*serviceaccount*.json
+*service-account*.json
+*-key.json
+*adminsdk*.json
+*firebase-adminsdk*.json

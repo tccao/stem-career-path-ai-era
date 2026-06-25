@@ -17,12 +17,13 @@ wsl.exe bash -lic 'cd /home/tinhc/stem-career-path-ai-era/demo && npm run cloud:
 
 ## What this is
 
-Code For Good nonprofit project, owner Tinh Cao. Two horizons in one repo:
+Code For Good nonprofit project, owner Tinh Cao. Three horizons in one repo:
 
 - **V1 — static landing page (BUILT).** Single marketing HTML file (`STEM Career Path Landing Page.html`, renamed to `index.html` for hosting). Plain HTML + embedded CSS + minimal JS. AWS static hosting.
 - **V2 — vetted-access learning platform (PLANNED; runnable local demo built).** AWS serverless app: apply → vet/donate → grant → learn → expire. Production is unbuilt and fully designed in `docs/`; a **runnable local demo** of the whole flow — incl. self-serve donate auto-grant and credential issuance — lives in `demo/` (Node + AWS SDK v3 over a local cloud; see `demo/docs/Demo-Architecture.md`).
+- **V3 — hosted MVP (LIVE).** A pragmatic, **$0 / no-card** variant of V2: **AWS Amplify** hosts the static frontend; **Firebase Spark** is the backend, **Functions-free** (Spark cannot deploy Cloud Functions). Enforcement lives in **Firestore Security Rules**; privileged ops run in a local **`firebase-admin` CLI**; auth is passwordless **email-link**. Deployed and end-to-end tested against the real project. Lives in `v3/` — **read `v3/CLAUDE.md` before any V3 work.**
 
-Source of truth: `docs/Project SRS.md` (V1) and `docs/Platform-SRS.md` (V2).
+Source of truth: `docs/Project SRS.md` (V1), `docs/Platform-SRS.md` (V2), `v3/CLAUDE.md` + `v3/docs/Spark-Backend.md` (V3).
 
 ## Repo layout
 
@@ -33,6 +34,8 @@ assets/{images,icons}/              # codeforgood-logo.png, cohort/profile imgs
 references/                         # CodeForGood_index.html + roadmap PDFs (source of truth) 
 docs/                               # all V2 planning (see Doc map)
 demo/                               # runnable local V2 prototype — Node/Express + DynamoDB; see demo/docs/
+v3/                                 # hosted MVP (LIVE) — Amplify frontend + Firebase Spark backend (Functions-free); see v3/CLAUDE.md
+amplify.yml                         # V3 Amplify monorepo build spec (appRoot v3/frontend) — repo root by requirement
 requirements.txt                    # validation apt deps (tidy, xmllint); venv via `uv venv --python 3.14`
 ```
 
@@ -50,6 +53,10 @@ docs/Well-Architected-Review.md,V2 AWS WA review findings (applied in Arch Rev.4
 docs/Ops-Runbook.md,V2 weekly checklist alarms restore/rotation procedures
 demo/docs/Demo-Architecture.md,how the runnable local demo works (Mermaid) + demo↔AWS mapping — incl. self-serve donate auto-grant + provision-issues-credential
 demo/docs/Demo-Walkthrough.md,guided ~15-min tour of the running demo (admin state machine + self-serve donate + student roadmap/fast-track + expiry/gating) keyed to the seeded cast
+v3/CLAUDE.md,V3 source of truth for agents — Spark/Functions-free arch + run/test/deploy + security invariants (READ before V3 work)
+v3/docs/Spark-Backend.md,V3 ACTIVE backend — Firestore Rules + local admin-cli + email-link auth (Functions-free on Spark)
+v3/docs/MVP-Plan.md,V3 MVP goal + env-config gates (CLI-verified) + small-commit plan
+v3/docs/V3-Plan.md,V3 original Amplify+Firebase Cloud-Functions design — BLAZE reference only (v3/backend/functions/ not deployed on Spark)
 ```
 
 `docs/Sprint-Planning_Sitemap-and-Wireframes.md` is RETIRED — do not use.
@@ -182,6 +189,24 @@ Minors: under-13 not accepted (COPPA); 13–17 require guardian consent before i
 
 ---
 
+## V3 — hosted MVP (LIVE; index — full guide in `v3/CLAUDE.md`)
+
+The shipped, pragmatic variant of V2. **`v3/CLAUDE.md` is authoritative for any V3 work** — this is just the pointer. Keep V3 self-contained under `v3/`; don't mix it with V1/V2.
+
+```csv
+fact,value
+hosting,AWS Amplify (frontend) — branch feat/v3-mvp auto-builds; monorepo appRoot v3/frontend via repo-root amplify.yml
+live url,https://feat-v3-mvp.d3eyz6x5b4wbjx.amplifyapp.com
+backend,Firebase Spark (project code4good-stem-career-path) — Functions-free; no Cloud Functions / no Cloud Storage on Spark
+enforcement,Firestore Security Rules (client-facing) + local firebase-admin CLI (privileged ops) — see v3/backend/admin-cli
+auth,passwordless email-link; roles via persisted custom claims (role + accessEnds); anonymous auth for /apply
+status,deployed + end-to-end tested live; functions/ kept as a Blaze-only reference (not deployed)
+```
+
+V3 security invariants (do not break): only the local admin-cli (Admin SDK) mints accounts / sets claims — no hosted code can; Firestore Rules deny client writes to protected collections (apply is create-only behind the age/consent gate; progress writes need ACTIVE+in-window+own-doc); the service-account key is **gitignored and must never be committed or pasted** (`v3/.gitignore` blocks `*adminsdk*.json` etc.); supporter grants still require a verified payment (fail-closed). Details + run/test/deploy commands: `v3/CLAUDE.md`.
+
+---
+
 ## Local tooling (verified present — a future session can run these)
 
 ```csv
@@ -224,7 +249,7 @@ npm run test:all    # both
 
 ## Conventions for agents
 
-- Keep V1 and V2 separate — don't add backend/framework code to the static page.
+- Keep V1, V2, and V3 separate — don't add backend/framework code to the static page; V3 is its own subtree with its own `v3/CLAUDE.md` (read it before V3 work).
 - Match existing doc style: Rev-tracked, source-of-truth links, decisions recorded not implied.
 - Prefer editing existing files over adding new ones; ask before changing nav, CTAs, the 8-pillar pathway, or any security invariant above.
 - Tabular data in docs/this file → CSV blocks (token-efficient). Verify HTML with `tidy`/`xmllint`.
