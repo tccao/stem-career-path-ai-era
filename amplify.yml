@@ -1,0 +1,23 @@
+# AWS Amplify Hosting — MONOREPO build spec (must live at the repo root).
+# Amplify is configured with app root v3/frontend, so the spec must use the `applications`
+# array with `appRoot` (a flat `version/frontend` spec triggers:
+#   CustomerError: Monorepo spec provided without "applications" key).
+# Commands run relative to appRoot; baseDirectory dist → v3/frontend/dist.
+version: 1
+applications:
+  - appRoot: v3/frontend
+    frontend:
+      phases:
+        preBuild:
+          commands:
+            - npm ci
+        build:
+          commands:
+            - npm run build
+      artifacts:
+        baseDirectory: dist
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - node_modules/**/*
