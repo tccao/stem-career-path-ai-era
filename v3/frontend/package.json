@@ -1,0 +1,19 @@
+{
+  "name": "cfg-v3-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "CFG V3 frontend — public site + student SPA + admin SPA. Built with Vite, deployed to AWS Amplify Hosting. Talks to the Firebase backend via the modular Web SDK.",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "firebase": "^11.0.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  }
+}
