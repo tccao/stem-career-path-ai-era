@@ -3,7 +3,7 @@
 // static bundle (0 Firestore reads). Sign-in is passwordless email-link.
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { db, auth } from '../firebase.js';
-import { completeSignInIfPresent, onAuthStateChanged } from '../lib/auth.js';
+import { completeSignInIfPresent, onAuthStateChanged, mountLogin } from '../lib/auth.js';
 import { loadCurriculum } from '../lib/cache.js';
 
 async function render(uid) {
@@ -25,6 +25,6 @@ async function render(uid) {
   if (linkUser) return render(linkUser.uid);
   onAuthStateChanged(auth, (user) => {
     if (user && !user.isAnonymous) render(user.uid);
-    else document.getElementById('app-root').textContent = 'Please sign in with your email link.';
+    else mountLogin(document.getElementById('app-root'), 'Student sign-in');
   });
 })();

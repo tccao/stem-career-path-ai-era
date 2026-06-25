@@ -32,4 +32,29 @@ export async function completeSignInIfPresent() {
   return cred.user;
 }
 
+// Minimal signed-out UI: email field + "send link" button wired to requestSignInLink.
+export function mountLogin(root, heading = 'Sign in') {
+  root.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'max-width:22rem;margin:3rem auto;font-family:system-ui;display:grid;gap:.6rem';
+  const h = document.createElement('h2'); h.textContent = heading;
+  const input = document.createElement('input');
+  input.type = 'email'; input.placeholder = 'you@example.com'; input.autocomplete = 'email';
+  input.style.cssText = 'padding:.6rem;font-size:1rem';
+  const btn = document.createElement('button');
+  btn.textContent = 'Email me a sign-in link';
+  btn.style.cssText = 'padding:.6rem;font-size:1rem;cursor:pointer';
+  const msg = document.createElement('p'); msg.style.cssText = 'min-height:1.2rem;color:#444';
+  btn.onclick = async () => {
+    const email = input.value.trim();
+    if (!email) { msg.textContent = 'Enter your email.'; return; }
+    btn.disabled = true; msg.textContent = 'Sending…';
+    try {
+      await requestSignInLink(email);
+      msg.textContent = `Link sent to ${email}. Open it on this device to finish signing in.`;
+    } catch (e) { msg.textContent = `Error: ${e.code || e.message}`; btn.disabled = false; }
+  };
+  wrap.append(h, input, btn, msg); root.append(wrap);
+}
+
 export { onAuthStateChanged };

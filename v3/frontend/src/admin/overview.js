@@ -2,7 +2,7 @@
 // by status with a direct admin-gated read. Fine at pilot scale.
 import { collection, getDocs } from 'firebase/firestore';
 import { db, auth } from '../firebase.js';
-import { completeSignInIfPresent, onAuthStateChanged } from '../lib/auth.js';
+import { completeSignInIfPresent, onAuthStateChanged, mountLogin } from '../lib/auth.js';
 
 async function render() {
   const snap = await getDocs(collection(db, 'applications')); // Rules: isAdmin
@@ -18,6 +18,6 @@ async function render() {
     if (user && !user.isAnonymous) render().catch((e) => {
       document.getElementById('admin-root').textContent = `Not authorized (${e.code || e.message}).`;
     });
-    else document.getElementById('admin-root').textContent = 'Sign in with your admin email link.';
+    else mountLogin(document.getElementById('admin-root'), 'Admin sign-in');
   });
 })();
