@@ -5,3 +5,9 @@ dist/
 .env
 .env.*
 frontend/.vite/
+
+# NEVER commit Firebase service-account keys (admin-cli credentials)
+*serviceaccount*.json
+*service-account*.json
+*-key.json
+firebase-adminsdk*.json

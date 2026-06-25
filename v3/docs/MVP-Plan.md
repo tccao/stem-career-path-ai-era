@@ -1,4 +1,11 @@
-# V3 MVP — state goal, env gates, small-commit plan (Rev. 1)
+# V3 MVP — state goal, env gates, small-commit plan (Rev. 2)
+
+> **Rev. 2 — Spark/Functions-free pivot.** Hosting choice is **Firebase Spark** (no Blaze, no
+> card). Spark can't deploy Cloud Functions and has no Storage, so the **active backend** is
+> Firestore Security Rules + a local **admin-cli** ([`Spark-Backend.md`](Spark-Backend.md));
+> `v3/backend/functions/` is now a Blaze reference only. Auth is Firebase **email-link**
+> (passwordless, client-side). Gates and commits below that mention "functions deploy" are
+> superseded by "rules deploy + admin-cli" — see Spark-Backend.md §5.
 
 The smallest **hosted, end-to-end** slice of V3 that proves the apply→grant→learn loop on
 real infrastructure (AWS Amplify frontend + Firebase backend). Every environment gate is

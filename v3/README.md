@@ -1,44 +1,56 @@
-# CFG V3 — Amplify (frontend) + Firebase (backend)
+# CFG V3 — Amplify (frontend) + Firebase Spark (backend)
 
-The hosted, lean variant of the V2 demo. Frontend on **AWS Amplify Hosting**, backend on
-**Firebase** (Firestore + Cloud Functions + Storage + Auth-for-sessions). Optimized to be
-**read-light** and to keep a **simple account lifecycle** with **passwordless** content access.
+The hosted, lean, **$0 / no-card** variant of the V2 demo. Frontend on **AWS Amplify Hosting**;
+backend on **Firebase Spark** — **Functions-free**: enforcement lives in **Firestore Security
+Rules**, privileged ops in a local **admin-cli** (`firebase-admin`), and auth is **passwordless
+email-link**. No Cloud Functions, no Cloud Storage (both need Blaze).
 
-Full design: [`docs/V3-Plan.md`](docs/V3-Plan.md).
+Designs: [`docs/Spark-Backend.md`](docs/Spark-Backend.md) (active backend) ·
+[`docs/V3-Plan.md`](docs/V3-Plan.md) (Blaze reference) · [`docs/MVP-Plan.md`](docs/MVP-Plan.md).
 
 ```text
 v3/
-  docs/V3-Plan.md      # architecture, lifecycle, data model, access gate, libraries
-  frontend/            # → Amplify Hosting (Vite static build; Firebase Web SDK)
-  backend/             # → Firebase (functions/, firestore.rules, storage.rules)
+  docs/                  # V3-Plan (Blaze ref) · Spark-Backend (active) · MVP-Plan
+  frontend/              # → Amplify Hosting (Vite; Firebase Web SDK; email-link auth)
+  backend/
+    firestore.rules      # the trust boundary (Functions-free)
+    firestore.indexes.json
+    admin-cli/           # privileged ops: make-admin / grant / extend / revoke / expiry-sweep
+    functions/           # BLAZE REFERENCE ONLY — not deployed on Spark
 ```
 
-## Local dev
+## Local dev (Java is installed for emulators)
 
 ```bash
-# backend — Firebase Local Emulator Suite (replaces V2's MiniStack)
-cd v3/backend && npm --prefix functions install
-firebase emulators:start --only functions,firestore,auth,storage
+# backend — Firestore + Auth emulators
+cd v3/backend && firebase emulators:start --only firestore,auth
 
-# frontend — Vite dev server (point it at the emulators via VITE_FB_* env)
+# admin-cli against the emulator (no service-account key needed)
+cd v3/backend/admin-cli && npm install
+FIRESTORE_EMULATOR_HOST=localhost:8080 FIREBASE_AUTH_EMULATOR_HOST=localhost:9099 \
+  node make-admin.mjs you@example.com
+
+# frontend — Vite dev server (point VITE_FB_* at the emulators)
 cd v3/frontend && npm install && npm run dev
 ```
 
 ## Deploy
 
 ```bash
-# backend
-cd v3/backend && firebase deploy --only functions,firestore:rules,storage
+# backend (Spark): rules only — Functions are NOT deployed
+cd v3/backend && firebase deploy --only firestore:rules
+
+# admin runs privileged ops locally with a service-account key:
+#   GOOGLE_APPLICATION_CREDENTIALS=key.json node admin-cli/grant.mjs <applicationId>
 
 # frontend — connect this repo in the Amplify console, app root = v3/frontend
 #   (build spec: v3/frontend/amplify.yml)
 ```
 
-Set your Firebase `projectId` in `backend/.firebaserc` and the `VITE_FB_*` values
-(from Firebase project settings) for the frontend build.
+`projectId` is set in `backend/.firebaserc` (`code4good-stem-career-path`). Provide the
+`VITE_FB_*` values (Firebase Console → Project settings → Web app) as Amplify env vars.
 
-**Status:** core lifecycle/access/gating logic is wired (Rev. 2 — audit fixes folded in).
-Remaining `TODO`s before pilot: email delivery for magic links, the real Zeffy verify HTTP
-call (currently fails closed), curriculum stage data in `functions/src/curriculum.js`,
-Cloud Storage signed URLs, admin MFA + App Check, `redeemCode` rate-limiting, and the
-emulator test suite. See `docs/V3-Plan.md` (Rev. 2 changelog).
+**Status:** backend pivoted to Spark/Functions-free (rules + admin-cli + email-link), syntax-
+clean. Remaining before pilot: real curriculum stage data, rules unit tests on the emulator,
+admin-cli e2e on the emulator, frontend build verification, supporter/Zeffy grant, admin MFA.
+Service-account key (or emulator-only) needed to run admin-cli against the real project.
