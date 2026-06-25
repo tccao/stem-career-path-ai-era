@@ -1,0 +1,6 @@
+{
+  "_note": "DISPLAY-ONLY copy. The server (backend/functions/src/curriculum.js) is the single source of truth for stage order + gating (audit fix #2); this bundle exists so the SPA renders titles with 0 Firestore reads. Keep _version in sync with the server CURRICULUM version; the server never trusts this file.",
+  "_version": 1,
+  "fasttrack": { "stages": [] },
+  "roadmap": { "stages": [] }
+}
