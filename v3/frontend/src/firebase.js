@@ -24,5 +24,4 @@ export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
 });
 
-export const fns = getFunctions(app); // httpsCallable targets the Cloud Functions backend
 export const auth = getAuth(app);
