@@ -184,9 +184,9 @@ h1,h2,h3,h4 { margin:0; font-family:var(--font-head); line-height:1.1; font-weig
 .stage-head p { margin:6px 0 0; color:var(--cfg-muted); font-size:.92rem; max-width:720px; }
 .stage-badge { display:inline-flex; align-items:center; gap:7px; border-radius:999px; padding:6px 10px; background:var(--cfg-purple-light); color:var(--cfg-purple-dark); font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
 .requirements { display:grid; gap:10px; margin:0 0 16px; }
-.requirement { display:flex; gap:10px; align-items:flex-start; padding:12px 13px; border:1px solid var(--cfg-border); border-radius:8px; background:#fcfafe; }
-.requirement input { width:18px; height:18px; margin:1px 0 0; accent-color:var(--cfg-purple); flex-shrink:0; }
-.requirement span { font-size:.91rem; line-height:1.42; }
+.requirement { display:flex; flex-direction:row; gap:11px; align-items:center; padding:12px 14px; border:1px solid var(--cfg-border); border-radius:8px; background:#fcfafe; text-transform:none; }
+.requirement input[type="checkbox"] { width:18px; height:18px; min-width:18px; margin:0; padding:0; accent-color:var(--cfg-purple); flex-shrink:0; }
+.requirement span { flex:1; font-size:.92rem; line-height:1.45; font-weight:500; color:var(--ink); text-transform:none; letter-spacing:normal; }
 .proof-bar { display:grid; grid-template-columns:auto minmax(180px,1fr) minmax(260px,1.25fr) auto; gap:14px; align-items:center; border:1px solid var(--cfg-border); border-radius:12px; padding:14px; background:linear-gradient(180deg,#fff,#fcfafe); box-shadow:var(--shadow-sm); }
 .proof-icon { width:42px; height:42px; border-radius:10px; display:grid; place-items:center; color:var(--cfg-purple-dark); background:var(--cfg-purple-light); }
 .proof-icon svg { width:19px; height:19px; }
@@ -345,7 +345,8 @@ th { color:var(--muted); font-weight:600; font-size:.72rem; text-transform:upper
 .stage-chip.locked { color:#9a90a8; background:#f8f5fb; }
 .mini-action { border:0; border-left:1px solid currentColor; background:transparent; color:inherit; padding:0 0 0 6px; margin-left:4px; font:inherit; font-weight:800; cursor:pointer; }
 .mini-action:hover { text-decoration:underline; }
-.detail label, .card label { display:block; font-size:.72rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); margin:12px 0 5px; }
-.detail input, .card input, .panel input, .panel select { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px; font:inherit; font-size:.9rem; background:#faf7fd; color:var(--ink); }
-.detail input:focus, .card input:focus { outline:3px solid rgba(109,40,217,.16); border-color:var(--cfg-purple); background:#fff; }
+/* Admin form fields — scoped to admin panels only (NOT .card, which the student stage-detail also uses). */
+.detail label, .panel label { display:block; font-size:.72rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); margin:12px 0 5px; }
+.detail input, .panel input, .panel select { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px; font:inherit; font-size:.9rem; background:#faf7fd; color:var(--ink); }
+.detail input:focus, .panel input:focus { outline:3px solid rgba(109,40,217,.16); border-color:var(--cfg-purple); background:#fff; }
 @media (max-width:880px){ .cols{grid-template-columns:1fr;} .kpis{grid-template-columns:repeat(3,1fr);} .stage-grid{grid-template-columns:1fr;} table{min-width:760px;} #members{overflow-x:auto;} }
