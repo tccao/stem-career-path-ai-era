@@ -132,33 +132,19 @@ export const syncDonations = onCall(
 // self-scheduled). The Cal.com key stays server-side. Tries API v2 then v1.
 // ---------------------------------------------------------------------------
 async function calBookings(email, key) {
-  // v2 (Bearer + version header)
-  try {
-    const r = await fetch(`https://api.cal.com/v2/bookings?attendeeEmail=${encodeURIComponent(email)}`, {
-      headers: { Authorization: `Bearer ${key}`, 'cal-api-version': '2024-08-13' },
-    });
-    if (r.ok) {
-      const j = await r.json();
-      const d = j.data;
-      const arr = Array.isArray(d) ? d : (d?.bookings || []);
-      if (arr.length) return arr.map((b) => ({
-        start: b.start || b.startTime, end: b.end || b.endTime,
-        title: b.title, status: b.status, uid: b.uid || b.id,
-        attendees: (b.attendees || []).map((a) => a.email),
-      }));
-    }
-  } catch { /* fall through to v1 */ }
-  // v1 (?apiKey) — returns all bookings; filter by attendee email
-  const r = await fetch(`https://api.cal.com/v1/bookings?apiKey=${encodeURIComponent(key)}`);
+  // Cal.com API v2 (v1 is decommissioned). The cal-api-version header pins the response shape:
+  // { data: [ { uid, title, status, start, end, attendees:[{email}] } ] }. attendeeEmail filters
+  // server-side; an empty list just means "no booking yet" (NOT an error).
+  const r = await fetch(`https://api.cal.com/v2/bookings?attendeeEmail=${encodeURIComponent(email)}`, {
+    headers: { Authorization: `Bearer ${key}`, 'cal-api-version': '2024-08-13' },
+  });
   if (!r.ok) throw new HttpsError('unavailable', `Cal.com API ${r.status}`);
   const j = await r.json();
-  const arr = j.bookings || [];
-  return arr
-    .filter((b) => (b.attendees || []).some((a) => (a.email || '').toLowerCase() === email.toLowerCase()))
-    .map((b) => ({
-      start: b.startTime, end: b.endTime, title: b.title, status: b.status,
-      uid: b.uid || b.id, attendees: (b.attendees || []).map((a) => a.email),
-    }));
+  const arr = Array.isArray(j.data) ? j.data : [];
+  return arr.map((b) => ({
+    start: b.start, end: b.end, title: b.title, status: b.status, uid: b.uid || b.id,
+    attendees: (b.attendees || []).map((a) => a.email),
+  }));
 }
 
 export const getInterview = onCall(

@@ -58,15 +58,19 @@ function showSubmitted(first) {
   const b = $('bookingLaunched');
   const h = b.querySelector('h3'); if (h) h.textContent = 'Application submitted!';
   const p = b.querySelector('p'); if (p) p.innerHTML = `Thanks, ${first}. We'll review your application and email you a one-time sign-in link once access is granted.`;
-  const a = $('toDashboardBtn'); if (a) { a.setAttribute('href', '/app.html'); a.textContent = 'Go to sign in'; }
-  if (links.calComUrl) {
-    const actions = b.querySelector('.modal-actions');
-    if (actions && !actions.querySelector('.cal-link')) {
+  // Single CTA: book the interview. The "sign in" button is removed — an applicant isn't
+  // granted yet, so signing in would show them nothing.
+  const actions = b.querySelector('.modal-actions');
+  if (actions) {
+    actions.innerHTML = '';
+    if (links.calComUrl) {
       const cal = document.createElement('a');
       cal.href = links.calComUrl; cal.target = '_blank'; cal.rel = 'noopener';
-      cal.className = 'btn btn-secondary cal-link'; cal.textContent = 'Book your 15-min interview';
-      cal.style.marginRight = '8px';
-      actions.prepend(cal);
+      cal.className = 'btn btn-primary cal-link';
+      cal.innerHTML = 'Book your 15-min interview <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><path d="M5 12h14M13 5l7 7-7 7"></path></svg>';
+      actions.appendChild(cal);
+    } else {
+      actions.style.display = 'none';
     }
   }
   b.style.display = 'block';
