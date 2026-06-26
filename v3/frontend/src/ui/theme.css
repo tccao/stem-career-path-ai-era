@@ -400,4 +400,24 @@ th { color:var(--muted); font-weight:600; font-size:.72rem; text-transform:upper
 .owner-status { display:inline-block; font-size:.74rem; font-weight:800; letter-spacing:.04em; padding:5px 10px; border-radius:999px; }
 .owner-status.off { background:#e9f7ef; color:#1b8a4b; }
 .owner-status.on { background:#fdeef0; color:#b23a4b; }
+/* Owner accounts table + lockdown sidebar */
+.owner-layout { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:18px; align-items:start; margin-top:18px; }
+.owner-side { position:sticky; top:18px; }
+.owner-card.lock-on { border-color:#f1c5cd; box-shadow:0 0 0 3px rgba(178,58,75,.12); }
+.owner-main .don-table { margin-top:12px; }
+.owner-hint { font-size:.76rem; color:var(--muted); margin:10px 2px 0; line-height:1.5; }
+.count-chip { display:inline-block; font-size:.72rem; font-weight:700; color:var(--cfg-purple-dark); background:#f0e9fa; border-radius:999px; padding:1px 9px; margin-left:6px; vertical-align:middle; }
+.acct { display:flex; flex-direction:column; line-height:1.25; }
+.acct b { color:var(--ink); }
+.acct span { font-size:.74rem; color:var(--muted); }
+.acct-actions { white-space:nowrap; }
+.acct-actions .btn { padding:5px 10px; font-size:.74rem; margin:3px 5px 3px 0; }
+.muted-dash { color:var(--muted); }
+.you-tag { font-size:.66rem; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--cfg-purple-dark); background:#f0e9fa; border-radius:999px; padding:2px 7px; margin-left:4px; }
+.role-pill { display:inline-block; font-size:.7rem; font-weight:800; letter-spacing:.03em; text-transform:capitalize; padding:3px 10px; border-radius:999px; border:1px solid transparent; }
+.role-pill.owner { background:#efe6fb; color:#5b21b6; border-color:#d7c4f3; }
+.role-pill.admin { background:#e3f5ef; color:#0f8a6b; border-color:#bfe8da; }
+.role-pill.student { background:#eef2ff; color:#4258c9; border-color:#cfd8f7; }
+.role-pill.user { background:#f3f1f6; color:#7a7088; border-color:var(--line); }
+@media (max-width:880px){ .owner-layout{grid-template-columns:1fr;} .owner-side{position:static;} }
 @media (max-width:880px){ .cols{grid-template-columns:1fr;} .kpis{grid-template-columns:repeat(3,1fr);} .stage-grid{grid-template-columns:1fr;} table{min-width:760px;} #members{overflow-x:auto;} }

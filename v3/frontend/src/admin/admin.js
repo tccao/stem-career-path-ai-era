@@ -346,57 +346,75 @@ function showOwner() {
   $('ownerView').classList.remove('hidden');
   renderOwnerView();
 }
+const ROLE_RANK = { owner: 3, admin: 2, student: 1 };
+const promoteTarget = (r) => (r === 'admin' ? 'owner' : r === 'owner' ? null : 'admin');
+const demoteTarget = (r) => (r === 'owner' ? 'admin' : r === 'admin' ? 'none' : null);
+
 async function renderOwnerView() {
   const host = $('ownerView');
+  host.innerHTML = '<div class="empty">Loading accounts…</div>';
   let locked = false, reason = '';
   try { const s = await getDoc(doc(db, 'system', 'lockdown')); if (s.exists()) { locked = s.data().enabled === true; reason = s.data().reason || ''; } } catch { /* default unlocked */ }
+  let accounts = [];
+  try { accounts = (await call('listAccounts')).accounts || []; }
+  catch (e) { host.innerHTML = `<div class="empty">Could not load accounts (${esc(e.code || e.message)}).</div>`; return; }
+  // Join student display names from the members collection.
+  const nameByUid = {};
+  try { (await getDocs(collection(db, 'members'))).docs.forEach((d) => { nameByUid[d.id] = d.data().name; }); } catch { /* names optional */ }
+  const myUid = auth.currentUser?.uid;
+  accounts.sort((a, b) => (ROLE_RANK[b.role] || 0) - (ROLE_RANK[a.role] || 0) || String(a.email).localeCompare(String(b.email)));
+
+  const rows = accounts.map((a) => {
+    const self = a.uid === myUid;
+    const promo = promoteTarget(a.role), demo = demoteTarget(a.role);
+    const acts = [];
+    if (!self && promo) acts.push(`<button class="btn sec" data-prom="${esc(a.uid)}" data-to="${promo}">Promote</button>`);
+    if (!self && demo) acts.push(`<button class="btn warn" data-demo="${esc(a.uid)}" data-to="${demo}">Demote</button>`);
+    if (!self && a.role !== 'owner') acts.push(a.disabled
+      ? `<button class="btn sec" data-en="${esc(a.uid)}">Enable</button>`
+      : `<button class="btn bad" data-dis="${esc(a.uid)}">Disable</button>`);
+    const nm = a.displayName || nameByUid[a.uid] || '—';
+    const status = a.disabled ? '<span class="pill ENDED">Disabled</span>' : '<span class="pill ACTIVE">Active</span>';
+    return `<tr><td><div class="acct"><b>${esc(nm)}</b><span>${esc(a.email)}</span></div></td><td>${rolePill(a.role)}</td><td>${status}${self ? ' <span class="you-tag">you</span>' : ''}</td><td class="acct-actions">${acts.join(' ') || '<span class="muted-dash">—</span>'}</td></tr>`;
+  }).join('');
+
   host.innerHTML = `
-    <div class="owner-grid">
-      <div class="owner-card">
-        <h3>System lockdown</h3>
-        <p>Block all non-owner access (students + admins) across the app and the Cloud Functions. Use for a security incident; lift it when safe. The owner is never locked out.</p>
-        <div class="owner-status ${locked ? 'on' : 'off'}">${locked ? 'LOCKDOWN ACTIVE' : 'Normal operation'}</div>
-        <label for="lockReason">Reason (optional)</label>
-        <input id="lockReason" type="text" value="${esc(reason)}" placeholder="e.g. investigating a compromised account" />
-        <div class="actions" style="margin-top:12px">${locked ? '<button class="btn" id="lockOff">Lift lockdown</button>' : '<button class="btn bad" id="lockOn">Enable lockdown</button>'}</div>
+    <div class="owner-layout">
+      <div class="owner-main">
+        <div class="don-bar"><h2 style="font-size:1.05rem;margin:0">Accounts <span class="count-chip">${accounts.length}</span></h2><button class="btn sec" id="acctRefresh">Refresh</button></div>
+        <div class="don-table"><table><thead><tr><th>Account</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows || '<tr><td colspan="4" class="empty">No accounts.</td></tr>'}</tbody></table></div>
+        <p class="owner-hint">Promote: student → admin → owner. Demote: owner → admin → remove role. Disable blocks sign-in + ends sessions immediately. You can't change or disable your own account, and an owner can't be disabled here.</p>
       </div>
-      <div class="owner-card">
-        <h3>Manage staff roles</h3>
-        <p>Only the owner can change roles — admins cannot promote, demote, or override one another. You cannot change your own role.</p>
-        <label for="roleEmail">Account email</label>
-        <input id="roleEmail" type="email" placeholder="person@example.com" />
-        <label for="roleSel">Role</label>
-        <select id="roleSel"><option value="admin">Admin</option><option value="owner">Owner</option><option value="none">Remove staff role</option></select>
-        <div class="actions" style="margin-top:12px"><button class="btn" id="roleApply">Apply role</button></div>
-      </div>
-      <div class="owner-card">
-        <h3>Disable / re-enable account</h3>
-        <p>Disable a compromised account: blocks sign-in and kills active sessions immediately. Works on admins too (an owner cannot be disabled here).</p>
-        <label for="disEmail">Account email</label>
-        <input id="disEmail" type="email" placeholder="person@example.com" />
-        <div class="actions" style="margin-top:12px"><button class="btn bad" id="disBtn">Disable</button> <button class="btn sec" id="enBtn">Re-enable</button></div>
-      </div>
+      <aside class="owner-side">
+        <div class="owner-card ${locked ? 'lock-on' : ''}">
+          <h3>System lockdown</h3>
+          <p>Block all non-owner access (students + admins) across the app and the Cloud Functions. The owner stays exempt to recover.</p>
+          <div class="owner-status ${locked ? 'on' : 'off'}">${locked ? 'LOCKDOWN ACTIVE' : 'Normal operation'}</div>
+          <label for="lockReason">Reason (optional)</label>
+          <input id="lockReason" type="text" value="${esc(reason)}" placeholder="e.g. investigating a breach" />
+          <div class="actions" style="margin-top:12px">${locked ? '<button class="btn" id="lockOff">Lift lockdown</button>' : '<button class="btn bad" id="lockOn">Enable lockdown</button>'}</div>
+        </div>
+      </aside>
     </div>`;
+
+  $('acctRefresh').onclick = () => renderOwnerView();
   if ($('lockOn')) $('lockOn').onclick = () => setLockdown(true, $('lockReason').value.trim());
   if ($('lockOff')) $('lockOff').onclick = () => setLockdown(false, $('lockReason').value.trim());
-  $('roleApply').onclick = async () => {
-    const email = $('roleEmail').value.trim(); const role = $('roleSel').value;
-    if (!email) return toast('Enter an email');
-    if (!confirm(`Set ${email} role to "${role}"?`)) return;
-    try { const r = await call('setRole', { email, role }); toast(`${r.email || email}: ${r.role}`); }
-    catch (e) { toast('Role change failed: ' + (e.code || e.message)); }
-  };
-  $('disBtn').onclick = async () => {
-    const email = $('disEmail').value.trim(); if (!email) return toast('Enter an email');
-    if (!confirm(`Disable ${email}? They are signed out immediately.`)) return;
-    try { await call('disableAccount', { email }); toast('Account disabled'); await loadMembers(); }
-    catch (e) { toast('Disable failed: ' + (e.code || e.message)); }
-  };
-  $('enBtn').onclick = async () => {
-    const email = $('disEmail').value.trim(); if (!email) return toast('Enter an email');
-    try { await call('enableAccount', { email }); toast('Account re-enabled'); await loadMembers(); }
-    catch (e) { toast('Enable failed: ' + (e.code || e.message)); }
-  };
+  host.querySelectorAll('button[data-prom]').forEach((b) => { b.onclick = () => changeRole(b.dataset.prom, b.dataset.to, 'Promote'); });
+  host.querySelectorAll('button[data-demo]').forEach((b) => { b.onclick = () => changeRole(b.dataset.demo, b.dataset.to, 'Demote'); });
+  host.querySelectorAll('button[data-dis]').forEach((b) => { b.onclick = () => acctSetDisabled(b.dataset.dis, true); });
+  host.querySelectorAll('button[data-en]').forEach((b) => { b.onclick = () => acctSetDisabled(b.dataset.en, false); });
+}
+const rolePill = (r) => `<span class="role-pill ${r || 'user'}">${esc(r || 'user')}</span>`;
+async function changeRole(uid, to, label) {
+  if (!confirm(`${label} this account to "${to === 'none' ? 'no staff role' : to}"?`)) return;
+  try { await call('setRole', { uid, role: to }); toast('Role updated'); await renderOwnerView(); }
+  catch (e) { toast('Role change failed: ' + (e.code || e.message)); }
+}
+async function acctSetDisabled(uid, disable) {
+  if (disable && !confirm('Disable this account? They are signed out immediately and cannot sign back in until re-enabled.')) return;
+  try { await call(disable ? 'disableAccount' : 'enableAccount', { uid }); toast(disable ? 'Account disabled' : 'Account re-enabled'); await renderOwnerView(); await loadMembers(); }
+  catch (e) { toast((disable ? 'Disable' : 'Enable') + ' failed: ' + (e.code || e.message)); }
 }
 async function disableMember(uid) {
   if (!confirm('Disable this member? They are signed out immediately and cannot sign back in until re-enabled.')) return;

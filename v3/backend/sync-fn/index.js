@@ -259,6 +259,30 @@ export const revokeAccess = onCall({ region: REGION, timeoutSeconds: 30, cors: t
 // so an admin can never escalate, demote a peer, or override the owner.
 // ===========================================================================
 
+// listAccounts — owner-only roster of all real (email-bearing) accounts: admins, owner, students.
+// Anonymous /apply users are skipped. The browser can't list Auth users, so this is server-side.
+export const listAccounts = onCall({ region: REGION, timeoutSeconds: 30, cors: true }, async (req) => {
+  assertOwner(req);
+  const accounts = [];
+  let pageToken;
+  do {
+    const res = await auth.listUsers(1000, pageToken);
+    for (const u of res.users) {
+      if (!u.email) continue; // skip anonymous applicants
+      accounts.push({
+        uid: u.uid,
+        email: u.email,
+        displayName: u.displayName ?? null,
+        role: u.customClaims?.role ?? null,
+        disabled: u.disabled === true,
+        lastSignIn: u.metadata.lastSignInTime ?? null,
+      });
+    }
+    pageToken = res.pageToken;
+  } while (pageToken);
+  return { accounts };
+});
+
 // setRole — manage the admin/owner roster. Owner-only. role: 'admin' | 'owner' | 'none'.
 export const setRole = onCall({ region: REGION, timeoutSeconds: 30, cors: true }, async (req) => {
   assertOwner(req);
