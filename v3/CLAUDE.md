@@ -45,7 +45,7 @@ code can mint accounts. Supporter path skips the interview.
 ```text
 v3/
   CLAUDE.md  README.md  .gitignore
-  docs/  Spark-Backend.md (ACTIVE backend) · MVP-Plan.md · Phase2-UI-Plan.md (UI port goal) · V3-Plan.md (Blaze ref)
+  docs/  Architecture-V3.md (system architecture + 8 validated Mermaid diagrams) · Spark-Backend.md (ACTIVE backend) · MVP-Plan.md · Phase2-UI-Plan.md (UI port goal) · V3-Plan.md (Blaze ref)
   frontend/  package.json  vite.config.js  .env(.example)         # → Amplify (appRoot)
     index.html   # ported V1 landing — apply→Firestore (COPPA gate), login→/app.html, donate→Zeffy
     app.html     # student app          admin.html   # admin console
