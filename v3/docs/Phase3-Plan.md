@@ -57,6 +57,7 @@ admin Settings modal writes the doc (admin claim) — no redeploy needed to chan
 ## 3. New component — Admin Settings modal (design-system "extend")
 
 ### Problem
+
 Zeffy and Cal.com URLs are hardcoded in the landing markup; changing them needs a code edit +
 redeploy. Admins need to update them in place.
 
