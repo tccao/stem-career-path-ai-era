@@ -1,0 +1,13 @@
+{
+  "name": "cfg-v3-sync-fn",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The ONLY hosted privileged endpoint on V3: syncDonations — an admin-gated 2nd-gen callable that pulls Zeffy payments+campaigns into Firestore donations/{id}. Kept in its own codebase so `firebase deploy --only functions` never touches the unrelated Blaze-reference functions/ design. The Zeffy API key stays server-side via a Functions secret (ZEFFY_API_KEY).",
+  "main": "index.js",
+  "engines": { "node": "22" },
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^6.1.0"
+  }
+}

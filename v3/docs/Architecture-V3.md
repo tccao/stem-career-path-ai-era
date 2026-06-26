@@ -22,8 +22,10 @@ ship fast,static SPA + managed backend; no infra to operate,apply→grant→lear
 portable,thin seams over Auth/DB; Blaze upgrade path preserved in functions/,migrate without a frontend rewrite
 ```
 
-Non-goals (this horizon): always-on API, Cloud Functions, real-time fan-out, multi-region, SSO/MFA
-at launch. Each has a documented re-entry path (§9–§10).
+Non-goals (this horizon): always-on API, real-time fan-out, multi-region, SSO/MFA at launch. Each
+has a documented re-entry path (§9–§10). **One exception:** a single on-demand Cloud Function,
+`syncDonations`, is deployed on Blaze to power the admin Donations refresh — it is scale-to-zero
+(no always-on compute) and exists only to keep the Zeffy API key server-side (§11a).
 
 ---
 
@@ -262,10 +264,11 @@ The `functions/` directory is a **build-ready Blaze reference** (not deployed). 
 
 ```mermaid
 flowchart LR
-  subgraph now["Now — Spark (Functions-free)"]
+  subgraph now["Now — Blaze (Functions-minimal)"]
     r1["Firestore Rules"]
     c1["admin-cli (local)"]
-    e1["email-link via Firebase (5/day)"]
+    e1["email-link via Firebase (25k/day)"]
+    sd["syncDonations (1 deployed fn)"]
   end
   subgraph next["Future — Blaze"]
     fn["Cloud Functions (callables)"]
@@ -295,13 +298,38 @@ MFA / SSO,Firebase MFA + App Check (config-only on Blaze/Identity Platform)
 
 ```csv
 dimension,posture at pilot,scale lever
-cost,$0 (Spark + Amplify free tier),Blaze pay-as-you-go; read-light model keeps Firestore reads tiny
+cost,~$0 (Blaze + Amplify free tier); one scale-to-zero function (§11a),Blaze pay-as-you-go; read-light model keeps Firestore reads tiny
 reads,student ≤3 reads/view; curriculum 0 reads (static); admin counts via aggregation,denormalized rollups if views grow
 writes,apply (1) · stage submit (1) · admin overrides (small),batch + transactions already used for idempotency
 availability,managed (Amplify CDN + Firebase SLA); no self-run compute,multi-region is a Firebase/Amplify config
 observability,Firebase console (Auth/Firestore usage) + auditLog (PII-free),add Cloud Logging/metrics on Blaze
 recovery,Firestore PITR (enable) + rules/code in git,IaC (functions via SAM/Firebase deploy) on upgrade
 ```
+
+### 11a. Deployed Cloud Function — `syncDonations` (cost & constraints)
+
+The admin Donations view has a **Refresh** button that pulls Zeffy payments+campaigns into Firestore.
+Because the Zeffy API key is a **secret**, it must never reach the browser — so the refresh runs in a
+single 2nd-gen callable, `syncDonations`, deployed on **Blaze** (lives in `v3/backend/sync-fn`, its own
+codebase so `firebase deploy --only functions` never touches the unrelated `functions/` reference design).
+It mirrors `admin-cli/sync-donations.mjs`; the CLI remains a manual fallback.
+
+```csv
+constraint,detail
+why a function at all,Zeffy key is server-side only (Functions secret ZEFFY_API_KEY) — never shipped to the client
+auth,fail-closed — rejects unless the caller's custom claim role==admin (HttpsError permission-denied)
+idempotent,upsert (merge) on the Zeffy payment id; re-running never double-counts
+scale-to-zero,min instances = 0 → no idle/always-on cost; one invocation per admin Refresh click
+secret handling,defineSecret('ZEFFY_API_KEY'); set once via `firebase functions:secrets:set` — not in git, not in config
+deploy scope,own codebase "sync" → `firebase deploy --only functions:sync` (reference functions/ stays undeployed)
+```
+
+Cost: effectively **$0** at pilot scale. The Cloud Functions perpetual free tier (2M invocations,
+400K GB-seconds, 200K vCPU-seconds, 5 GB egress per month) dwarfs an admin-only refresh hit a few
+times a day. The only non-zero items are tiny: **Artifact Registry** storage for the function's
+container image (~$0.10/GB-month; often inside the free 0.5 GB) and **Cloud Build** on deploy (120
+free build-minutes/day). Realistic bill: **$0, occasionally a few cents/month.** Blaze's runaway-cost
+risk is bounded here because the function is admin-claim-gated and scale-to-zero.
 
 ---
 

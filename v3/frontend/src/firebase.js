@@ -1,13 +1,15 @@
 // Modular Firebase Web SDK init. Config values are public by design (security is
 // enforced by Firestore Rules + Functions, never by hiding these keys).
 // Fill from your Firebase project settings, or inject at build time via Vite env vars.
-// Spark / Functions-free: the app talks to Firestore + Auth directly (no Cloud Functions).
-// Enforcement is in Firestore Security Rules; privileged ops are done by the admin-cli.
+// The app talks to Firestore + Auth directly (enforcement in Security Rules). One callable
+// Cloud Function (syncDonations) exists for the admin Donations refresh — it keeps the Zeffy
+// API key server-side; all other privileged ops remain in the local admin-cli.
 import { initializeApp } from 'firebase/app';
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
 } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
+import { getFunctions } from 'firebase/functions';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FB_API_KEY,
@@ -25,3 +27,4 @@ export const db = initializeFirestore(app, {
 });
 
 export const auth = getAuth(app);
+export const functions = getFunctions(app); // default region us-central1

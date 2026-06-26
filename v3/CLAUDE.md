@@ -31,9 +31,19 @@ enforcement,firestore.rules — apply create-gate (age/consent); member/progress
 privileged ops,backend/admin-cli/ (firebase-admin): make-admin · grant [--path fasttrack|roadmap] · extend · revoke · expiry-sweep — Admin SDK works free on Spark
 auth,email-link (passwordless, client SDK); anonymous auth for /apply; roles via PERSISTED custom claims (role + accessBasis + accessEnds)
 data,Firestore: applications(+interviewAt/Note/rejectedReason) · members(/progress · /stageLocks) · counters · donations · auditLog. Curriculum is a static bundle (public/curriculum.json), not Firestore
-payments,Zeffy hosted (landing Donate links out); supporter grant via admin-cli after verify (fail-closed) — post-MVP
-NOT used on Spark,Cloud Functions (backend/functions/ = Blaze reference only) · Cloud Storage
+payments,Zeffy hosted (landing Donate links out); supporter grant via admin-cli after verify (fail-closed). Admin Donations view "Refresh" = the one deployed Cloud Function syncDonations (Blaze) — keeps the Zeffy key server-side
+deployed function,backend/sync-fn/ = syncDonations (2nd-gen callable, admin-claim gated, scale-to-zero) — the ONLY hosted privileged endpoint; own codebase so `firebase deploy --only functions` skips the functions/ reference design
+NOT used,backend/functions/ (full Blaze-reference design — NOT deployed) · Cloud Storage
 ```
+
+**Cost of the one deployed function (`syncDonations`).** Effectively **$0** at pilot scale: the Cloud
+Functions free tier (2M invocations, 400K GB-seconds, 200K vCPU-seconds, 5 GB egress/month) far exceeds
+an admin-only Refresh. Only non-zero items are tiny — Artifact Registry image storage (~$0.10/GB-month,
+often within the free 0.5 GB) and Cloud Build on deploy (120 free min/day). Realistic bill: **$0,
+occasionally a few cents/month.** Constraints: fail-closed admin-claim gate; `ZEFFY_API_KEY` is a
+Functions secret (never in git/client); idempotent merge; min-instances 0 (no idle cost). Set the secret
+once with `firebase functions:secrets:set ZEFFY_API_KEY`; deploy with `firebase deploy --only functions:sync`.
+Full note: `docs/Architecture-V3.md` §11a.
 
 State machine: `SUBMITTED → INTERVIEW_SCHEDULED → GRANTED → ACTIVE → ENDED | REJECTED`.
 Admin schedules the interview / rejects from the browser (Rules allow the admin claim for these

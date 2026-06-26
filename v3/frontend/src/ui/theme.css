@@ -349,4 +349,24 @@ th { color:var(--muted); font-weight:600; font-size:.72rem; text-transform:upper
 .detail label, .panel label { display:block; font-size:.72rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); margin:12px 0 5px; }
 .detail input, .panel input, .panel select { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px; font:inherit; font-size:.9rem; background:#faf7fd; color:var(--ink); }
 .detail input:focus, .panel input:focus { outline:3px solid rgba(109,40,217,.16); border-color:var(--cfg-purple); background:#fff; }
+
+/* ---- Donations view (modern table; replaces the main body when the Donations tab is active) ---- */
+#donationsView { margin-top:18px; }
+#donationsView.hidden { display:none; }
+.don-bar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:18px 0 12px; }
+.don-bar h2 { color:var(--cfg-purple-dark); }
+.don-table { border:1px solid var(--line); border-radius:14px; overflow:hidden; background:#fff; box-shadow:0 1px 2px rgba(28,17,48,.04); overflow-x:auto; }
+.don-table table { width:100%; min-width:720px; border-collapse:separate; border-spacing:0; }
+.don-table thead th { position:sticky; top:0; background:linear-gradient(180deg,#f7f2fe,#f1eafb); color:var(--cfg-purple-dark); font-size:.7rem; font-weight:800; letter-spacing:.05em; text-transform:uppercase; border-bottom:1px solid var(--line); white-space:nowrap; cursor:pointer; user-select:none; transition:background .12s; }
+.don-table thead th:hover { background:#ece2fb; }
+.don-table thead tr.don-filterrow th { position:static; background:#fbf9ff; cursor:default; padding:7px 8px; }
+.don-table thead tr.don-filterrow th:hover { background:#fbf9ff; }
+.don-table .donfilter { width:100%; min-width:90px; padding:5px 8px; font-size:.76rem; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); }
+.don-table .donfilter:focus { outline:2px solid rgba(109,40,217,.16); border-color:var(--cfg-purple); }
+.don-table tbody td { font-size:.83rem; padding:11px 10px; border-bottom:1px solid var(--line); color:var(--ink); }
+.don-table tbody tr:nth-child(even) td { background:#fcfaff; }
+.don-table tbody tr:hover td { background:var(--lav-soft); }
+.don-table tbody tr:last-child td { border-bottom:0; }
+.don-table tbody td:nth-child(2), .don-table tbody td:nth-child(3) { font-variant-numeric:tabular-nums; font-weight:700; color:var(--cfg-purple-dark); }
+.don-table .empty { text-align:center; color:var(--muted); }
 @media (max-width:880px){ .cols{grid-template-columns:1fr;} .kpis{grid-template-columns:repeat(3,1fr);} .stage-grid{grid-template-columns:1fr;} table{min-width:760px;} #members{overflow-x:auto;} }

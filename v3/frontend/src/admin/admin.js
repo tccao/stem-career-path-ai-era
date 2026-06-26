@@ -5,7 +5,8 @@
 import '../ui/theme.css';
 import { collection, query, where, orderBy, limit, getDocs, getDoc, getCountFromServer, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { signOut, getIdTokenResult } from 'firebase/auth';
-import { db, auth } from '../firebase.js';
+import { httpsCallable } from 'firebase/functions';
+import { db, auth, functions } from '../firebase.js';
 import { requestSignInLink, completeSignInIfPresent, onAuthStateChanged } from '../lib/auth.js';
 import { loadCurriculum } from '../lib/cache.js';
 
@@ -17,6 +18,7 @@ const stateTxt = (s) => (s === 'complete' ? 'Complete' : s === 'active' ? 'In pr
 
 const STATUSES = [['SUBMITTED', 'Submitted'], ['INTERVIEW_SCHEDULED', 'Interview'], ['GRANTED', 'Granted'], ['REJECTED', 'Rejected']];
 let activeStatus = 'SUBMITTED';
+let view = 'applications'; // 'applications' | 'donations'
 
 // ---------- auth ----------
 async function login() {
@@ -49,8 +51,17 @@ async function showApp(user) {
 
 // ---------- tabs + refresh ----------
 function renderTabs() {
-  $('tabs').innerHTML = STATUSES.map(([s, l]) => `<div class="tab ${s === activeStatus ? 'active' : ''}" data-s="${s}">${l}</div>`).join('');
-  $('tabs').querySelectorAll('.tab').forEach((t) => { t.onclick = () => { activeStatus = t.dataset.s; clearDetail(); renderTabs(); loadQueue(); }; });
+  const tabs = [...STATUSES, ['__donations__', 'Donations']];
+  $('tabs').innerHTML = tabs.map(([s, l]) => {
+    const active = s === '__donations__' ? view === 'donations' : (view === 'applications' && s === activeStatus);
+    return `<div class="tab ${active ? 'active' : ''}" data-s="${s}">${l}</div>`;
+  }).join('');
+  $('tabs').querySelectorAll('.tab').forEach((t) => {
+    t.onclick = () => {
+      if (t.dataset.s === '__donations__') { view = 'donations'; renderTabs(); showDonations(); }
+      else { view = 'applications'; activeStatus = t.dataset.s; renderTabs(); showApplications(); clearDetail(); loadQueue(); }
+    };
+  });
 }
 async function refresh() { await Promise.all([loadOverview(), loadQueue(), loadMembers()]); }
 const clearDetail = () => { $('detail').innerHTML = '<div class="empty">Select an application from the queue.</div>'; };
@@ -231,16 +242,47 @@ async function setStageLock(uid, stageKey, act, row) {
 // ---------- site settings (Zeffy + Cal.com links) ----------
 function ensureSettingsButton() {
   if ($('settingsBtn')) return;
-  const mk = (id, label, fn) => { const b = document.createElement('button'); b.id = id; b.className = 'linkbtn'; b.textContent = label; b.onclick = fn; return b; };
-  $('session').insertBefore(mk('donationsBtn', 'Donations', openDonations), $('logoutBtn'));
-  $('session').insertBefore(mk('settingsBtn', 'Settings', openSettings), $('logoutBtn'));
+  const b = document.createElement('button');
+  b.id = 'settingsBtn'; b.className = 'linkbtn'; b.textContent = 'Settings';
+  b.onclick = openSettings;
+  $('session').insertBefore(b, $('logoutBtn'));
 }
 
-async function openDonations() {
-  $('donationsModal')?.remove();
+// ---------- donations view (replaces the main body; Donations tab) ----------
+function showApplications() {
+  $('kpis').classList.remove('hidden');
+  document.querySelector('.cols').classList.remove('hidden');
+  document.querySelector('.members-wrap').classList.remove('hidden');
+  $('donationsView')?.classList.add('hidden');
+}
+function ensureDonationsView() {
+  if ($('donationsView')) return;
+  const d = document.createElement('div');
+  d.id = 'donationsView';
+  document.querySelector('.members-wrap').after(d);
+}
+function showDonations() {
+  $('kpis').classList.add('hidden');
+  document.querySelector('.cols').classList.add('hidden');
+  document.querySelector('.members-wrap').classList.add('hidden');
+  ensureDonationsView();
+  $('donationsView').classList.remove('hidden');
+  renderDonationsView();
+}
+async function refreshDonations(btn) {
+  const orig = btn.textContent; btn.disabled = true; btn.textContent = 'Syncing…';
+  try {
+    const r = await httpsCallable(functions, 'syncDonations')();
+    toast(`Synced ${r.data?.synced ?? 0} donations`);
+    await renderDonationsView();
+  } catch (e) { toast('Sync failed: ' + (e.code || e.message)); btn.disabled = false; btn.textContent = orig; }
+}
+async function renderDonationsView() {
+  const host = $('donationsView');
+  host.innerHTML = '<div class="empty">Loading donations…</div>';
   let rows = [];
   try { rows = (await getDocs(collection(db, 'donations'))).docs.map((d) => d.data()); }
-  catch (e) { return toast('Could not load donations: ' + (e.code || e.message)); }
+  catch (e) { host.innerHTML = `<div class="empty">Could not load donations (${esc(e.code || e.message)}).</div>`; return; }
   const totalByEmail = {};
   for (const r of rows) { const k = (r.email || '').toLowerCase(); totalByEmail[k] = (totalByEmail[k] || 0) + (r.amount || 0); }
   rows.forEach((r) => { r._total = totalByEmail[(r.email || '').toLowerCase()] || 0; });
@@ -260,38 +302,28 @@ async function openDonations() {
   const campTotal = rows.filter((r) => r.status === 'succeeded').reduce((s, r) => s + (r.amount || 0), 0);
   const campName = rows.find((r) => r.campaignName)?.campaignName || '—';
 
-  const modal = document.createElement('div');
-  modal.id = 'donationsModal';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(28,17,48,.45);display:grid;place-items:center;z-index:99;padding:20px';
-  modal.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-label="Donations" style="max-width:1040px;width:100%;max-height:88vh;overflow:auto;margin:0">
-      <div class="card-head"><h3>Donations</h3><button class="linkbtn" id="donClose">Close</button></div>
-      <div class="kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
-        <div class="kpi mint"><div class="n">${donors}</div><div class="l">Total donors</div></div>
-        <div class="kpi"><div class="n">${money(campTotal)}</div><div class="l">Total donations</div></div>
-        <div class="kpi teal"><div class="n" style="font-size:1.05rem;line-height:1.2">${esc(campName)}</div><div class="l">Campaign</div></div>
-      </div>
-      <div class="cmd-note">Synced from Zeffy by the admin-cli (the API key stays server-side). Refresh:</div>
-      ${cmdBox('node admin-cli/sync-donations.mjs')}
-      <div id="donTableWrap" style="margin-top:12px"></div>
-    </div>`;
-  document.body.appendChild(modal);
-  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
-  document.addEventListener('keydown', function esc2(e) { if (e.key === 'Escape') { modal.remove(); document.removeEventListener('keydown', esc2); } });
-  $('donClose').onclick = () => modal.remove();
-  wireCmds();
+  host.innerHTML = `
+    <div class="kpis" style="grid-template-columns:repeat(3,1fr)">
+      <div class="kpi mint"><div class="n">${donors}</div><div class="l">Total donors</div></div>
+      <div class="kpi"><div class="n">${money(campTotal)}</div><div class="l">Total donations</div></div>
+      <div class="kpi teal"><div class="n" style="font-size:1.05rem;line-height:1.2">${esc(campName)}</div><div class="l">Campaign</div></div>
+    </div>
+    <div class="don-bar"><h2 style="font-size:1.05rem;margin:0">All donations</h2><button class="btn btn-purple" id="donRefresh">Refresh</button></div>
+    <div class="don-table" id="donTableWrap"></div>`;
+  $('donRefresh').onclick = (e) => refreshDonations(e.currentTarget);
 
   const state = { sortKey: 'created', sortDir: -1, filters: {} };
   function renderBody() {
-    let view = rows.filter((r) => cols.every(([k]) => { const f = (state.filters[k] || '').toLowerCase(); return !f || String(fnOf(k)(r)).toLowerCase().includes(f); }));
-    view.sort((a, b) => { const A = valOf(a, state.sortKey), B = valOf(b, state.sortKey); return (A > B ? 1 : A < B ? -1 : 0) * state.sortDir; });
-    $('donBody').innerHTML = view.length
-      ? view.map((r) => `<tr>${cols.map(([, , fn]) => `<td>${esc(fn(r))}</td>`).join('')}</tr>`).join('')
-      : `<tr><td colspan="${cols.length}" class="empty">No donations${rows.length ? ' match the filters' : ' yet — run sync-donations.mjs'}.</td></tr>`;
+    const v = rows.filter((r) => cols.every(([k]) => { const f = (state.filters[k] || '').toLowerCase(); return !f || String(fnOf(k)(r)).toLowerCase().includes(f); }));
+    v.sort((a, b) => { const A = valOf(a, state.sortKey), B = valOf(b, state.sortKey); return (A > B ? 1 : A < B ? -1 : 0) * state.sortDir; });
+    $('donBody').innerHTML = v.length
+      ? v.map((r) => `<tr>${cols.map(([, , fn]) => `<td>${esc(fn(r))}</td>`).join('')}</tr>`).join('')
+      : `<tr><td colspan="${cols.length}" class="empty">No donations${rows.length ? ' match the filters' : ' yet — hit Refresh to sync from Zeffy'}.</td></tr>`;
   }
   function renderHead() {
-    const head = cols.map(([k, label]) => `<th data-sort="${k}" style="cursor:pointer;white-space:nowrap">${label}${state.sortKey === k ? (state.sortDir > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('');
-    const filt = cols.map(([k]) => `<th><input class="cfg-input donfilter" data-f="${k}" value="${esc(state.filters[k] || '')}" placeholder="filter" style="padding:4px 7px;font-size:.76rem;min-width:90px"></th>`).join('');
-    $('donTableWrap').innerHTML = `<table><thead><tr>${head}</tr><tr>${filt}</tr></thead><tbody id="donBody"></tbody></table>`;
+    const head = cols.map(([k, label]) => `<th data-sort="${k}">${label}${state.sortKey === k ? (state.sortDir > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('');
+    const filt = cols.map(([k]) => `<th><input class="cfg-input donfilter" data-f="${k}" value="${esc(state.filters[k] || '')}" placeholder="filter"></th>`).join('');
+    $('donTableWrap').innerHTML = `<table><thead><tr>${head}</tr><tr class="don-filterrow">${filt}</tr></thead><tbody id="donBody"></tbody></table>`;
     $('donTableWrap').querySelectorAll('th[data-sort]').forEach((th) => { th.onclick = () => { const k = th.dataset.sort; if (state.sortKey === k) state.sortDir *= -1; else { state.sortKey = k; state.sortDir = 1; } renderHead(); renderBody(); }; });
     $('donTableWrap').querySelectorAll('.donfilter').forEach((inp) => { inp.oninput = () => { state.filters[inp.dataset.f] = inp.value; renderBody(); }; });
   }

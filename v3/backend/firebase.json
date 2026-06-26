@@ -1,6 +1,14 @@
 {
-  "//": "Spark / Functions-free. Deploy target on Spark: `firebase deploy --only firestore:rules`. The functions/ dir is a Blaze reference and is NOT deployed (Spark cannot deploy Cloud Functions). No Storage on Spark.",
+  "//": "Blaze. Rules: `firebase deploy --only firestore:rules`. ONE deployed function (sync-fn codebase: syncDonations) — `firebase deploy --only functions:sync`. The functions/ dir is the unrelated full Blaze-reference design and is NOT registered here, so it is never deployed. No Cloud Storage in use.",
   "firestore": { "rules": "firestore.rules", "indexes": "firestore.indexes.json" },
+  "functions": [
+    {
+      "source": "sync-fn",
+      "codebase": "sync",
+      "runtime": "nodejs22",
+      "ignore": ["node_modules", ".git", ".firebase", "*.log"]
+    }
+  ],
   "emulators": {
     "auth": { "port": 9099 },
     "firestore": { "port": 8080 },
