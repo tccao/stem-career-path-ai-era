@@ -53,7 +53,7 @@ function showMsg(text) {
   if (!m) { m = document.createElement('p'); m.id = 'applyMsg'; m.className = 'modal-foot'; m.style.color = '#c94454'; form.appendChild(m); }
   m.textContent = text;
 }
-function showSubmitted(first) {
+function showSubmitted(first, email, fullName) {
   form.style.display = 'none';
   const b = $('bookingLaunched');
   const h = b.querySelector('h3'); if (h) h.textContent = 'Application submitted!';
@@ -64,8 +64,17 @@ function showSubmitted(first) {
   if (actions) {
     actions.innerHTML = '';
     if (links.calComUrl) {
+      // Prefill the applicant's email + name into Cal.com so the booking's attendee email
+      // matches the application — that's how the admin's getInterview looks up the slot.
+      let href = links.calComUrl;
+      try {
+        const u = new URL(links.calComUrl);
+        if (email) u.searchParams.set('email', email);
+        if (fullName) u.searchParams.set('name', fullName);
+        href = u.toString();
+      } catch { /* keep the raw url */ }
       const cal = document.createElement('a');
-      cal.href = links.calComUrl; cal.target = '_blank'; cal.rel = 'noopener';
+      cal.href = href; cal.target = '_blank'; cal.rel = 'noopener';
       cal.className = 'btn btn-primary cal-link';
       cal.innerHTML = 'Book your 15-min interview <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><path d="M5 12h14M13 5l7 7-7 7"></path></svg>';
       actions.appendChild(cal);
@@ -90,6 +99,6 @@ form?.addEventListener('submit', async (e) => {
   const btn = form.querySelector('button[type="submit"]'); if (btn) btn.disabled = true;
   try {
     await apply({ name, email, ageBracket, guardianConsent: consent, accessChoice: 'beneficiary' });
-    showSubmitted(name.split(' ')[0]);
+    showSubmitted(name.split(' ')[0], email, name);
   } catch (err) { showMsg('Could not submit: ' + (err.code || err.message)); if (btn) btn.disabled = false; }
 });
