@@ -369,4 +369,13 @@ th { color:var(--muted); font-weight:600; font-size:.72rem; text-transform:upper
 .don-table tbody tr:last-child td { border-bottom:0; }
 .don-table tbody td:nth-child(2), .don-table tbody td:nth-child(3) { font-variant-numeric:tabular-nums; font-weight:700; color:var(--cfg-purple-dark); }
 .don-table .empty { text-align:center; color:var(--muted); }
+
+/* ---- Interview slot (Cal.com booking shown in the application detail) ---- */
+.iv-slot { display:flex; align-items:center; gap:11px; border:1px solid var(--line); border-radius:12px; padding:12px 14px; font-size:.86rem; background:#faf7fd; color:var(--ink); }
+.iv-slot-loading, .iv-slot-none { color:var(--muted); font-style:italic; }
+.iv-slot-err { border-color:#f1c5cd; background:#fdeef0; color:#b23a4b; font-style:normal; }
+.iv-slot-ok { border-color:#bfe8cf; background:#eef9f2; }
+.iv-slot .iv-dot { width:10px; height:10px; border-radius:50%; background:#23a55a; flex-shrink:0; box-shadow:0 0 0 3px rgba(35,165,90,.18); }
+.iv-slot .iv-when { font-weight:800; color:var(--cfg-purple-dark); }
+.iv-slot .iv-meta { font-size:.76rem; color:var(--muted); margin-top:1px; }
 @media (max-width:880px){ .cols{grid-template-columns:1fr;} .kpis{grid-template-columns:repeat(3,1fr);} .stage-grid{grid-template-columns:1fr;} table{min-width:760px;} #members{overflow-x:auto;} }

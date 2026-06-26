@@ -23,9 +23,10 @@ portable,thin seams over Auth/DB; Blaze upgrade path preserved in functions/,mig
 ```
 
 Non-goals (this horizon): always-on API, real-time fan-out, multi-region, SSO/MFA at launch. Each
-has a documented re-entry path (§9–§10). **One exception:** a single on-demand Cloud Function,
-`syncDonations`, is deployed on Blaze to power the admin Donations refresh — it is scale-to-zero
-(no always-on compute) and exists only to keep the Zeffy API key server-side (§11a).
+has a documented re-entry path (§9–§10). **Exception:** a small set of on-demand, admin-gated Cloud
+Functions (`syncDonations`, `getInterview`, `grant`, `extendAccess`, `revokeAccess`) is deployed on
+Blaze — all scale-to-zero (no always-on compute). They keep the Zeffy/Cal.com keys server-side and run
+the Admin-SDK privileged ops (account-minting + claims) that cannot run in the browser (§11a).
 
 ---
 
@@ -268,7 +269,7 @@ flowchart LR
     r1["Firestore Rules"]
     c1["admin-cli (local)"]
     e1["email-link via Firebase (25k/day)"]
-    sd["syncDonations (1 deployed fn)"]
+    sd["admin fns: sync/grant/extend/revoke/getInterview"]
   end
   subgraph next["Future — Blaze"]
     fn["Cloud Functions (callables)"]
@@ -298,7 +299,7 @@ MFA / SSO,Firebase MFA + App Check (config-only on Blaze/Identity Platform)
 
 ```csv
 dimension,posture at pilot,scale lever
-cost,~$0 (Blaze + Amplify free tier); one scale-to-zero function (§11a),Blaze pay-as-you-go; read-light model keeps Firestore reads tiny
+cost,~$0 (Blaze + Amplify free tier); a few scale-to-zero admin functions (§11a),Blaze pay-as-you-go; read-light model keeps Firestore reads tiny
 reads,student ≤3 reads/view; curriculum 0 reads (static); admin counts via aggregation,denormalized rollups if views grow
 writes,apply (1) · stage submit (1) · admin overrides (small),batch + transactions already used for idempotency
 availability,managed (Amplify CDN + Firebase SLA); no self-run compute,multi-region is a Firebase/Amplify config
@@ -306,22 +307,31 @@ observability,Firebase console (Auth/Firestore usage) + auditLog (PII-free),add 
 recovery,Firestore PITR (enable) + rules/code in git,IaC (functions via SAM/Firebase deploy) on upgrade
 ```
 
-### 11a. Deployed Cloud Function — `syncDonations` (cost & constraints)
+### 11a. Deployed admin Cloud Functions (cost & constraints)
 
-The admin Donations view has a **Refresh** button that pulls Zeffy payments+campaigns into Firestore.
-Because the Zeffy API key is a **secret**, it must never reach the browser — so the refresh runs in a
-single 2nd-gen callable, `syncDonations`, deployed on **Blaze** (lives in `v3/backend/sync-fn`, its own
-codebase so `firebase deploy --only functions` never touches the unrelated `functions/` reference design).
-It mirrors `admin-cli/sync-donations.mjs`; the CLI remains a manual fallback.
+The admin console's privileged actions run as **admin-claim-gated 2nd-gen callables** on **Blaze**,
+all in one codebase (`v3/backend/sync-fn`, codebase `sync`, nodejs22) so `firebase deploy --only functions`
+never touches the unrelated `functions/` reference design. They mirror the local `admin-cli` scripts,
+which remain an equivalent fallback.
+
+```csv
+function,job,secret
+syncDonations,Zeffy payments + campaigns → Firestore (Donations Refresh); persists campaigns/{id} so the campaign name shows with 0 payments,ZEFFY_API_KEY
+getInterview,reads the applicant's self-booked Cal.com slot for the interview modal,CAL_API_KEY
+grant,account-minting: createUser + role/window claims + member doc (Approve & grant),—
+extendAccess,push out a member's access window + claim (no re-login),—
+revokeAccess,end a member + expire claim + revoke refresh tokens,—
+```
 
 ```csv
 constraint,detail
-why a function at all,Zeffy key is server-side only (Functions secret ZEFFY_API_KEY) — never shipped to the client
-auth,fail-closed — rejects unless the caller's custom claim role==admin (HttpsError permission-denied)
-idempotent,upsert (merge) on the Zeffy payment id; re-running never double-counts
-scale-to-zero,min instances = 0 → no idle/always-on cost; one invocation per admin Refresh click
-secret handling,defineSecret('ZEFFY_API_KEY'); set once via `firebase functions:secrets:set` — not in git, not in config
-deploy scope,own codebase "sync" → `firebase deploy --only functions:sync` (reference functions/ stays undeployed)
+why functions at all,the Zeffy + Cal.com keys are secrets (server-side only); grant/extend/revoke need the Admin SDK (createUser + setCustomUserClaims) which cannot run in the browser
+auth,fail-closed on EVERY fn — rejects unless the caller's verified custom claim role==admin (HttpsError permission-denied)
+invariant change,this relaxes the earlier 'no hosted account-minting' rule (we are on Blaze now); bounded by the admin gate + idempotent/conditional writes; the browser client still cannot createUser or set role claims
+idempotent,grant only from SUBMITTED/INTERVIEW_SCHEDULED; donations upsert-merge on payment id
+scale-to-zero,min instances = 0 → no idle cost; one invocation per admin click
+secret handling,defineSecret('ZEFFY_API_KEY'|'CAL_API_KEY'); set once via `firebase functions:secrets:set <NAME>` — not in git/config
+deploy scope,codebase "sync" → `firebase deploy --only functions:sync` (reference functions/ stays undeployed)
 ```
 
 Cost: effectively **$0** at pilot scale. The Cloud Functions perpetual free tier (2M invocations,

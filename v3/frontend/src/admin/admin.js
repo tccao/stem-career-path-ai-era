@@ -13,6 +13,8 @@ import { loadCurriculum } from '../lib/cache.js';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const toast = (m) => { const t = $('toast'); t.textContent = m; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); };
+// Admin-gated Cloud Functions (grant/extendAccess/revokeAccess/getInterview/syncDonations).
+const call = (name, data) => httpsCallable(functions, name)(data).then((r) => r.data);
 const fmtDate = (ms) => (ms ? new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—');
 const stateTxt = (s) => (s === 'complete' ? 'Complete' : s === 'active' ? 'In progress' : 'Locked');
 
@@ -112,16 +114,13 @@ function openApp(a) {
     block = `
       <div class="card" style="margin-top:14px;padding:18px">
         <h2 style="font-size:.95rem;margin:0 0 6px">Interview</h2>
-        <label for="ivAt">Date &amp; time</label>
-        <input id="ivAt" type="datetime-local" />
-        <label for="ivNote">Note (optional)</label>
-        <input id="ivNote" type="text" placeholder="Cal.com / Zoom link, interviewer…" value="${esc(a.interviewNote || '')}" />
-        <div class="actions">
-          <button class="btn" id="ivSchedule">${a.status === 'INTERVIEW_SCHEDULED' ? 'Update interview' : 'Schedule interview'}</button>
+        <div id="ivSlot" class="iv-slot iv-slot-loading">Checking Cal.com for a booked interview…</div>
+        <label for="ivPath" style="margin-top:14px">Learning path on grant</label>
+        <select id="ivPath"><option value="fasttrack">4-Week Fast Track</option><option value="roadmap">Full Roadmap</option></select>
+        <div class="actions" style="margin-top:14px">
+          <button class="btn" id="ivApprove">Approve &amp; grant</button>
           <button class="btn bad" id="ivReject">Reject</button>
         </div>
-        <div class="cmd-note">After the interview, grant access from the admin-cli (account-minting stays server-side):</div>
-        ${cmdBox(`node admin-cli/grant.mjs ${a.id}`)}
       </div>`;
   } else if (a.status === 'GRANTED') {
     block = `<div class="cmd-note">Granted → member <b>${esc(a.grantedUid || '')}</b>. Manage in the Members table below.</div>`;
@@ -134,14 +133,17 @@ function openApp(a) {
     ${block}
     <div class="timeline" id="timeline"></div>`;
   wireCmds();
-  const sched = $('ivSchedule');
-  if (sched) sched.onclick = async () => {
-    const at = $('ivAt').value, note = $('ivNote').value.trim();
-    const patch = { status: 'INTERVIEW_SCHEDULED' };
-    if (at) patch.interviewAt = new Date(at).getTime();
-    if (note) patch.interviewNote = note;
-    try { await updateDoc(doc(db, 'applications', a.id), patch); toast('Interview scheduled'); await refresh(); reopen(a.id); }
-    catch (e) { toast('Error: ' + (e.code || e.message)); }
+  // Pull the applicant's self-booked Cal.com slot (key stays server-side in getInterview).
+  const slot = $('ivSlot');
+  if (slot) loadInterviewSlot(a.email, slot);
+  const approve = $('ivApprove');
+  if (approve) approve.onclick = async () => {
+    approve.disabled = true; const orig = approve.textContent; approve.textContent = 'Granting…';
+    try {
+      const path = $('ivPath')?.value || 'fasttrack';
+      await call('grant', { applicationId: a.id, path, basis: 'beneficiary' });
+      toast('Access granted'); await refresh(); clearDetail();
+    } catch (e) { toast('Grant failed: ' + (e.code || e.message)); approve.disabled = false; approve.textContent = orig; }
   };
   const rej = $('ivReject');
   if (rej) rej.onclick = async () => {
@@ -156,6 +158,19 @@ function openApp(a) {
     $('confirmCopy').onclick = () => navigator.clipboard?.writeText(build()).then(() => toast('Command copied')).catch(() => toast('Copy failed'));
   }
   loadTimeline(a.id, a.grantedUid);
+}
+
+async function loadInterviewSlot(email, el) {
+  try {
+    const { booking } = await call('getInterview', { email });
+    if (!booking) { el.className = 'iv-slot iv-slot-none'; el.textContent = 'No interview booked on Cal.com yet.'; return; }
+    const when = booking.start ? new Date(booking.start).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—';
+    el.className = 'iv-slot iv-slot-ok';
+    el.innerHTML = `<span class="iv-dot"></span><div><div class="iv-when">${esc(when)}</div><div class="iv-meta">${esc(booking.title || 'Interview')} · ${esc(booking.status || 'scheduled')}</div></div>`;
+  } catch (e) {
+    el.className = 'iv-slot iv-slot-err';
+    el.textContent = 'Could not load Cal.com booking: ' + (e.code || e.message);
+  }
 }
 
 async function loadTimeline(appId, uid) {
@@ -186,15 +201,35 @@ async function loadMembers() {
   }));
   $('members').innerHTML = `<table><thead><tr><th>Name</th><th>Email</th><th>Basis</th><th>Path</th><th>Progress</th><th>Current</th><th>Status</th><th>Access ends</th><th></th></tr></thead><tbody>${rows.map(({ m, comp, total, pct, current }) => `<tr class="member-row" data-uid="${esc(m.uid)}"><td>${esc(m.name || '—')}</td><td>${esc(m.email)}</td><td>${esc(m.accessBasis || '—')}</td><td>${esc(m.path === 'roadmap' ? 'Roadmap' : 'Fast track')}</td><td>${progressMini(pct, comp, total)}</td><td><div class="current-stage">${esc(current)}</div></td><td><span class="pill ${esc(m.status)}">${esc(m.status)}</span></td><td>${esc(fmtDate(m.accessEnds))}</td><td>${m.status === 'ACTIVE' ? `<button class="btn sec" data-ext="${esc(m.uid)}">Extend</button> <button class="btn bad" data-rev="${esc(m.uid)}">Revoke</button>` : ''}</td></tr>`).join('')}</tbody></table>`;
   $('members').querySelectorAll('.member-row').forEach((r) => { r.onclick = () => openMemberProgress(rows.find((x) => x.m.uid === r.dataset.uid)); });
-  $('members').querySelectorAll('button[data-ext]').forEach((b) => { b.onclick = (e) => { e.stopPropagation(); showMemberCmd('extend', b.dataset.ext); }; });
-  $('members').querySelectorAll('button[data-rev]').forEach((b) => { b.onclick = (e) => { e.stopPropagation(); showMemberCmd('revoke', b.dataset.rev); }; });
+  $('members').querySelectorAll('button[data-ext]').forEach((b) => { b.onclick = (e) => { e.stopPropagation(); showMemberAction('extend', b.dataset.ext); }; });
+  $('members').querySelectorAll('button[data-rev]').forEach((b) => { b.onclick = (e) => { e.stopPropagation(); showMemberAction('revoke', b.dataset.rev); }; });
 }
 const progressMini = (pct, completed, total) => `<div class="progress-mini"><div class="bar"><span style="width:${pct}%"></span></div><div class="txt">${pct}% · ${completed}/${total}</div></div>`;
 
-function showMemberCmd(act, uid) {
-  const cmd = act === 'extend' ? `node admin-cli/extend.mjs ${uid} --days 90` : `node admin-cli/revoke.mjs ${uid}`;
-  $('memberProgress').innerHTML = `<h3>${act === 'extend' ? 'Extend access' : 'Revoke access'}</h3><p>Privileged ops run in the admin-cli (Spark has no hosted endpoint). Run in <b>v3/backend</b> with your service-account key:</p>${cmdBox(cmd)}`;
-  wireCmds();
+// Privileged member ops run as admin-gated Cloud Functions (no code blocks).
+function showMemberAction(act, uid) {
+  const host = $('memberProgress');
+  if (act === 'extend') {
+    host.innerHTML = `<h3>Extend access</h3><p>Add days to this member's access window. The new window flows into their next ID-token refresh — no re-login needed.</p>
+      <label for="extDays">Days to add</label>
+      <input id="extDays" type="number" min="1" value="90" />
+      <div class="actions" style="margin-top:12px"><button class="btn" id="extApply">Extend</button></div>`;
+    $('extApply').onclick = async () => {
+      const days = Number($('extDays').value);
+      if (!days || days < 1) return toast('Enter a valid number of days');
+      const btn = $('extApply'); btn.disabled = true; btn.textContent = 'Extending…';
+      try { const r = await call('extendAccess', { uid, days }); toast(`Extended → ends ${fmtDate(r.accessEnds)}`); await loadMembers(); host.innerHTML = ''; }
+      catch (e) { toast('Extend failed: ' + (e.code || e.message)); btn.disabled = false; btn.textContent = 'Extend'; }
+    };
+  } else {
+    host.innerHTML = `<h3>Revoke access</h3><p>This immediately ends the member's access and signs them out (refresh tokens revoked). Use Extend later to restore.</p>
+      <div class="actions" style="margin-top:12px"><button class="btn bad" id="revApply">Revoke access</button></div>`;
+    $('revApply').onclick = async () => {
+      const btn = $('revApply'); btn.disabled = true; btn.textContent = 'Revoking…';
+      try { await call('revokeAccess', { uid }); toast('Access revoked'); await loadMembers(); host.innerHTML = ''; }
+      catch (e) { toast('Revoke failed: ' + (e.code || e.message)); btn.disabled = false; btn.textContent = 'Revoke access'; }
+    };
+  }
 }
 
 async function openMemberProgress(row) {
@@ -300,7 +335,15 @@ async function renderDonationsView() {
     : (k === 'created' || k === 'amount' || k === '_total') ? (r[k] || 0) : String(r[k] ?? '').toLowerCase());
   const donors = new Set(rows.map((r) => (r.email || '').toLowerCase()).filter(Boolean)).size;
   const campTotal = rows.filter((r) => r.status === 'succeeded').reduce((s, r) => s + (r.amount || 0), 0);
-  const campName = rows.find((r) => r.campaignName)?.campaignName || '—';
+  // Campaign name comes from the synced campaigns collection, so it shows even with 0 donations.
+  let campName = rows.find((r) => r.campaignName)?.campaignName;
+  if (!campName) {
+    try {
+      const cs = (await getDocs(collection(db, 'campaigns'))).docs.map((d) => d.data());
+      campName = cs.map((c) => c.title).filter(Boolean).join(', ');
+    } catch { /* keep empty */ }
+  }
+  campName = campName || '—';
 
   host.innerHTML = `
     <div class="kpis" style="grid-template-columns:repeat(3,1fr)">

@@ -201,10 +201,10 @@ live url,https://feat-v3-mvp.d3eyz6x5b4wbjx.amplifyapp.com
 backend,Firebase Spark (project code4good-stem-career-path) — Functions-free; no Cloud Functions / no Cloud Storage on Spark
 enforcement,Firestore Security Rules (client-facing) + local firebase-admin CLI (privileged ops) — see v3/backend/admin-cli
 auth,passwordless email-link; roles via persisted custom claims (role + accessEnds); anonymous auth for /apply
-status,deployed + end-to-end tested live; functions/ kept as a Blaze-only reference (not deployed)
+status,deployed + end-to-end tested live; privileged ops now run as admin-gated Cloud Functions (backend/sync-fn, codebase "sync"); functions/ kept as a separate Blaze-reference design (not deployed)
 ```
 
-V3 security invariants (do not break): only the local admin-cli (Admin SDK) mints accounts / sets claims — no hosted code can; Firestore Rules deny client writes to protected collections (apply is create-only behind the age/consent gate; progress writes need ACTIVE+in-window+own-doc); the service-account key is **gitignored and must never be committed or pasted** (`v3/.gitignore` blocks `*adminsdk*.json` etc.); supporter grants still require a verified payment (fail-closed). Details + run/test/deploy commands: `v3/CLAUDE.md`.
+V3 security invariants (do not break): account-minting + claims run ONLY via the Admin SDK — either the hosted **admin-claim-gated Cloud Functions** (`grant`/`extendAccess`/`revokeAccess`/`getInterview`/`syncDonations` in `backend/sync-fn`) or the local `admin-cli`; the **browser client can never createUser or set role claims** (it may only set INTERVIEW_SCHEDULED/REJECTED + stageLocks via Rules). Every function fails closed unless `request.auth.token.role=='admin'`. (This relaxes the earlier "no hosted account-minting" rule now that we're on Blaze; bounded by the admin gate + idempotent writes.) Firestore Rules deny client writes to protected collections (apply is create-only behind the age/consent gate; progress writes need ACTIVE+in-window+own-doc). Secrets — the service-account key, `Zeffy_API_Key.txt`, and `Cal.com-Dev-API-Key.txt` (the Cal.com/Zeffy keys live server-side as Functions secrets) — are **gitignored and must never be committed or pasted**. Supporter grants still require a verified payment (fail-closed). Details + run/test/deploy: `v3/CLAUDE.md`.
 
 ---
 

@@ -31,24 +31,25 @@ enforcement,firestore.rules — apply create-gate (age/consent); member/progress
 privileged ops,backend/admin-cli/ (firebase-admin): make-admin · grant [--path fasttrack|roadmap] · extend · revoke · expiry-sweep — Admin SDK works free on Spark
 auth,email-link (passwordless, client SDK); anonymous auth for /apply; roles via PERSISTED custom claims (role + accessBasis + accessEnds)
 data,Firestore: applications(+interviewAt/Note/rejectedReason) · members(/progress · /stageLocks) · counters · donations · auditLog. Curriculum is a static bundle (public/curriculum.json), not Firestore
-payments,Zeffy hosted (landing Donate links out); supporter grant via admin-cli after verify (fail-closed). Admin Donations view "Refresh" = the one deployed Cloud Function syncDonations (Blaze) — keeps the Zeffy key server-side
-deployed function,backend/sync-fn/ = syncDonations (2nd-gen callable, admin-claim gated, scale-to-zero) — the ONLY hosted privileged endpoint; own codebase so `firebase deploy --only functions` skips the functions/ reference design
+payments,Zeffy hosted (landing Donate links out); supporter grant via admin-cli after verify (fail-closed). Admin Donations "Refresh" = syncDonations (Blaze) — keeps the Zeffy key server-side
+deployed functions,backend/sync-fn/ (codebase "sync"; nodejs22; ALL admin-claim gated + scale-to-zero): syncDonations (Zeffy payments+campaigns sync) · getInterview (reads the applicant's Cal.com slot — Cal.com key server-side) · grant (createUser + claims + member doc) · extendAccess · revokeAccess. Own codebase so `firebase deploy --only functions` skips the functions/ reference design
 NOT used,backend/functions/ (full Blaze-reference design — NOT deployed) · Cloud Storage
 ```
 
-**Cost of the one deployed function (`syncDonations`).** Effectively **$0** at pilot scale: the Cloud
-Functions free tier (2M invocations, 400K GB-seconds, 200K vCPU-seconds, 5 GB egress/month) far exceeds
-an admin-only Refresh. Only non-zero items are tiny — Artifact Registry image storage (~$0.10/GB-month,
-often within the free 0.5 GB) and Cloud Build on deploy (120 free min/day). Realistic bill: **$0,
-occasionally a few cents/month.** Constraints: fail-closed admin-claim gate; `ZEFFY_API_KEY` is a
-Functions secret (never in git/client); idempotent merge; min-instances 0 (no idle cost). Set the secret
-once with `firebase functions:secrets:set ZEFFY_API_KEY`; deploy with `firebase deploy --only functions:sync`.
-Full note: `docs/Architecture-V3.md` §11a.
+**Cost of the deployed admin functions.** Effectively **$0** at pilot scale: the Cloud Functions free
+tier (2M invocations, 400K GB-seconds, 200K vCPU-seconds, 5 GB egress/month) far exceeds admin-only
+clicks. Only non-zero items are tiny — Artifact Registry image storage (~$0.10/GB-month, often within
+the free 0.5 GB; cleanup policy auto-deletes images >1 day) and Cloud Build on deploy (120 free min/day).
+Realistic bill: **$0, occasionally a few cents/month.** Constraints: fail-closed admin-claim gate on
+every fn; secrets `ZEFFY_API_KEY` + `CAL_API_KEY` are Functions secrets (never in git/client); idempotent
+writes; min-instances 0 (no idle cost). Set secrets once with `firebase functions:secrets:set <NAME>`;
+deploy with `firebase deploy --only functions:sync`. Full note: `docs/Architecture-V3.md` §11a.
 
 State machine: `SUBMITTED → INTERVIEW_SCHEDULED → GRANTED → ACTIVE → ENDED | REJECTED`.
-Admin schedules the interview / rejects from the browser (Rules allow the admin claim for these
-NON-minting writes); **GRANTED requires `grant.mjs`** (createUser + claims + member doc) — no hosted
-code can mint accounts. Supporter path skips the interview.
+In the app the admin reviews the applicant's self-booked **Cal.com slot** (fetched by `getInterview`)
+and clicks **Approve & grant** or **Reject**. GRANTED (createUser + claims + member doc) runs in the
+admin-gated `grant` Cloud Function — equivalently still available as `admin-cli/grant.mjs`. Reject is a
+client Rules write. Supporter path skips the interview.
 
 ## Layout
 
@@ -79,7 +80,7 @@ v3/
 
 ```csv
 invariant,why / how
-only admin-cli mints accounts + sets role claims,no hosted/browser code can createUser or grant a role (Admin SDK is local-only); browser admin can only set INTERVIEW_SCHEDULED/REJECTED + stageLocks
+account-minting + claims only via Admin SDK — hosted ADMIN-GATED Cloud Functions or local admin-cli; NEVER the browser client,grant/extendAccess/revokeAccess are onCall fns that fail-closed unless request.auth.token.role=='admin' (verified); the browser client can still only set INTERVIEW_SCHEDULED/REJECTED + stageLocks via Rules — it cannot createUser or set role claims. (This intentionally relaxes the earlier 'no hosted account-minting' rule now that we're on Blaze; bounded by the admin gate + idempotent writes.)
 Rules deny client writes to protected collections,members/counters/donations/auditLog are admin-SDK-write-only; auditLog append-only
 apply is create-only behind the age/consent gate,Rules reject under-13 and 13–17 without guardianConsent, and bad shapes (enforced again client-side in landing.js)
 progress write needs ACTIVE+in-window+own-doc,student self-attests only their own stage while role=student & accessEnds>now

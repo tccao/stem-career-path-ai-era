@@ -66,6 +66,7 @@ service cloud.firestore {
 
     // Admin-only reads; all writes via the Admin SDK only.
     match /donations/{id} { allow read: if isAdmin(); allow write: if false; }
+    match /campaigns/{id} { allow read: if isAdmin(); allow write: if false; }
     match /counters/{id}  { allow read: if isAdmin(); allow write: if false; }
 
     // Append-only, tamper-evident: admin reads, never client-writable.
