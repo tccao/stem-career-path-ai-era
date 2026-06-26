@@ -71,6 +71,16 @@ service cloud.firestore {
     // Append-only, tamper-evident: admin reads, never client-writable.
     match /auditLog/{id}  { allow read: if isAdmin(); allow write: if false; }
 
+    // Public site settings (Zeffy donate + Cal.com booking links). Public READ so the
+    // landing serves the links to anonymous visitors; WRITE only by an admin, shape-validated.
+    match /settings/{id} {
+      allow read: if true;
+      allow write: if isAdmin()
+        && request.resource.data.keys().hasOnly(['zeffyUrl', 'calComUrl', 'updatedAt', 'updatedBy'])
+        && request.resource.data.zeffyUrl is string && request.resource.data.zeffyUrl.matches('https://.*')
+        && request.resource.data.calComUrl is string && request.resource.data.calComUrl.matches('https://.*');
+    }
+
     match /{document=**}  { allow read, write: if false; }
   }
 }

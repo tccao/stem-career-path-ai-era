@@ -7,9 +7,13 @@ dist/
 !.env.example
 frontend/.vite/
 
-# NEVER commit Firebase service-account keys (admin-cli credentials)
+# NEVER commit secrets — Firebase service-account keys + the Zeffy API key
 *serviceaccount*.json
 *service-account*.json
 *-key.json
 *adminsdk*.json
 *firebase-adminsdk*.json
+Zeffy_API_Key.txt
+*[Zz]effy*[Kk]ey*
+*api*[Kk]ey*.txt
+*.key

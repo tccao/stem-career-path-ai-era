@@ -43,6 +43,7 @@ async function showApp(user) {
   }
   $('login').classList.add('hidden'); ['app', 'session', 'topbar'].forEach((i) => $(i).classList.remove('hidden'));
   $('who').textContent = (user.email || 'admin') + ' · admin';
+  ensureSettingsButton();
   renderTabs(); refresh();
 }
 
@@ -86,7 +87,17 @@ function openApp(a) {
   const ivInfo = a.interviewAt ? f('Interview', new Date(a.interviewAt).toLocaleString()) : '';
   const vetting = (a.status === 'SUBMITTED' || a.status === 'INTERVIEW_SCHEDULED');
   let block = '';
-  if (vetting) {
+  if (vetting && a.accessChoice === 'supporter') {
+    block = `
+      <div class="card" style="margin-top:14px;padding:18px">
+        <h2 style="font-size:.95rem;margin:0 0 6px">Confirm donation</h2>
+        <p class="cmd-note">Supporter path. Enter the Zeffy payment id (from your Zeffy dashboard / webhook). The CLI verifies it against the Zeffy API (fail-closed) and grants. Run in <b>v3/backend</b>:</p>
+        <label for="zpid">Zeffy payment id</label>
+        <input id="zpid" type="text" placeholder="p1b2c3d4-..." />
+        <div class="cmd"><code id="confirmCode">node admin-cli/confirm-donation.mjs ${esc(a.id)} &lt;paymentId&gt;</code><button type="button" id="confirmCopy">Copy</button></div>
+        <div class="actions"><button class="btn bad" id="ivReject">Reject</button></div>
+      </div>`;
+  } else if (vetting) {
     block = `
       <div class="card" style="margin-top:14px;padding:18px">
         <h2 style="font-size:.95rem;margin:0 0 6px">Interview</h2>
@@ -99,7 +110,7 @@ function openApp(a) {
           <button class="btn bad" id="ivReject">Reject</button>
         </div>
         <div class="cmd-note">After the interview, grant access from the admin-cli (account-minting stays server-side):</div>
-        ${cmdBox(`node admin-cli/grant.mjs ${a.id}${a.accessChoice === 'supporter' ? ' --basis supporter' : ''}`)}
+        ${cmdBox(`node admin-cli/grant.mjs ${a.id}`)}
       </div>`;
   } else if (a.status === 'GRANTED') {
     block = `<div class="cmd-note">Granted → member <b>${esc(a.grantedUid || '')}</b>. Manage in the Members table below.</div>`;
@@ -126,6 +137,13 @@ function openApp(a) {
     try { await updateDoc(doc(db, 'applications', a.id), { status: 'REJECTED', rejectedReason: 'not_eligible' }); toast('Application rejected'); await refresh(); clearDetail(); }
     catch (e) { toast('Error: ' + (e.code || e.message)); }
   };
+  const zpid = $('zpid');
+  if (zpid) {
+    const code = $('confirmCode');
+    const build = () => `node admin-cli/confirm-donation.mjs ${a.id} ${zpid.value.trim() || '<paymentId>'}`;
+    zpid.addEventListener('input', () => { code.textContent = build(); });
+    $('confirmCopy').onclick = () => navigator.clipboard?.writeText(build()).then(() => toast('Command copied')).catch(() => toast('Copy failed'));
+  }
   loadTimeline(a.id, a.grantedUid);
 }
 
@@ -208,6 +226,52 @@ async function setStageLock(uid, stageKey, act, row) {
     toast(act === 'auto' ? 'Gate restored to automatic' : `Stage ${act}ed`);
     await openMemberProgress(row);
   } catch (e) { toast('Error: ' + (e.code || e.message)); }
+}
+
+// ---------- site settings (Zeffy + Cal.com links) ----------
+function ensureSettingsButton() {
+  if ($('settingsBtn')) return;
+  const b = document.createElement('button');
+  b.id = 'settingsBtn'; b.className = 'linkbtn'; b.textContent = 'Settings';
+  b.onclick = openSettings;
+  $('session').insertBefore(b, $('logoutBtn'));
+}
+
+async function openSettings() {
+  $('settingsModal')?.remove();
+  let s = {};
+  try { const d = await getDoc(doc(db, 'settings', 'public')); if (d.exists()) s = d.data(); } catch { /* defaults */ }
+  const modal = document.createElement('div');
+  modal.id = 'settingsModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(28,17,48,.45);display:grid;place-items:center;z-index:99;padding:20px';
+  modal.innerHTML = `<div class="login-card" role="dialog" aria-modal="true" aria-label="Site settings" style="max-width:460px;margin:0">
+      <h1 style="font-size:1.3rem">Site settings</h1>
+      <p>Public links used by the landing page — saved to Firestore, no redeploy needed.</p>
+      <label for="setZeffy">Zeffy donate URL</label>
+      <input id="setZeffy" type="url" inputmode="url" placeholder="https://www.zeffy.com/..." />
+      <label for="setCal">Cal.com booking URL</label>
+      <input id="setCal" type="url" inputmode="url" placeholder="https://cal.com/..." />
+      <div class="actions" style="margin-top:16px">
+        <button class="btn btn-purple" id="setSave" style="flex:1">Save</button>
+        <button class="btn sec" id="setCancel">Cancel</button>
+      </div>
+      <div class="cfg-msg" id="setMsg"></div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+  document.addEventListener('keydown', function esc(e) { if (e.key === 'Escape') { modal.remove(); document.removeEventListener('keydown', esc); } });
+  $('setZeffy').value = s.zeffyUrl || '';
+  $('setCal').value = s.calComUrl || '';
+  $('setCancel').onclick = () => modal.remove();
+  $('setSave').onclick = async () => {
+    const zeffyUrl = $('setZeffy').value.trim(), calComUrl = $('setCal').value.trim();
+    if (!/^https:\/\//.test(zeffyUrl) || !/^https:\/\//.test(calComUrl)) { $('setMsg').textContent = 'Both must be https:// URLs.'; return; }
+    $('setSave').disabled = true; $('setMsg').textContent = 'Saving…';
+    try {
+      await setDoc(doc(db, 'settings', 'public'), { zeffyUrl, calComUrl, updatedAt: Date.now(), updatedBy: auth.currentUser?.uid || '' });
+      toast('Settings updated'); modal.remove();
+    } catch (e) { $('setMsg').textContent = 'Error: ' + (e.code || e.message); $('setSave').disabled = false; }
+  };
 }
 
 // ---------- wiring + boot ----------

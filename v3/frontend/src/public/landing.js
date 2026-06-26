@@ -3,6 +3,8 @@
 // and "Login" goes to the student app (/app.html) where passwordless email-link sign-in lives.
 // Page behaviour (nav/dropdown/FAQ) stays in the landing's own inline script.
 import { apply } from './apply.js';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../firebase.js';
 
 const $ = (id) => document.getElementById(id);
 const applyModal = $('applyModal');
@@ -34,6 +36,18 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal
 const ageSel = $('af-age');
 ageSel?.addEventListener('change', () => { const c = $('consentField'); if (c) c.style.display = ageSel.value === '13-17' ? 'block' : 'none'; });
 
+// Public site links (Zeffy donate + Cal.com booking) from Firestore; fall back to the hardcoded HTML.
+let links = {};
+(async () => {
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'public'));
+    if (snap.exists()) {
+      links = snap.data();
+      if (links.zeffyUrl) document.querySelectorAll('a[href*="zeffy.com"]').forEach((a) => { a.href = links.zeffyUrl; });
+    }
+  } catch { /* keep hardcoded fallbacks */ }
+})();
+
 function showMsg(text) {
   let m = $('applyMsg');
   if (!m) { m = document.createElement('p'); m.id = 'applyMsg'; m.className = 'modal-foot'; m.style.color = '#c94454'; form.appendChild(m); }
@@ -45,6 +59,16 @@ function showSubmitted(first) {
   const h = b.querySelector('h3'); if (h) h.textContent = 'Application submitted!';
   const p = b.querySelector('p'); if (p) p.innerHTML = `Thanks, ${first}. We'll review your application and email you a one-time sign-in link once access is granted.`;
   const a = $('toDashboardBtn'); if (a) { a.setAttribute('href', '/app.html'); a.textContent = 'Go to sign in'; }
+  if (links.calComUrl) {
+    const actions = b.querySelector('.modal-actions');
+    if (actions && !actions.querySelector('.cal-link')) {
+      const cal = document.createElement('a');
+      cal.href = links.calComUrl; cal.target = '_blank'; cal.rel = 'noopener';
+      cal.className = 'btn btn-secondary cal-link'; cal.textContent = 'Book your 15-min interview';
+      cal.style.marginRight = '8px';
+      actions.prepend(cal);
+    }
+  }
   b.style.display = 'block';
   const t = $('applyTitle'); if (t) t.textContent = `Thanks, ${first}!`;
 }
