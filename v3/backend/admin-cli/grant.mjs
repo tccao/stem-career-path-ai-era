@@ -7,6 +7,7 @@ const applicationId = process.argv[2];
 if (!applicationId) die('usage: node grant.mjs <applicationId> [--days N] [--basis beneficiary|supporter]');
 const days = Number(arg('days', '90'));
 const accessBasis = arg('basis', 'beneficiary');
+const path = arg('path', 'fasttrack'); // 'fasttrack' | 'roadmap'
 
 const appRef = db.collection('applications').doc(applicationId);
 const appSnap = await appRef.get();
@@ -27,7 +28,7 @@ const batch = db.batch();
 batch.update(appRef, { status: STATE.GRANTED, grantedUid: user.uid });
 batch.set(db.collection('members').doc(user.uid), {
   status: STATE.ACTIVE, accessBasis, accessEnds, email: a.email, name: a.name ?? '',
-  path: 'fasttrack', applicationId, createdAt: FieldValue.serverTimestamp(),
+  path, applicationId, createdAt: FieldValue.serverTimestamp(),
 });
 await batch.commit();
 await audit({ type: 'access.granted', targetType: 'member', targetId: user.uid, toStatus: STATE.ACTIVE });
