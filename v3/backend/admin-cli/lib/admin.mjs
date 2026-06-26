@@ -19,7 +19,8 @@ export const db = getFirestore(app);
 export const auth = getAuth(app);
 
 export const STATE = Object.freeze({
-  SUBMITTED: 'SUBMITTED', GRANTED: 'GRANTED', ACTIVE: 'ACTIVE', ENDED: 'ENDED', REJECTED: 'REJECTED',
+  SUBMITTED: 'SUBMITTED', INTERVIEW_SCHEDULED: 'INTERVIEW_SCHEDULED',
+  GRANTED: 'GRANTED', ACTIVE: 'ACTIVE', ENDED: 'ENDED', REJECTED: 'REJECTED',
 });
 
 export const DAY_MS = 86400_000;

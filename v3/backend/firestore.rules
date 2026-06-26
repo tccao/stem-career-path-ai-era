@@ -28,7 +28,14 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(
              ['status', 'accessChoice', 'email', 'name', 'ageBracket', 'guardianConsent', 'createdAt']);
       allow read: if isAdmin();
-      allow update, delete: if false;
+      // Admin may schedule an interview or reject — NON-minting transitions only. Moving an
+      // application to GRANTED/ACTIVE still requires the admin-cli (createUser + claims), which
+      // bypasses Rules; the browser admin can never set those statuses here.
+      allow update: if isAdmin()
+        && request.resource.data.status in ['SUBMITTED', 'INTERVIEW_SCHEDULED', 'REJECTED']
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['status', 'interviewAt', 'interviewNote', 'rejectedReason']);
+      allow delete: if false;
     }
 
     // Provisioned member record — written only by admin-cli (Admin SDK).
@@ -44,6 +51,16 @@ service cloud.firestore {
           && request.resource.data.status == 'complete'
           && request.resource.data.keys().hasOnly(['status', 'deliverableUrl', 'completedAt']);
         allow delete: if false;
+      }
+
+      // Admin stage-gate overrides (lock/unlock). Read by the student app to override the
+      // client-computed gating; written only by an admin (verified custom claim).
+      match /stageLocks/{stageKey} {
+        allow read: if isAdmin() || isActiveStudent(uid);
+        allow write: if isAdmin()
+          && request.resource.data.keys().hasOnly(['state'])
+          && request.resource.data.state in ['locked', 'unlocked'];
+        allow delete: if isAdmin();
       }
     }
 

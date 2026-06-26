@@ -343,4 +343,9 @@ th { color:var(--muted); font-weight:600; font-size:.72rem; text-transform:upper
 .stage-chip.complete { border-color:#b9e5c8; background:#e9f7ef; color:#1b8a4b; }
 .stage-chip.active { border-color:var(--cfg-lavender); background:#f0e9fa; color:var(--cfg-purple-dark); }
 .stage-chip.locked { color:#9a90a8; background:#f8f5fb; }
+.mini-action { border:0; border-left:1px solid currentColor; background:transparent; color:inherit; padding:0 0 0 6px; margin-left:4px; font:inherit; font-weight:800; cursor:pointer; }
+.mini-action:hover { text-decoration:underline; }
+.detail label, .card label { display:block; font-size:.72rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); margin:12px 0 5px; }
+.detail input, .card input, .panel input, .panel select { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px; font:inherit; font-size:.9rem; background:#faf7fd; color:var(--ink); }
+.detail input:focus, .card input:focus { outline:3px solid rgba(109,40,217,.16); border-color:var(--cfg-purple); background:#fff; }
 @media (max-width:880px){ .cols{grid-template-columns:1fr;} .kpis{grid-template-columns:repeat(3,1fr);} .stage-grid{grid-template-columns:1fr;} table{min-width:760px;} #members{overflow-x:auto;} }

@@ -13,7 +13,17 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const toast = (m) => { const t = $('toast'); t.textContent = m; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2400); };
 
-let currentUid = null, member = null, progressMap = {}, latestView = null;
+let currentUid = null, member = null, progressMap = {}, lockMap = {}, latestView = null;
+
+// Pull the member's progress + admin stage-lock overrides together.
+async function refetch() {
+  const [ps, ls] = await Promise.all([
+    getDocs(collection(db, 'members', currentUid, 'progress')),
+    getDocs(collection(db, 'members', currentUid, 'stageLocks')).catch(() => ({ forEach() {} })),
+  ]);
+  progressMap = {}; ps.forEach((d) => { progressMap[d.id] = d.data(); });
+  lockMap = {}; ls.forEach((d) => { lockMap[d.id] = d.data().state; });
+}
 
 // ---------- view model (replaces the demo's GET /app/path) ----------
 async function buildView() {
@@ -23,7 +33,13 @@ async function buildView() {
   const defs = path.stages || [];
   const completedKeys = defs.filter((s) => progressMap[s.key]?.status === 'complete').map((s) => s.key);
   const nextOpen = defs.find((s) => !completedKeys.includes(s.key))?.key ?? null;
-  const stateOf = (k) => (completedKeys.includes(k) ? 'complete' : (k === nextOpen ? 'active' : 'locked'));
+  // Admin lock/unlock overrides take precedence over the natural sequential gate.
+  const stateOf = (k) => {
+    if (completedKeys.includes(k)) return 'complete';
+    if (lockMap[k] === 'locked') return 'locked';
+    if (lockMap[k] === 'unlocked') return 'active';
+    return k === nextOpen ? 'active' : 'locked';
+  };
   const total = defs.length, completed = completedKeys.length;
   const progressPct = total ? Math.round((100 * completed) / total) : 0;
 
@@ -95,8 +111,7 @@ function showInactive(title, body) {
 }
 
 async function loadPath() {
-  const ps = await getDocs(collection(db, 'members', currentUid, 'progress'));
-  progressMap = {}; ps.forEach((d) => { progressMap[d.id] = d.data(); });
+  await refetch();
   renderPath(await buildView());
 }
 
@@ -304,8 +319,7 @@ async function submitStage(stageKey, url) {
   if (!deliverableUrl) { toast('Enter a valid URL'); return; }
   try {
     await setDoc(doc(db, 'members', currentUid, 'progress', stageKey), { status: 'complete', deliverableUrl, completedAt: serverTimestamp() });
-    const ps = await getDocs(collection(db, 'members', currentUid, 'progress'));
-    progressMap = {}; ps.forEach((d) => { progressMap[d.id] = d.data(); });
+    await refetch();
     const v = await buildView();
     if (v.activeStage) history.replaceState(null, '', '#stage=' + encodeURIComponent(v.activeStage.stageKey));
     else history.replaceState(null, '', location.pathname);

@@ -3,7 +3,7 @@
 // Privileged MUTATIONS have no hosted endpoint on Spark, so the buttons render the exact
 // admin-cli command to copy and run (the admin-cli holds AdminCreateUser / setCustomUserClaims).
 import '../ui/theme.css';
-import { collection, query, where, orderBy, limit, getDocs, getCountFromServer } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, getDocs, getDoc, getCountFromServer, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { signOut, getIdTokenResult } from 'firebase/auth';
 import { db, auth } from '../firebase.js';
 import { requestSignInLink, completeSignInIfPresent, onAuthStateChanged } from '../lib/auth.js';
@@ -15,7 +15,7 @@ const toast = (m) => { const t = $('toast'); t.textContent = m; t.classList.add(
 const fmtDate = (ms) => (ms ? new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—');
 const stateTxt = (s) => (s === 'complete' ? 'Complete' : s === 'active' ? 'In progress' : 'Locked');
 
-const STATUSES = [['SUBMITTED', 'Submitted'], ['GRANTED', 'Granted'], ['REJECTED', 'Rejected']];
+const STATUSES = [['SUBMITTED', 'Submitted'], ['INTERVIEW_SCHEDULED', 'Interview'], ['GRANTED', 'Granted'], ['REJECTED', 'Rejected']];
 let activeStatus = 'SUBMITTED';
 
 // ---------- auth ----------
@@ -79,21 +79,53 @@ async function loadQueue() {
 function cmdBox(cmd) { return `<div class="cmd"><code>${esc(cmd)}</code><button type="button" data-copy="${esc(cmd)}">Copy</button></div>`; }
 function wireCmds() { document.querySelectorAll('[data-copy]').forEach((b) => { b.onclick = () => navigator.clipboard?.writeText(b.dataset.copy).then(() => toast('Command copied')).catch(() => toast('Copy failed')); }); }
 
+const reopen = async (id) => { try { const d = await getDoc(doc(db, 'applications', id)); if (d.exists()) openApp({ id, ...d.data() }); } catch { /* ignore */ } };
+
 function openApp(a) {
   const f = (k, v) => `<div class="field"><span>${k}</span><span>${esc(v ?? '—')}</span></div>`;
-  let cmds = '';
-  if (a.status === 'SUBMITTED') {
-    cmds = `<div class="cmd-note">Grant access (run in <b>v3/backend</b> with your service-account key):</div>`
-      + cmdBox(`node admin-cli/grant.mjs ${a.id}${a.accessChoice === 'supporter' ? ' --basis supporter' : ''}`);
+  const ivInfo = a.interviewAt ? f('Interview', new Date(a.interviewAt).toLocaleString()) : '';
+  const vetting = (a.status === 'SUBMITTED' || a.status === 'INTERVIEW_SCHEDULED');
+  let block = '';
+  if (vetting) {
+    block = `
+      <div class="card" style="margin-top:14px;padding:18px">
+        <h2 style="font-size:.95rem;margin:0 0 6px">Interview</h2>
+        <label for="ivAt">Date &amp; time</label>
+        <input id="ivAt" type="datetime-local" />
+        <label for="ivNote">Note (optional)</label>
+        <input id="ivNote" type="text" placeholder="Cal.com / Zoom link, interviewer…" value="${esc(a.interviewNote || '')}" />
+        <div class="actions">
+          <button class="btn" id="ivSchedule">${a.status === 'INTERVIEW_SCHEDULED' ? 'Update interview' : 'Schedule interview'}</button>
+          <button class="btn bad" id="ivReject">Reject</button>
+        </div>
+        <div class="cmd-note">After the interview, grant access from the admin-cli (account-minting stays server-side):</div>
+        ${cmdBox(`node admin-cli/grant.mjs ${a.id}${a.accessChoice === 'supporter' ? ' --basis supporter' : ''}`)}
+      </div>`;
   } else if (a.status === 'GRANTED') {
-    cmds = `<div class="cmd-note">Granted → member <b>${esc(a.grantedUid || '')}</b>. Manage in the Members table below.</div>`;
+    block = `<div class="cmd-note">Granted → member <b>${esc(a.grantedUid || '')}</b>. Manage in the Members table below.</div>`;
+  } else if (a.status === 'REJECTED') {
+    block = `<div class="cmd-note">Application rejected${a.rejectedReason ? ': ' + esc(a.rejectedReason) : ''}.</div>`;
   }
   $('detail').innerHTML = `
     <div class="field"><span>Applicant</span><span><b>${esc(a.name)}</b></span></div>
-    ${f('Email', a.email)} ${f('Status', a.status)} ${f('Access choice', a.accessChoice)} ${f('Age bracket', a.ageBracket)} ${f('Guardian consent', a.guardianConsent ? 'yes' : '—')} ${f('Application ID', a.id)}
-    ${cmds}
+    ${f('Email', a.email)} ${f('Status', a.status)} ${f('Access choice', a.accessChoice)} ${f('Age bracket', a.ageBracket)} ${f('Guardian consent', a.guardianConsent ? 'yes' : '—')} ${ivInfo} ${f('Application ID', a.id)}
+    ${block}
     <div class="timeline" id="timeline"></div>`;
   wireCmds();
+  const sched = $('ivSchedule');
+  if (sched) sched.onclick = async () => {
+    const at = $('ivAt').value, note = $('ivNote').value.trim();
+    const patch = { status: 'INTERVIEW_SCHEDULED' };
+    if (at) patch.interviewAt = new Date(at).getTime();
+    if (note) patch.interviewNote = note;
+    try { await updateDoc(doc(db, 'applications', a.id), patch); toast('Interview scheduled'); await refresh(); reopen(a.id); }
+    catch (e) { toast('Error: ' + (e.code || e.message)); }
+  };
+  const rej = $('ivReject');
+  if (rej) rej.onclick = async () => {
+    try { await updateDoc(doc(db, 'applications', a.id), { status: 'REJECTED', rejectedReason: 'not_eligible' }); toast('Application rejected'); await refresh(); clearDetail(); }
+    catch (e) { toast('Error: ' + (e.code || e.message)); }
+  };
   loadTimeline(a.id, a.grantedUid);
 }
 
@@ -136,22 +168,46 @@ function showMemberCmd(act, uid) {
   wireCmds();
 }
 
-function openMemberProgress(row) {
+async function openMemberProgress(row) {
   const { m, defs, completed, comp, total, pct } = row;
+  const ls = await getDocs(collection(db, 'members', m.uid, 'stageLocks')).catch(() => ({ forEach() {} }));
+  const ov = {}; ls.forEach((d) => { ov[d.id] = d.data().state; });
   const nextOpen = defs.find((s) => !completed.has(s.key))?.key ?? null;
-  const stateOf = (k) => (completed.has(k) ? 'complete' : (k === nextOpen ? 'active' : 'locked'));
+  const stateOf = (k) => (completed.has(k) ? 'complete' : ov[k] === 'locked' ? 'locked' : ov[k] === 'unlocked' ? 'active' : (k === nextOpen ? 'active' : 'locked'));
+  const chip = (s) => {
+    const st = stateOf(s.key), override = ov[s.key];
+    let ctrl = '';
+    if (st !== 'complete') {
+      const primary = override === 'locked' ? ['unlock', 'Unlock'] : override === 'unlocked' ? ['lock', 'Lock'] : st === 'locked' ? ['unlock', 'Unlock'] : ['lock', 'Lock'];
+      const autoBtn = override ? `<button class="mini-action" data-stage="${esc(s.key)}" data-act="auto">Auto</button>` : '';
+      ctrl = `<button class="mini-action" data-stage="${esc(s.key)}" data-act="${primary[0]}">${primary[1]}</button>${autoBtn}`;
+    }
+    const lbl = override === 'unlocked' ? 'Unlocked' : override === 'locked' ? 'Locked' : stateTxt(st);
+    return `<span class="stage-chip ${st}" title="${esc(s.title || '')}">${esc(s.label || s.key)} · ${lbl} ${ctrl}</span>`;
+  };
   let grid;
   if (m.path === 'roadmap') {
-    grid = defs.map((s) => `<div class="stage-block"><h4>${esc(s.label)}: ${esc(s.title)}</h4><div class="stage-chips"><span class="stage-chip ${stateOf(s.key)}">${stateTxt(stateOf(s.key))}</span></div></div>`).join('');
+    grid = defs.map((s) => `<div class="stage-block"><h4>${esc(s.label)}: ${esc(s.title)}</h4><div class="stage-chips">${chip(s)}</div></div>`).join('');
   } else {
     grid = [1, 2, 3, 4].map((w) => {
       const days = defs.filter((s) => s.week === w);
       const wd = days.filter((s) => completed.has(s.key)).length;
-      return `<div class="stage-block"><h4>Week ${w} · ${wd}/${days.length}</h4><div class="stage-chips">${days.map((s) => `<span class="stage-chip ${stateOf(s.key)}" title="${esc(s.title)}">${esc(s.label)} · ${stateTxt(stateOf(s.key))}</span>`).join('')}</div></div>`;
+      return `<div class="stage-block"><h4>Week ${w} · ${wd}/${days.length}</h4><div class="stage-chips">${days.map(chip).join('')}</div></div>`;
     }).join('');
   }
   const cur = m.path === 'roadmap' ? 'Full Roadmap' : '4-Week Fast Track';
-  $('memberProgress').innerHTML = `<h3>${esc(m.name || m.email)}</h3><p>${esc(cur)} · ${comp}/${total} complete · ${pct}%</p>${progressMini(pct, comp, total)}<div class="stage-grid">${grid}</div>`;
+  $('memberProgress').innerHTML = `<h3>${esc(m.name || m.email)}</h3><p>${esc(cur)} · ${comp}/${total} complete · ${pct}% · use a stage's Lock/Unlock to override the student's gate</p>${progressMini(pct, comp, total)}<div class="stage-grid">${grid}</div>`;
+  $('memberProgress').querySelectorAll('.mini-action').forEach((b) => { b.onclick = () => setStageLock(m.uid, b.dataset.stage, b.dataset.act, row); });
+}
+
+async function setStageLock(uid, stageKey, act, row) {
+  try {
+    const ref = doc(db, 'members', uid, 'stageLocks', stageKey);
+    if (act === 'auto') await deleteDoc(ref);
+    else await setDoc(ref, { state: act === 'lock' ? 'locked' : 'unlocked' });
+    toast(act === 'auto' ? 'Gate restored to automatic' : `Stage ${act}ed`);
+    await openMemberProgress(row);
+  } catch (e) { toast('Error: ' + (e.code || e.message)); }
 }
 
 // ---------- wiring + boot ----------

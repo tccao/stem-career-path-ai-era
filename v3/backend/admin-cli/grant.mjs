@@ -12,7 +12,9 @@ const appRef = db.collection('applications').doc(applicationId);
 const appSnap = await appRef.get();
 if (!appSnap.exists) die(`application ${applicationId} not found`);
 const a = appSnap.data();
-if (a.status !== STATE.SUBMITTED) die(`application is ${a.status}, expected SUBMITTED (idempotency)`);
+if (![STATE.SUBMITTED, STATE.INTERVIEW_SCHEDULED].includes(a.status)) {
+  die(`application is ${a.status}, expected SUBMITTED or INTERVIEW_SCHEDULED (idempotency)`);
+}
 
 const accessEnds = Date.now() + days * DAY_MS;
 
