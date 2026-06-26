@@ -32,7 +32,8 @@ privileged ops,backend/admin-cli/ (firebase-admin): make-admin · grant [--path 
 auth,email-link (passwordless, client SDK); anonymous auth for /apply; roles via PERSISTED custom claims (role + accessBasis + accessEnds)
 data,Firestore: applications(+interviewAt/Note/rejectedReason) · members(/progress · /stageLocks) · counters · donations · auditLog. Curriculum is a static bundle (public/curriculum.json), not Firestore
 payments,Zeffy hosted (landing Donate links out); supporter grant via admin-cli after verify (fail-closed). Admin Donations "Refresh" = syncDonations (Blaze) — keeps the Zeffy key server-side
-deployed functions,backend/sync-fn/ (codebase "sync"; nodejs22; ALL admin-claim gated + scale-to-zero): syncDonations (Zeffy payments+campaigns sync) · getInterview (reads the applicant's Cal.com slot — Cal.com key server-side) · grant (createUser + claims + member doc) · extendAccess · revokeAccess. Own codebase so `firebase deploy --only functions` skips the functions/ reference design
+deployed functions,backend/sync-fn/ (codebase "sync"; nodejs22; scale-to-zero). STAFF-gated (admin or owner): syncDonations · getInterview (Cal.com slot; key server-side) · grant (createUser + claims + member) · extendAccess · revokeAccess. OWNER-gated: setRole (manage admin/owner roster) · disableAccount/enableAccount (block/restore sign-in; admins may target students only, owner anyone but an owner) · setLockdown (global kill-switch). Own codebase so `firebase deploy --only functions` skips the functions/ reference design
+roles,owner > admin > student (custom claim role). Owner bootstrapped LOCAL-ONLY via admin-cli/make-owner.mjs (root of trust). Admin sign-in to admin.html works for admin OR owner; owner additionally sees the Owner tab
 NOT used,backend/functions/ (full Blaze-reference design — NOT deployed) · Cloud Storage
 ```
 
@@ -80,8 +81,10 @@ v3/
 
 ```csv
 invariant,why / how
-account-minting + claims only via Admin SDK — hosted ADMIN-GATED Cloud Functions or local admin-cli; NEVER the browser client,grant/extendAccess/revokeAccess are onCall fns that fail-closed unless request.auth.token.role=='admin' (verified); the browser client can still only set INTERVIEW_SCHEDULED/REJECTED + stageLocks via Rules — it cannot createUser or set role claims. (This intentionally relaxes the earlier 'no hosted account-minting' rule now that we're on Blaze; bounded by the admin gate + idempotent writes.)
-Rules deny client writes to protected collections,members/counters/donations/auditLog are admin-SDK-write-only; auditLog append-only
+account-minting + claims only via Admin SDK — hosted STAFF-gated Cloud Functions or local admin-cli; NEVER the browser client,grant/extendAccess/revokeAccess fail-closed unless verified role in ['admin','owner']; the browser client can still only set INTERVIEW_SCHEDULED/REJECTED + stageLocks via Rules — it cannot createUser or set role claims. (Relaxes the earlier 'no hosted account-minting' rule now that we're on Blaze; bounded by the gate + idempotent writes.)
+owner is the top tier and admins can never override it,setRole/setLockdown are OWNER-gated (fail-closed unless role=='owner') so an admin cannot promote/demote anyone, lift lockdown, or disable an admin/owner; member ops refuse staff targets (assertTargetNotStaff); the first owner is minted LOCAL-ONLY via make-owner.mjs; nobody can change their own role/disable themselves
+global lockdown kill-switch is owner-only,setLockdown writes system/lockdown; when enabled every NON-owner privileged fn (assertNotLockedDown) AND client write (Rules notLocked()) is denied until the owner lifts it; owner stays exempt to recover
+Rules deny client writes to protected collections,members/counters/donations/campaigns/auditLog are admin-SDK-write-only; auditLog append-only; system/{id} owner-write + staff-read
 apply is create-only behind the age/consent gate,Rules reject under-13 and 13–17 without guardianConsent, and bad shapes (enforced again client-side in landing.js)
 progress write needs ACTIVE+in-window+own-doc,student self-attests only their own stage while role=student & accessEnds>now
 service-account key NEVER committed or pasted,v3/.gitignore blocks *adminsdk*.json / *-key.json / *service-account*.json; the key lives in v3/ but is ignored

@@ -315,13 +315,23 @@ never touches the unrelated `functions/` reference design. They mirror the local
 which remain an equivalent fallback.
 
 ```csv
-function,job,secret
-syncDonations,Zeffy payments + campaigns → Firestore (Donations Refresh); persists campaigns/{id} so the campaign name shows with 0 payments,ZEFFY_API_KEY
-getInterview,reads the applicant's self-booked Cal.com slot for the interview modal,CAL_API_KEY
-grant,account-minting: createUser + role/window claims + member doc (Approve & grant),—
-extendAccess,push out a member's access window + claim (no re-login),—
-revokeAccess,end a member + expire claim + revoke refresh tokens,—
+function,gate,job,secret
+syncDonations,staff,Zeffy payments + campaigns → Firestore (Donations Refresh); persists campaigns/{id} so the name shows with 0 payments,ZEFFY_API_KEY
+getInterview,staff,reads the applicant's self-booked Cal.com slot for the interview modal,CAL_API_KEY
+grant,staff,account-minting: createUser + role/window claims + member doc (Approve & grant),—
+extendAccess,staff,push out a member's access window + claim (no re-login); refuses staff targets,—
+revokeAccess,staff,end a member + expire claim + revoke refresh tokens; refuses staff targets,—
+setRole,owner,manage the admin/owner roster (admin|owner|none); cannot target self,—
+disableAccount,staff,block sign-in + kill sessions of a compromised account (admin→students only; owner→anyone but an owner),—
+enableAccount,staff,re-enable a disabled account (same targeting rules),—
+setLockdown,owner,global kill-switch: writes system/lockdown; blocks every non-owner fn + client write until lifted,—
 ```
+
+Role tiers: **owner > admin > student** (custom claim `role`). "staff" = admin or owner; owner-gated
+functions fail closed unless `role=='owner'`, so an admin can never promote/demote anyone, lift a
+lockdown, or disable an admin/owner. The first owner is minted **local-only** via `admin-cli/make-owner.mjs`
+(a root of trust hosted code can't forge). When `system/lockdown.enabled`, both the functions
+(`assertNotLockedDown`) and Firestore Rules (`notLocked()`) deny all non-owner activity.
 
 ```csv
 constraint,detail

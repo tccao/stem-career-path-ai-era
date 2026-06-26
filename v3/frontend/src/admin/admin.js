@@ -20,7 +20,8 @@ const stateTxt = (s) => (s === 'complete' ? 'Complete' : s === 'active' ? 'In pr
 
 const STATUSES = [['SUBMITTED', 'Submitted'], ['INTERVIEW_SCHEDULED', 'Interview'], ['GRANTED', 'Granted'], ['REJECTED', 'Rejected']];
 let activeStatus = 'SUBMITTED';
-let view = 'applications'; // 'applications' | 'donations'
+let view = 'applications'; // 'applications' | 'donations' | 'owner'
+let myRole = null; // 'admin' | 'owner'
 
 // ---------- auth ----------
 async function login() {
@@ -41,26 +42,30 @@ function showLogin(msg) {
 
 async function showApp(user) {
   const tok = await getIdTokenResult(user, true).catch(() => null);
-  if (tok?.claims.role !== 'admin') {
+  const role = tok?.claims.role;
+  if (role !== 'admin' && role !== 'owner') {
     await signOut(auth).catch(() => {});
-    return showLogin('That account is not an admin. Ask an admin to run admin-cli/make-admin.mjs for your email.');
+    return showLogin('That account is not staff. Ask an owner/admin to grant your email an admin role.');
   }
+  myRole = role;
   $('login').classList.add('hidden'); ['app', 'session', 'topbar'].forEach((i) => $(i).classList.remove('hidden'));
-  $('who').textContent = (user.email || 'admin') + ' · admin';
+  $('who').textContent = (user.email || 'staff') + ' · ' + role;
   ensureSettingsButton();
-  renderTabs(); refresh();
+  renderTabs(); refresh(); refreshLockdownBanner();
 }
 
 // ---------- tabs + refresh ----------
 function renderTabs() {
   const tabs = [...STATUSES, ['__donations__', 'Donations']];
+  if (myRole === 'owner') tabs.push(['__owner__', 'Owner']);
   $('tabs').innerHTML = tabs.map(([s, l]) => {
-    const active = s === '__donations__' ? view === 'donations' : (view === 'applications' && s === activeStatus);
-    return `<div class="tab ${active ? 'active' : ''}" data-s="${s}">${l}</div>`;
+    const active = s === '__donations__' ? view === 'donations' : s === '__owner__' ? view === 'owner' : (view === 'applications' && s === activeStatus);
+    return `<div class="tab ${active ? 'active' : ''} ${s === '__owner__' ? 'tab-owner' : ''}" data-s="${s}">${l}</div>`;
   }).join('');
   $('tabs').querySelectorAll('.tab').forEach((t) => {
     t.onclick = () => {
       if (t.dataset.s === '__donations__') { view = 'donations'; renderTabs(); showDonations(); }
+      else if (t.dataset.s === '__owner__') { view = 'owner'; renderTabs(); showOwner(); }
       else { view = 'applications'; activeStatus = t.dataset.s; renderTabs(); showApplications(); clearDetail(); loadQueue(); }
     };
   });
@@ -199,10 +204,11 @@ async function loadMembers() {
     const next = defs.find((s) => !completed.has(s.key));
     return { m, completed, comp, total, pct, defs, current: next ? `${next.label}: ${next.title}` : 'Path complete' };
   }));
-  $('members').innerHTML = `<table><thead><tr><th>Name</th><th>Email</th><th>Basis</th><th>Path</th><th>Progress</th><th>Current</th><th>Status</th><th>Access ends</th><th></th></tr></thead><tbody>${rows.map(({ m, comp, total, pct, current }) => `<tr class="member-row" data-uid="${esc(m.uid)}"><td>${esc(m.name || '—')}</td><td>${esc(m.email)}</td><td>${esc(m.accessBasis || '—')}</td><td>${esc(m.path === 'roadmap' ? 'Roadmap' : 'Fast track')}</td><td>${progressMini(pct, comp, total)}</td><td><div class="current-stage">${esc(current)}</div></td><td><span class="pill ${esc(m.status)}">${esc(m.status)}</span></td><td>${esc(fmtDate(m.accessEnds))}</td><td>${m.status === 'ACTIVE' ? `<button class="btn sec" data-ext="${esc(m.uid)}">Extend</button> <button class="btn bad" data-rev="${esc(m.uid)}">Revoke</button>` : ''}</td></tr>`).join('')}</tbody></table>`;
+  $('members').innerHTML = `<table><thead><tr><th>Name</th><th>Email</th><th>Basis</th><th>Path</th><th>Progress</th><th>Current</th><th>Status</th><th>Access ends</th><th></th></tr></thead><tbody>${rows.map(({ m, comp, total, pct, current }) => `<tr class="member-row" data-uid="${esc(m.uid)}"><td>${esc(m.name || '—')}</td><td>${esc(m.email)}</td><td>${esc(m.accessBasis || '—')}</td><td>${esc(m.path === 'roadmap' ? 'Roadmap' : 'Fast track')}</td><td>${progressMini(pct, comp, total)}</td><td><div class="current-stage">${esc(current)}</div></td><td><span class="pill ${esc(m.status)}">${esc(m.status)}</span></td><td>${esc(fmtDate(m.accessEnds))}</td><td>${m.status === 'ACTIVE' ? `<button class="btn sec" data-ext="${esc(m.uid)}">Extend</button> <button class="btn bad" data-rev="${esc(m.uid)}">Revoke</button> ` : ''}<button class="btn bad" data-dis="${esc(m.uid)}">Disable</button></td></tr>`).join('')}</tbody></table>`;
   $('members').querySelectorAll('.member-row').forEach((r) => { r.onclick = () => openMemberProgress(rows.find((x) => x.m.uid === r.dataset.uid)); });
   $('members').querySelectorAll('button[data-ext]').forEach((b) => { b.onclick = (e) => { e.stopPropagation(); showMemberAction('extend', b.dataset.ext); }; });
   $('members').querySelectorAll('button[data-rev]').forEach((b) => { b.onclick = (e) => { e.stopPropagation(); showMemberAction('revoke', b.dataset.rev); }; });
+  $('members').querySelectorAll('button[data-dis]').forEach((b) => { b.onclick = (e) => { e.stopPropagation(); disableMember(b.dataset.dis); }; });
 }
 const progressMini = (pct, completed, total) => `<div class="progress-mini"><div class="bar"><span style="width:${pct}%"></span></div><div class="txt">${pct}% · ${completed}/${total}</div></div>`;
 
@@ -289,6 +295,7 @@ function showApplications() {
   document.querySelector('.cols').classList.remove('hidden');
   document.querySelector('.members-wrap').classList.remove('hidden');
   $('donationsView')?.classList.add('hidden');
+  $('ownerView')?.classList.add('hidden');
 }
 function ensureDonationsView() {
   if ($('donationsView')) return;
@@ -300,9 +307,101 @@ function showDonations() {
   $('kpis').classList.add('hidden');
   document.querySelector('.cols').classList.add('hidden');
   document.querySelector('.members-wrap').classList.add('hidden');
+  $('ownerView')?.classList.add('hidden');
   ensureDonationsView();
   $('donationsView').classList.remove('hidden');
   renderDonationsView();
+}
+
+// ---------- owner controls (lockdown · staff roles · disable/enable) ----------
+async function setLockdown(enabled, reason = '') {
+  try {
+    await call('setLockdown', { enabled, reason });
+    toast(enabled ? 'Lockdown ENABLED' : 'Lockdown lifted');
+    await refreshLockdownBanner();
+    if (view === 'owner') renderOwnerView();
+  } catch (e) { toast('Lockdown failed: ' + (e.code || e.message)); }
+}
+async function refreshLockdownBanner() {
+  let snap; try { snap = await getDoc(doc(db, 'system', 'lockdown')); } catch { return; }
+  const on = snap?.exists() && snap.data().enabled === true;
+  let bar = $('lockdownBar');
+  if (!on) { bar?.remove(); return; }
+  if (!bar) { bar = document.createElement('div'); bar.id = 'lockdownBar'; bar.className = 'lockdown-bar'; $('app').prepend(bar); }
+  const reason = snap.data().reason || '';
+  bar.innerHTML = `<b>⛔ SYSTEM LOCKDOWN</b> — non-owner access is blocked.${reason ? ' ' + esc(reason) : ''}${myRole === 'owner' ? ' <button class="btn-mini" id="liftLock">Lift lockdown</button>' : ''}`;
+  if (myRole === 'owner') $('liftLock').onclick = () => setLockdown(false);
+}
+function ensureOwnerView() {
+  if ($('ownerView')) return;
+  const d = document.createElement('div'); d.id = 'ownerView';
+  document.querySelector('.members-wrap').after(d);
+}
+function showOwner() {
+  $('kpis').classList.add('hidden');
+  document.querySelector('.cols').classList.add('hidden');
+  document.querySelector('.members-wrap').classList.add('hidden');
+  $('donationsView')?.classList.add('hidden');
+  ensureOwnerView();
+  $('ownerView').classList.remove('hidden');
+  renderOwnerView();
+}
+async function renderOwnerView() {
+  const host = $('ownerView');
+  let locked = false, reason = '';
+  try { const s = await getDoc(doc(db, 'system', 'lockdown')); if (s.exists()) { locked = s.data().enabled === true; reason = s.data().reason || ''; } } catch { /* default unlocked */ }
+  host.innerHTML = `
+    <div class="owner-grid">
+      <div class="owner-card">
+        <h3>System lockdown</h3>
+        <p>Block all non-owner access (students + admins) across the app and the Cloud Functions. Use for a security incident; lift it when safe. The owner is never locked out.</p>
+        <div class="owner-status ${locked ? 'on' : 'off'}">${locked ? 'LOCKDOWN ACTIVE' : 'Normal operation'}</div>
+        <label for="lockReason">Reason (optional)</label>
+        <input id="lockReason" type="text" value="${esc(reason)}" placeholder="e.g. investigating a compromised account" />
+        <div class="actions" style="margin-top:12px">${locked ? '<button class="btn" id="lockOff">Lift lockdown</button>' : '<button class="btn bad" id="lockOn">Enable lockdown</button>'}</div>
+      </div>
+      <div class="owner-card">
+        <h3>Manage staff roles</h3>
+        <p>Only the owner can change roles — admins cannot promote, demote, or override one another. You cannot change your own role.</p>
+        <label for="roleEmail">Account email</label>
+        <input id="roleEmail" type="email" placeholder="person@example.com" />
+        <label for="roleSel">Role</label>
+        <select id="roleSel"><option value="admin">Admin</option><option value="owner">Owner</option><option value="none">Remove staff role</option></select>
+        <div class="actions" style="margin-top:12px"><button class="btn" id="roleApply">Apply role</button></div>
+      </div>
+      <div class="owner-card">
+        <h3>Disable / re-enable account</h3>
+        <p>Disable a compromised account: blocks sign-in and kills active sessions immediately. Works on admins too (an owner cannot be disabled here).</p>
+        <label for="disEmail">Account email</label>
+        <input id="disEmail" type="email" placeholder="person@example.com" />
+        <div class="actions" style="margin-top:12px"><button class="btn bad" id="disBtn">Disable</button> <button class="btn sec" id="enBtn">Re-enable</button></div>
+      </div>
+    </div>`;
+  if ($('lockOn')) $('lockOn').onclick = () => setLockdown(true, $('lockReason').value.trim());
+  if ($('lockOff')) $('lockOff').onclick = () => setLockdown(false, $('lockReason').value.trim());
+  $('roleApply').onclick = async () => {
+    const email = $('roleEmail').value.trim(); const role = $('roleSel').value;
+    if (!email) return toast('Enter an email');
+    if (!confirm(`Set ${email} role to "${role}"?`)) return;
+    try { const r = await call('setRole', { email, role }); toast(`${r.email || email}: ${r.role}`); }
+    catch (e) { toast('Role change failed: ' + (e.code || e.message)); }
+  };
+  $('disBtn').onclick = async () => {
+    const email = $('disEmail').value.trim(); if (!email) return toast('Enter an email');
+    if (!confirm(`Disable ${email}? They are signed out immediately.`)) return;
+    try { await call('disableAccount', { email }); toast('Account disabled'); await loadMembers(); }
+    catch (e) { toast('Disable failed: ' + (e.code || e.message)); }
+  };
+  $('enBtn').onclick = async () => {
+    const email = $('disEmail').value.trim(); if (!email) return toast('Enter an email');
+    try { await call('enableAccount', { email }); toast('Account re-enabled'); await loadMembers(); }
+    catch (e) { toast('Enable failed: ' + (e.code || e.message)); }
+  };
+}
+async function disableMember(uid) {
+  if (!confirm('Disable this member? They are signed out immediately and cannot sign back in until re-enabled.')) return;
+  try { await call('disableAccount', { uid }); toast('Member disabled'); await loadMembers(); }
+  catch (e) { toast('Disable failed: ' + (e.code || e.message)); }
 }
 async function refreshDonations(btn) {
   const orig = btn.textContent; btn.disabled = true; btn.textContent = 'Syncing…';

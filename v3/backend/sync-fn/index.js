@@ -28,8 +28,35 @@ const STATE = Object.freeze({
   GRANTED: 'GRANTED', ACTIVE: 'ACTIVE', ENDED: 'ENDED', REJECTED: 'REJECTED',
 });
 
-function assertAdmin(req) {
-  if (req.auth?.token?.role !== 'admin') throw new HttpsError('permission-denied', 'admin only');
+// Role tiers: owner > admin > student. "staff" = admin or owner.
+const roleOf = (req) => req.auth?.token?.role;
+function assertStaff(req) {
+  const r = roleOf(req);
+  if (r !== 'admin' && r !== 'owner') throw new HttpsError('permission-denied', 'staff only');
+}
+function assertOwner(req) {
+  if (roleOf(req) !== 'owner') throw new HttpsError('permission-denied', 'owner only');
+}
+// Global kill-switch: when system/lockdown.enabled, every non-owner privileged call is refused.
+// The owner is exempt so they can still investigate + lift the lockdown.
+async function assertNotLockedDown(req) {
+  if (roleOf(req) === 'owner') return;
+  const d = await db.doc('system/lockdown').get();
+  if (d.exists && d.get('enabled') === true) {
+    throw new HttpsError('unavailable', 'The system is in lockdown. Contact the owner.');
+  }
+}
+// Resolve a target user by uid or email.
+async function resolveUser(data) {
+  if (data?.uid) return auth.getUser(String(data.uid));
+  if (data?.email) return auth.getUserByEmail(String(data.email).trim());
+  throw new HttpsError('invalid-argument', 'uid or email required');
+}
+// Member ops (extend/revoke) must never touch an admin/owner account.
+async function assertTargetNotStaff(uid) {
+  const u = await auth.getUser(uid).catch(() => null);
+  const r = u?.customClaims?.role;
+  if (r === 'admin' || r === 'owner') throw new HttpsError('permission-denied', 'cannot modify a staff account via member ops');
 }
 async function audit(ev) {
   await db.collection('auditLog').add({ ...ev, ts: FieldValue.serverTimestamp() });
@@ -49,7 +76,7 @@ async function zeffy(path, key) {
 export const syncDonations = onCall(
   { secrets: [ZEFFY_API_KEY], region: REGION, memory: '256MiB', timeoutSeconds: 120, cors: true },
   async (req) => {
-    assertAdmin(req);
+    assertStaff(req); await assertNotLockedDown(req);
     const key = ZEFFY_API_KEY.value();
     if (!key) throw new HttpsError('failed-precondition', 'ZEFFY_API_KEY secret is not set');
 
@@ -137,7 +164,7 @@ async function calBookings(email, key) {
 export const getInterview = onCall(
   { secrets: [CAL_API_KEY], region: REGION, timeoutSeconds: 30, cors: true },
   async (req) => {
-    assertAdmin(req);
+    assertStaff(req); await assertNotLockedDown(req);
     const email = String(req.data?.email || '').trim();
     if (!email) throw new HttpsError('invalid-argument', 'email required');
     const key = CAL_API_KEY.value();
@@ -157,7 +184,7 @@ export const getInterview = onCall(
 // Mirrors admin-cli/grant.mjs. Idempotent: only from SUBMITTED/INTERVIEW_SCHEDULED.
 // ---------------------------------------------------------------------------
 export const grant = onCall({ region: REGION, timeoutSeconds: 60, cors: true }, async (req) => {
-  assertAdmin(req);
+  assertStaff(req); await assertNotLockedDown(req);
   const applicationId = String(req.data?.applicationId || '').trim();
   if (!applicationId) throw new HttpsError('invalid-argument', 'applicationId required');
   const days = Number(req.data?.days ?? 90);
@@ -191,10 +218,11 @@ export const grant = onCall({ region: REGION, timeoutSeconds: 60, cors: true }, 
 // extendAccess — push out the window (no revoke). Mirrors admin-cli/extend.mjs.
 // ---------------------------------------------------------------------------
 export const extendAccess = onCall({ region: REGION, timeoutSeconds: 30, cors: true }, async (req) => {
-  assertAdmin(req);
+  assertStaff(req); await assertNotLockedDown(req);
   const uid = String(req.data?.uid || '').trim();
   const days = Number(req.data?.days);
   if (!uid || !days) throw new HttpsError('invalid-argument', 'uid and days required');
+  await assertTargetNotStaff(uid);
 
   const ref = db.collection('members').doc(uid);
   const snap = await ref.get();
@@ -212,13 +240,79 @@ export const extendAccess = onCall({ region: REGION, timeoutSeconds: 30, cors: t
 // revokeAccess — intended lock-out. Mirrors admin-cli/revoke.mjs.
 // ---------------------------------------------------------------------------
 export const revokeAccess = onCall({ region: REGION, timeoutSeconds: 30, cors: true }, async (req) => {
-  assertAdmin(req);
+  assertStaff(req); await assertNotLockedDown(req);
   const uid = String(req.data?.uid || '').trim();
   if (!uid) throw new HttpsError('invalid-argument', 'uid required');
+  await assertTargetNotStaff(uid);
 
   await db.collection('members').doc(uid).update({ status: STATE.ENDED, endedReason: 'revoked' });
   await auth.setCustomUserClaims(uid, { role: 'student', accessEnds: Date.now() });
   await auth.revokeRefreshTokens(uid);
   await audit({ type: 'member.revoked', targetType: 'member', targetId: uid, toStatus: STATE.ENDED });
   return { uid };
+});
+
+// ===========================================================================
+// OWNER-ONLY functions. role=owner is the top tier (owner > admin > student).
+// These are how an admin roster is managed, compromised accounts are disabled,
+// and the system is locked down — and they fail closed unless the caller is owner,
+// so an admin can never escalate, demote a peer, or override the owner.
+// ===========================================================================
+
+// setRole — manage the admin/owner roster. Owner-only. role: 'admin' | 'owner' | 'none'.
+export const setRole = onCall({ region: REGION, timeoutSeconds: 30, cors: true }, async (req) => {
+  assertOwner(req);
+  const role = String(req.data?.role || '');
+  if (!['admin', 'owner', 'none'].includes(role)) throw new HttpsError('invalid-argument', "role must be 'admin', 'owner' or 'none'");
+  const u = await resolveUser(req.data).catch(() => { throw new HttpsError('not-found', 'user not found'); });
+  if (u.uid === req.auth.uid) throw new HttpsError('failed-precondition', 'you cannot change your own role');
+  await auth.setCustomUserClaims(u.uid, role === 'none' ? {} : { role });
+  await auth.revokeRefreshTokens(u.uid); // new role takes effect on next token
+  await audit({ type: 'role.set', targetType: 'account', targetId: u.uid, role, by: req.auth.uid });
+  return { uid: u.uid, email: u.email ?? null, role };
+});
+
+// disableAccount — block sign-in + kill tokens for a compromised account.
+// Owner may disable anyone (except an owner); an admin may disable students only.
+export const disableAccount = onCall({ region: REGION, timeoutSeconds: 30, cors: true }, async (req) => {
+  assertStaff(req); await assertNotLockedDown(req);
+  const caller = roleOf(req);
+  const u = await resolveUser(req.data).catch(() => { throw new HttpsError('not-found', 'user not found'); });
+  if (u.uid === req.auth.uid) throw new HttpsError('failed-precondition', 'you cannot disable your own account');
+  const targetRole = u.customClaims?.role || 'student';
+  if (targetRole === 'owner') throw new HttpsError('permission-denied', 'an owner account cannot be disabled here');
+  if (caller === 'admin' && targetRole === 'admin') throw new HttpsError('permission-denied', 'admins cannot disable an admin');
+
+  await auth.updateUser(u.uid, { disabled: true });
+  await auth.revokeRefreshTokens(u.uid);
+  const m = db.collection('members').doc(u.uid);
+  if ((await m.get()).exists) await m.update({ status: STATE.ENDED, endedReason: 'disabled' });
+  await audit({ type: 'account.disabled', targetType: 'account', targetId: u.uid, by: req.auth.uid });
+  return { uid: u.uid, email: u.email ?? null, disabled: true };
+});
+
+// enableAccount — re-enable a previously disabled account. Same targeting rules as disable.
+export const enableAccount = onCall({ region: REGION, timeoutSeconds: 30, cors: true }, async (req) => {
+  assertStaff(req); await assertNotLockedDown(req);
+  const caller = roleOf(req);
+  const u = await resolveUser(req.data).catch(() => { throw new HttpsError('not-found', 'user not found'); });
+  const targetRole = u.customClaims?.role || 'student';
+  if (caller === 'admin' && targetRole !== 'student') throw new HttpsError('permission-denied', 'admins can only re-enable students');
+
+  await auth.updateUser(u.uid, { disabled: false });
+  await audit({ type: 'account.enabled', targetType: 'account', targetId: u.uid, by: req.auth.uid });
+  return { uid: u.uid, email: u.email ?? null, disabled: false };
+});
+
+// setLockdown — the global kill-switch. Owner-only. When enabled, every non-owner privileged
+// call and client write is refused until the owner lifts it.
+export const setLockdown = onCall({ region: REGION, timeoutSeconds: 20, cors: true }, async (req) => {
+  assertOwner(req);
+  const enabled = req.data?.enabled === true;
+  const reason = String(req.data?.reason || '').slice(0, 280);
+  await db.doc('system/lockdown').set({
+    enabled, reason, by: req.auth.uid, at: FieldValue.serverTimestamp(),
+  });
+  await audit({ type: enabled ? 'system.lockdown.on' : 'system.lockdown.off', targetType: 'system', targetId: 'lockdown', by: req.auth.uid });
+  return { enabled, reason };
 });
