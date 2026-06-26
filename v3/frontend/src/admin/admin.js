@@ -231,10 +231,71 @@ async function setStageLock(uid, stageKey, act, row) {
 // ---------- site settings (Zeffy + Cal.com links) ----------
 function ensureSettingsButton() {
   if ($('settingsBtn')) return;
-  const b = document.createElement('button');
-  b.id = 'settingsBtn'; b.className = 'linkbtn'; b.textContent = 'Settings';
-  b.onclick = openSettings;
-  $('session').insertBefore(b, $('logoutBtn'));
+  const mk = (id, label, fn) => { const b = document.createElement('button'); b.id = id; b.className = 'linkbtn'; b.textContent = label; b.onclick = fn; return b; };
+  $('session').insertBefore(mk('donationsBtn', 'Donations', openDonations), $('logoutBtn'));
+  $('session').insertBefore(mk('settingsBtn', 'Settings', openSettings), $('logoutBtn'));
+}
+
+async function openDonations() {
+  $('donationsModal')?.remove();
+  let rows = [];
+  try { rows = (await getDocs(collection(db, 'donations'))).docs.map((d) => d.data()); }
+  catch (e) { return toast('Could not load donations: ' + (e.code || e.message)); }
+  const totalByEmail = {};
+  for (const r of rows) { const k = (r.email || '').toLowerCase(); totalByEmail[k] = (totalByEmail[k] || 0) + (r.amount || 0); }
+  rows.forEach((r) => { r._total = totalByEmail[(r.email || '').toLowerCase()] || 0; });
+  const money = (c) => `$${((c || 0) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const cols = [
+    ['email', 'Email', (r) => r.email || '—'],
+    ['amount', 'Amount', (r) => money(r.amount)],
+    ['_total', 'Total donation', (r) => money(r._total)],
+    ['created', 'Date / time', (r) => (r.created ? new Date(r.created).toLocaleString() : '—')],
+    ['confirmed', 'Confirmed', (r) => (r.status === 'succeeded' && r.created ? new Date(r.created).toLocaleDateString() : (r.status || '—'))],
+    ['campaignName', 'Campaign', (r) => r.campaignName || '—'],
+  ];
+  const fnOf = (k) => cols.find((c) => c[0] === k)[2];
+  const valOf = (r, k) => (k === 'confirmed' ? (r.status === 'succeeded' ? (r.created || 0) : 0)
+    : (k === 'created' || k === 'amount' || k === '_total') ? (r[k] || 0) : String(r[k] ?? '').toLowerCase());
+  const donors = new Set(rows.map((r) => (r.email || '').toLowerCase()).filter(Boolean)).size;
+  const campTotal = rows.filter((r) => r.status === 'succeeded').reduce((s, r) => s + (r.amount || 0), 0);
+  const campName = rows.find((r) => r.campaignName)?.campaignName || '—';
+
+  const modal = document.createElement('div');
+  modal.id = 'donationsModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(28,17,48,.45);display:grid;place-items:center;z-index:99;padding:20px';
+  modal.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-label="Donations" style="max-width:1040px;width:100%;max-height:88vh;overflow:auto;margin:0">
+      <div class="card-head"><h3>Donations</h3><button class="linkbtn" id="donClose">Close</button></div>
+      <div class="kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
+        <div class="kpi mint"><div class="n">${donors}</div><div class="l">Total donors</div></div>
+        <div class="kpi"><div class="n">${money(campTotal)}</div><div class="l">Total donations</div></div>
+        <div class="kpi teal"><div class="n" style="font-size:1.05rem;line-height:1.2">${esc(campName)}</div><div class="l">Campaign</div></div>
+      </div>
+      <div class="cmd-note">Synced from Zeffy by the admin-cli (the API key stays server-side). Refresh:</div>
+      ${cmdBox('node admin-cli/sync-donations.mjs')}
+      <div id="donTableWrap" style="margin-top:12px"></div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+  document.addEventListener('keydown', function esc2(e) { if (e.key === 'Escape') { modal.remove(); document.removeEventListener('keydown', esc2); } });
+  $('donClose').onclick = () => modal.remove();
+  wireCmds();
+
+  const state = { sortKey: 'created', sortDir: -1, filters: {} };
+  function renderBody() {
+    let view = rows.filter((r) => cols.every(([k]) => { const f = (state.filters[k] || '').toLowerCase(); return !f || String(fnOf(k)(r)).toLowerCase().includes(f); }));
+    view.sort((a, b) => { const A = valOf(a, state.sortKey), B = valOf(b, state.sortKey); return (A > B ? 1 : A < B ? -1 : 0) * state.sortDir; });
+    $('donBody').innerHTML = view.length
+      ? view.map((r) => `<tr>${cols.map(([, , fn]) => `<td>${esc(fn(r))}</td>`).join('')}</tr>`).join('')
+      : `<tr><td colspan="${cols.length}" class="empty">No donations${rows.length ? ' match the filters' : ' yet — run sync-donations.mjs'}.</td></tr>`;
+  }
+  function renderHead() {
+    const head = cols.map(([k, label]) => `<th data-sort="${k}" style="cursor:pointer;white-space:nowrap">${label}${state.sortKey === k ? (state.sortDir > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('');
+    const filt = cols.map(([k]) => `<th><input class="cfg-input donfilter" data-f="${k}" value="${esc(state.filters[k] || '')}" placeholder="filter" style="padding:4px 7px;font-size:.76rem;min-width:90px"></th>`).join('');
+    $('donTableWrap').innerHTML = `<table><thead><tr>${head}</tr><tr>${filt}</tr></thead><tbody id="donBody"></tbody></table>`;
+    $('donTableWrap').querySelectorAll('th[data-sort]').forEach((th) => { th.onclick = () => { const k = th.dataset.sort; if (state.sortKey === k) state.sortDir *= -1; else { state.sortKey = k; state.sortDir = 1; } renderHead(); renderBody(); }; });
+    $('donTableWrap').querySelectorAll('.donfilter').forEach((inp) => { inp.oninput = () => { state.filters[inp.dataset.f] = inp.value; renderBody(); }; });
+  }
+  renderHead(); renderBody();
 }
 
 async function openSettings() {
