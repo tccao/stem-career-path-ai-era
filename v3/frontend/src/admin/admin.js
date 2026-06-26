@@ -13,12 +13,12 @@ import { loadCurriculum } from '../lib/cache.js';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const toast = (m) => { const t = $('toast'); t.textContent = m; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); };
-// Admin-gated Cloud Functions (grant/extendAccess/revokeAccess/getInterview/syncDonations).
+// Staff/owner-gated Cloud Functions (grant/extendAccess/disableAccount/enableAccount/syncDonations + owner setRole/setLockdown/listAccounts).
 const call = (name, data) => httpsCallable(functions, name)(data).then((r) => r.data);
 const fmtDate = (ms) => (ms ? new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—');
 const stateTxt = (s) => (s === 'complete' ? 'Complete' : s === 'active' ? 'In progress' : 'Locked');
 
-const STATUSES = [['SUBMITTED', 'Submitted'], ['INTERVIEW_SCHEDULED', 'Interview'], ['GRANTED', 'Granted'], ['REJECTED', 'Rejected']];
+const STATUSES = [['SUBMITTED', 'Submitted'], ['GRANTED', 'Granted'], ['REJECTED', 'Rejected']];
 let activeStatus = 'SUBMITTED';
 let view = 'applications'; // 'applications' | 'donations' | 'owner'
 let myRole = null; // 'admin' | 'owner'
@@ -102,7 +102,6 @@ const reopen = async (id) => { try { const d = await getDoc(doc(db, 'application
 
 function openApp(a) {
   const f = (k, v) => `<div class="field"><span>${k}</span><span>${esc(v ?? '—')}</span></div>`;
-  const ivInfo = a.interviewAt ? f('Interview', new Date(a.interviewAt).toLocaleString()) : '';
   const vetting = (a.status === 'SUBMITTED' || a.status === 'INTERVIEW_SCHEDULED');
   let block = '';
   if (vetting && a.accessChoice === 'supporter') {
@@ -118,9 +117,9 @@ function openApp(a) {
   } else if (vetting) {
     block = `
       <div class="card" style="margin-top:14px;padding:18px">
-        <h2 style="font-size:.95rem;margin:0 0 6px">Interview</h2>
-        <div id="ivSlot" class="iv-slot iv-slot-loading">Checking Cal.com for a booked interview…</div>
-        <label for="ivPath" style="margin-top:14px">Learning path on grant</label>
+        <h2 style="font-size:.95rem;margin:0 0 6px">Review application</h2>
+        <p class="cmd-note">Approve grants access immediately, or reject. Pick the learning path the student starts on.</p>
+        <label for="ivPath" style="margin-top:6px">Learning path on grant</label>
         <select id="ivPath"><option value="fasttrack">4-Week Fast Track</option><option value="roadmap">Full Roadmap</option></select>
         <div class="actions" style="margin-top:14px">
           <button class="btn" id="ivApprove">Approve &amp; grant</button>
@@ -134,13 +133,10 @@ function openApp(a) {
   }
   $('detail').innerHTML = `
     <div class="field"><span>Applicant</span><span><b>${esc(a.name)}</b></span></div>
-    ${f('Email', a.email)} ${f('Status', a.status)} ${f('Access choice', a.accessChoice)} ${f('Age bracket', a.ageBracket)} ${f('Guardian consent', a.guardianConsent ? 'yes' : '—')} ${ivInfo} ${f('Application ID', a.id)}
+    ${f('Email', a.email)} ${f('Status', a.status)} ${f('Access choice', a.accessChoice)} ${f('Age bracket', a.ageBracket)} ${f('Guardian consent', a.guardianConsent ? 'yes' : '—')} ${f('Application ID', a.id)}
     ${block}
     <div class="timeline" id="timeline"></div>`;
   wireCmds();
-  // Pull the applicant's self-booked Cal.com slot (key stays server-side in getInterview).
-  const slot = $('ivSlot');
-  if (slot) loadInterviewSlot(a.email, slot);
   const approve = $('ivApprove');
   if (approve) approve.onclick = async () => {
     approve.disabled = true; const orig = approve.textContent; approve.textContent = 'Granting…';
@@ -163,19 +159,6 @@ function openApp(a) {
     $('confirmCopy').onclick = () => navigator.clipboard?.writeText(build()).then(() => toast('Command copied')).catch(() => toast('Copy failed'));
   }
   loadTimeline(a.id, a.grantedUid);
-}
-
-async function loadInterviewSlot(email, el) {
-  try {
-    const { booking } = await call('getInterview', { email });
-    if (!booking) { el.className = 'iv-slot iv-slot-none'; el.textContent = 'No interview booked on Cal.com yet.'; return; }
-    const when = booking.start ? new Date(booking.start).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—';
-    el.className = 'iv-slot iv-slot-ok';
-    el.innerHTML = `<span class="iv-dot"></span><div><div class="iv-when">${esc(when)}</div><div class="iv-meta">${esc(booking.title || 'Interview')} · ${esc(booking.status || 'scheduled')}</div></div>`;
-  } catch (e) {
-    el.className = 'iv-slot iv-slot-err';
-    el.textContent = 'Could not load Cal.com booking: ' + (e.code || e.message);
-  }
 }
 
 async function loadTimeline(appId, uid) {
@@ -204,38 +187,28 @@ async function loadMembers() {
     const next = defs.find((s) => !completed.has(s.key));
     return { m, completed, comp, total, pct, defs, current: next ? `${next.label}: ${next.title}` : 'Path complete' };
   }));
-  $('members').innerHTML = `<table><thead><tr><th>Name</th><th>Email</th><th>Basis</th><th>Path</th><th>Progress</th><th>Current</th><th>Status</th><th>Access ends</th><th></th></tr></thead><tbody>${rows.map(({ m, comp, total, pct, current }) => `<tr class="member-row" data-uid="${esc(m.uid)}"><td>${esc(m.name || '—')}</td><td>${esc(m.email)}</td><td>${esc(m.accessBasis || '—')}</td><td>${esc(m.path === 'roadmap' ? 'Roadmap' : 'Fast track')}</td><td>${progressMini(pct, comp, total)}</td><td><div class="current-stage">${esc(current)}</div></td><td><span class="pill ${esc(m.status)}">${esc(m.status)}</span></td><td>${esc(fmtDate(m.accessEnds))}</td><td>${m.status === 'ACTIVE' ? `<button class="btn sec" data-ext="${esc(m.uid)}">Extend</button> <button class="btn bad" data-rev="${esc(m.uid)}">Revoke</button> ` : ''}<button class="btn bad" data-dis="${esc(m.uid)}">Disable</button></td></tr>`).join('')}</tbody></table>`;
+  $('members').innerHTML = `<table><thead><tr><th>Name</th><th>Email</th><th>Basis</th><th>Path</th><th>Progress</th><th>Current</th><th>Status</th><th>Access ends</th><th></th></tr></thead><tbody>${rows.map(({ m, comp, total, pct, current }) => `<tr class="member-row" data-uid="${esc(m.uid)}"><td>${esc(m.name || '—')}</td><td>${esc(m.email)}</td><td>${esc(m.accessBasis || '—')}</td><td>${esc(m.path === 'roadmap' ? 'Roadmap' : 'Fast track')}</td><td>${progressMini(pct, comp, total)}</td><td><div class="current-stage">${esc(current)}</div></td><td><span class="pill ${esc(m.status)}">${esc(m.status)}</span></td><td>${esc(fmtDate(m.accessEnds))}</td><td>${m.status === 'ACTIVE' ? `<button class="btn sec" data-ext="${esc(m.uid)}">Extend</button> ` : ''}<button class="btn bad" data-dis="${esc(m.uid)}">Disable</button></td></tr>`).join('')}</tbody></table>`;
   $('members').querySelectorAll('.member-row').forEach((r) => { r.onclick = () => openMemberProgress(rows.find((x) => x.m.uid === r.dataset.uid)); });
-  $('members').querySelectorAll('button[data-ext]').forEach((b) => { b.onclick = (e) => { e.stopPropagation(); showMemberAction('extend', b.dataset.ext); }; });
-  $('members').querySelectorAll('button[data-rev]').forEach((b) => { b.onclick = (e) => { e.stopPropagation(); showMemberAction('revoke', b.dataset.rev); }; });
+  $('members').querySelectorAll('button[data-ext]').forEach((b) => { b.onclick = (e) => { e.stopPropagation(); showMemberExtend(b.dataset.ext); }; });
   $('members').querySelectorAll('button[data-dis]').forEach((b) => { b.onclick = (e) => { e.stopPropagation(); disableMember(b.dataset.dis); }; });
 }
 const progressMini = (pct, completed, total) => `<div class="progress-mini"><div class="bar"><span style="width:${pct}%"></span></div><div class="txt">${pct}% · ${completed}/${total}</div></div>`;
 
-// Privileged member ops run as admin-gated Cloud Functions (no code blocks).
-function showMemberAction(act, uid) {
+// Extend a member's access window (admin-gated Cloud Function). To remove access, use Disable —
+// it ends the session and blocks sign-in (Revoke was redundant with Disable, so it's gone).
+function showMemberExtend(uid) {
   const host = $('memberProgress');
-  if (act === 'extend') {
-    host.innerHTML = `<h3>Extend access</h3><p>Add days to this member's access window. The new window flows into their next ID-token refresh — no re-login needed.</p>
-      <label for="extDays">Days to add</label>
-      <input id="extDays" type="number" min="1" value="90" />
-      <div class="actions" style="margin-top:12px"><button class="btn" id="extApply">Extend</button></div>`;
-    $('extApply').onclick = async () => {
-      const days = Number($('extDays').value);
-      if (!days || days < 1) return toast('Enter a valid number of days');
-      const btn = $('extApply'); btn.disabled = true; btn.textContent = 'Extending…';
-      try { const r = await call('extendAccess', { uid, days }); toast(`Extended → ends ${fmtDate(r.accessEnds)}`); await loadMembers(); host.innerHTML = ''; }
-      catch (e) { toast('Extend failed: ' + (e.code || e.message)); btn.disabled = false; btn.textContent = 'Extend'; }
-    };
-  } else {
-    host.innerHTML = `<h3>Revoke access</h3><p>This immediately ends the member's access and signs them out (refresh tokens revoked). Use Extend later to restore.</p>
-      <div class="actions" style="margin-top:12px"><button class="btn bad" id="revApply">Revoke access</button></div>`;
-    $('revApply').onclick = async () => {
-      const btn = $('revApply'); btn.disabled = true; btn.textContent = 'Revoking…';
-      try { await call('revokeAccess', { uid }); toast('Access revoked'); await loadMembers(); host.innerHTML = ''; }
-      catch (e) { toast('Revoke failed: ' + (e.code || e.message)); btn.disabled = false; btn.textContent = 'Revoke access'; }
-    };
-  }
+  host.innerHTML = `<h3>Extend access</h3><p>Add days to this member's access window. The new window flows into their next ID-token refresh — no re-login needed.</p>
+    <label for="extDays">Days to add</label>
+    <input id="extDays" type="number" min="1" value="90" />
+    <div class="actions" style="margin-top:12px"><button class="btn" id="extApply">Extend</button></div>`;
+  $('extApply').onclick = async () => {
+    const days = Number($('extDays').value);
+    if (!days || days < 1) return toast('Enter a valid number of days');
+    const btn = $('extApply'); btn.disabled = true; btn.textContent = 'Extending…';
+    try { const r = await call('extendAccess', { uid, days }); toast(`Extended → ends ${fmtDate(r.accessEnds)}`); await loadMembers(); host.innerHTML = ''; }
+    catch (e) { toast('Extend failed: ' + (e.code || e.message)); btn.disabled = false; btn.textContent = 'Extend'; }
+  };
 }
 
 async function openMemberProgress(row) {
