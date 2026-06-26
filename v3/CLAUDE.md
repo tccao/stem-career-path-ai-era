@@ -10,65 +10,87 @@ The shipped, **$0 / no-card** variant of V2. **AWS Amplify** hosts a static fron
 **Firebase Spark** is the backend. Spark **cannot deploy Cloud Functions** and has **no
 Cloud Storage** (new projects), so V3 is **Functions-free**: the trust boundary is **Firestore
 Security Rules** (client-facing) plus a local **`firebase-admin` CLI** (privileged ops). Auth
-is passwordless **email-link**. Deployed and end-to-end tested against the real project.
+is passwordless **email-link**. The V1 marketing landing page is the public front door.
 
 ```csv
 fact,value
-live url,https://feat-v3-mvp.d3eyz6x5b4wbjx.amplifyapp.com  (/ apply · /app.html student · /admin.html admin)
+live url,https://feat-v3-mvp.d3eyz6x5b4wbjx.amplifyapp.com  (/ = V1 landing · /app.html = student · /admin.html = admin)
 firebase project,code4good-stem-career-path (Spark — no Blaze, no card)
-git branch,feat/v3-mvp (Amplify auto-builds on push; not yet merged to main)
-keeper accounts,admin caotinh98c@gmail.com · student caotinh98c+student@gmail.com (email-link login)
-status,LIVE + E2E-verified; dashboards minimal, curriculum.json empty (stubs — see TODO)
+git branch,feat/v3-mvp (Amplify auto-builds on push; NOT yet merged to main)
+keeper accounts,admin caotinh98c@gmail.com · student-fasttrack caotinh98c+student@gmail.com · student-roadmap caotinh98c+student2@gmail.com
+status,LIVE — full student app + admin console + landing all ported from V2 design and wired to real data
 ```
 
 ## Architecture (Functions-free)
 
 ```csv
 concern,V3 (Spark) implementation
-frontend,Vite static build → Amplify Hosting; Firebase Web SDK talks to Firestore/Auth directly
-enforcement,firestore.rules — apply create-gate (age/consent), member/progress read+self-attest, deny client writes to protected data
-privileged ops,backend/admin-cli/ (firebase-admin): make-admin · grant · extend · revoke · expiry-sweep — Admin SDK works free on Spark
+frontend,Vite static build → Amplify Hosting; Firebase Web SDK talks to Firestore/Auth directly. 3 entries: index.html (V1 landing) · app.html (student) · admin.html (admin)
+design system,src/ui/theme.css — ported 1:1 from demo/public/app.html (the "vibrant redesign"); shared by app + admin
+enforcement,firestore.rules — apply create-gate (age/consent); member/progress read+self-attest; admin claim may schedule-interview/reject + write stageLocks (NON-minting); deny all other client writes
+privileged ops,backend/admin-cli/ (firebase-admin): make-admin · grant [--path fasttrack|roadmap] · extend · revoke · expiry-sweep — Admin SDK works free on Spark
 auth,email-link (passwordless, client SDK); anonymous auth for /apply; roles via PERSISTED custom claims (role + accessBasis + accessEnds)
-data,Firestore: applications · members(/progress) · counters · donations · auditLog (no Storage; curriculum is a static bundle)
-payments,Zeffy hosted; supporter grant via admin-cli after verify (fail-closed) — post-MVP
+data,Firestore: applications(+interviewAt/Note/rejectedReason) · members(/progress · /stageLocks) · counters · donations · auditLog. Curriculum is a static bundle (public/curriculum.json), not Firestore
+payments,Zeffy hosted (landing Donate links out); supporter grant via admin-cli after verify (fail-closed) — post-MVP
 NOT used on Spark,Cloud Functions (backend/functions/ = Blaze reference only) · Cloud Storage
 ```
 
-State machine (5 states, server-set by admin-cli): `SUBMITTED → GRANTED → ACTIVE → ENDED | REJECTED`. Both beneficiary (admin grant) and supporter (verified donation) converge on `grant.mjs`, which creates the Auth user + sets claims + writes the member doc (ACTIVE).
+State machine: `SUBMITTED → INTERVIEW_SCHEDULED → GRANTED → ACTIVE → ENDED | REJECTED`.
+Admin schedules the interview / rejects from the browser (Rules allow the admin claim for these
+NON-minting writes); **GRANTED requires `grant.mjs`** (createUser + claims + member doc) — no hosted
+code can mint accounts. Supporter path skips the interview.
 
 ## Layout
 
 ```text
 v3/
   CLAUDE.md  README.md  .gitignore
-  docs/        Spark-Backend.md (ACTIVE backend) · MVP-Plan.md · V3-Plan.md (Blaze ref)
-  frontend/    package.json vite.config.js .env(.example)   # → Amplify (appRoot)
-    index.html app.html admin.html  public/curriculum.json
-    src/ firebase.js  lib/{auth,cache}.js  public/{apply,donate}.js
-         student/{dashboard,submit,path}.js  admin/{overview,applications,members}.js
-    scripts/ live-apply.mjs  live-student-read.mjs        # live test utilities
+  docs/  Spark-Backend.md (ACTIVE backend) · MVP-Plan.md · Phase2-UI-Plan.md (UI port goal) · V3-Plan.md (Blaze ref)
+  frontend/  package.json  vite.config.js  .env(.example)         # → Amplify (appRoot)
+    index.html   # ported V1 landing — apply→Firestore (COPPA gate), login→/app.html, donate→Zeffy
+    app.html     # student app          admin.html   # admin console
+    public/  curriculum.json (8 pillars + 28 fast-track days)  assets/{icons,images}
+    src/
+      firebase.js   lib/{auth,cache}.js
+      ui/ theme.css (shared design system)  icons.js
+      public/ landing.js  apply.js  donate.js
+      student/ app.js (full vibrant app: hero·journey·stage-detail·submit·ladder)  path.js
+      admin/ admin.js (console: KPIs·queue·interview·members·progress·lock/unlock)
+    scripts/ live-apply.mjs  live-student-read.mjs                # live test utilities
   backend/
     firebase.json  .firebaserc  firestore.rules  firestore.indexes.json  storage.rules(unused)
     admin-cli/ make-admin grant extend revoke expiry-sweep .mjs  lib/admin.mjs
       test/ flow.test.mjs grant-mint.mjs cleanup.mjs provision-keepers.mjs
     functions/ BLAZE REFERENCE ONLY (not deployed) — see functions/README.md
-  ../amplify.yml   # repo-root monorepo build spec (appRoot v3/frontend) — REQUIRED location
+  ../amplify.yml   # repo-root monorepo build spec (appRoot v3/frontend) — REQUIRED at repo root
 ```
 
 ## Security invariants (do not break)
 
 ```csv
 invariant,why / how
-only admin-cli mints accounts + sets claims,no hosted code can create accounts or grant a role (Admin SDK is local-only)
+only admin-cli mints accounts + sets role claims,no hosted/browser code can createUser or grant a role (Admin SDK is local-only); browser admin can only set INTERVIEW_SCHEDULED/REJECTED + stageLocks
 Rules deny client writes to protected collections,members/counters/donations/auditLog are admin-SDK-write-only; auditLog append-only
-apply is create-only behind the age/consent gate,Rules reject under-13 and 13–17 without guardianConsent, and bad shapes
+apply is create-only behind the age/consent gate,Rules reject under-13 and 13–17 without guardianConsent, and bad shapes (enforced again client-side in landing.js)
 progress write needs ACTIVE+in-window+own-doc,student self-attests only their own stage while role=student & accessEnds>now
-service-account key NEVER committed or pasted,v3/.gitignore blocks *adminsdk*.json / *-key.json / *service-account*.json; key lives in v3/ but is ignored
+service-account key NEVER committed or pasted,v3/.gitignore blocks *adminsdk*.json / *-key.json / *service-account*.json; the key lives in v3/ but is ignored
 supporter ACTIVE requires verified payment,verifyDonation fails closed (throws when unconfigured) — never a client claim
 revoke = expire claim + revokeRefreshTokens,setCustomUserClaims(accessEnds=now) then revokeRefreshTokens(uid)
 ```
 
-MVP deviations (documented in `docs/Spark-Backend.md` §3): strict next-stage gating is relaxed (Rules enforce window + own-doc; completion self-attested); the 1-read denormalized dashboard is dropped for a ≤3-read direct read. Both are post-MVP hardening.
+MVP deviations (documented in `docs/Spark-Backend.md` §3): strict next-stage gating is relaxed
+(Rules enforce window + own-doc; completion self-attested; admin stageLocks override is a UI/Rules
+signal, not byte-enforced); requirement checkboxes persist in localStorage (no Firestore write).
+
+## Operational limits (Spark plan — verified at firebase.google.com/docs/auth/limits)
+
+```csv
+limit,value / impact
+email-link sign-in emails,5 / day on Spark (Firebase built-in sender) → heavy testing hits auth/quota-exceeded. Blaze = 25,000/day. Custom SMTP does NOT lift it (plan-based)
+workaround (stay Spark),generate the link via Admin SDK (generateSignInWithEmailLink — 20,000 links/day quota) and open/deliver it yourself; bypasses the 5/day SEND cap
+new account creation,100 accounts/hour per IP (not the bottleneck)
+prod email path,for >5 logins/day on Spark without Blaze: move link generation to the admin-cli + send via your own SMTP/provider
+```
 
 ## Run / test / deploy (Java 21 + firebase-tools present; node v24.16.0)
 
@@ -76,24 +98,29 @@ MVP deviations (documented in `docs/Spark-Backend.md` §3): strict next-stage ga
 task,command (run via the WSL bridge per ../CLAUDE.md)
 emulators,cd v3/backend && firebase emulators:start --only firestore,auth
 deploy rules+indexes,cd v3/backend && firebase deploy --only firestore --project code4good-stem-career-path
-admin-cli (real),GOOGLE_APPLICATION_CREDENTIALS=<key.json> node admin-cli/grant.mjs <applicationId> [--days N] [--basis ...]
+admin-cli (real),GOOGLE_APPLICATION_CREDENTIALS=<key.json> node admin-cli/grant.mjs <applicationId> [--days N] [--basis ...] [--path fasttrack|roadmap]
 admin-cli (emulator),FIRESTORE_EMULATOR_HOST=localhost:8080 FIREBASE_AUTH_EMULATOR_HOST=localhost:9099 node admin-cli/make-admin.mjs you@x.com
 frontend build,cd v3/frontend && npm ci && npm run build   # .env supplies VITE_FB_* (public config)
 emulator E2E,cd v3/backend && firebase emulators:exec --only firestore,auth 'cd admin-cli && node test/flow.test.mjs'
 live apply test (no key),cd v3/frontend && node scripts/live-apply.mjs        # tests deployed Rules from a client
-live grant+read (key),set GOOGLE_APPLICATION_CREDENTIALS → node admin-cli/test/grant-mint.mjs <appId> → frontend/scripts/live-student-read.mjs → admin-cli/test/cleanup.mjs
+generate sign-in link (dodge 5/day cap),"GOOGLE_APPLICATION_CREDENTIALS=<key> node -e on admin.auth().generateSignInWithEmailLink(email, {url:'https://feat-v3-mvp…/app.html', handleCodeInApp:true}) → open the URL"
 provision keepers,GOOGLE_APPLICATION_CREDENTIALS=<key> node admin-cli/test/provision-keepers.mjs <adminEmail> <studentEmail>
 ```
 
-Credentials: the service-account key is `v3/code4good-stem-career-path-firebase-adminsdk-*.json` (gitignored). Against the emulator, set `*_EMULATOR_HOST` and no key is needed. Never print or commit the key contents.
+Credentials: the service-account key is `v3/code4good-stem-career-path-firebase-adminsdk-*.json`
+(gitignored). Against the emulator, set `*_EMULATOR_HOST` and no key is needed. Never print or commit the key.
 
-Amplify: monorepo, **repo-root `amplify.yml`** with `applications[].appRoot: v3/frontend` (a flat spec triggers `CustomerError: Monorepo spec provided without "applications" key`). Build-time env vars `VITE_FB_*` are set in the Amplify console; the live email-link domain is in Firebase Auth → Authorized domains.
+Amplify: monorepo, **repo-root `amplify.yml`** with `applications[].appRoot: v3/frontend` (a flat
+spec triggers `CustomerError: Monorepo spec provided without "applications" key`). `VITE_FB_*` are
+Amplify env vars; the live domain is in Firebase Auth → Authorized domains. NOTE: CloudFront caches
+the root `/` HTML — after a deploy, the landing may show stale until the TTL/​hard-refresh (hashed
+JS/CSS assets are never stale).
 
 ## Current state + TODO
 
 ```csv
-done,LIVE on Amplify · Rules deployed · email-link+anon auth · grant→ACTIVE+claims · student reads own/denied others (live E2E) · keepers provisioned
-todo,populate frontend/public/curriculum.json + backend curriculum stages · flesh out dashboard/stage UI · rules-unit tests (@firebase/rules-unit-testing) · supporter/Zeffy grant · admin MFA · merge feat/v3-mvp → main
+done,V1 landing hooked (apply→Firestore + COPPA gate · login→/app.html · donate→Zeffy) · vibrant student app (hero·journey week→day drilldown·stage-detail+submit·ladder·progress ring) · admin console (KPIs·status tabs·queue+detail·interview card·reject·members table·member progress·stage lock/unlock — reads via Rules, mutations as copyable admin-cli commands) · curriculum 8 pillars + 28 days · BOTH tracks (fasttrack + roadmap keepers) · stageLocks override · rules deployed + live E2E green
+todo,email-link >5/day needs Blaze or the link-generation workaround · supporter/Zeffy verify · rules-unit tests (@firebase/rules-unit-testing) · admin MFA + App Check · custom SMTP / admin-cli link-send for production email · merge feat/v3-mvp → main
 ```
 
 ## Conventions
@@ -101,4 +128,5 @@ todo,populate frontend/public/curriculum.json + backend curriculum stages · fle
 - Match the repo doc style: CSV tables, source-of-truth links, decisions recorded not implied.
 - Prefer editing existing files; ask before changing security invariants, the lifecycle, or auth.
 - `docs/Spark-Backend.md` is authoritative for the backend; `docs/V3-Plan.md` is the Blaze reference (do not implement against it on Spark).
+- Shared CSS is `src/ui/theme.css`; the student `.card.stage-detail` and admin `.card` panels share the `.card` class — scope new `.card *` rules carefully (a leak there already caused a checkbox bug).
 - Verify, don't assume: syntax-check (`node --check`), build, and run the emulator/live E2E scripts before claiming something works.
