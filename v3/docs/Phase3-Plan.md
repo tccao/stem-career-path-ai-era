@@ -61,12 +61,14 @@ Zeffy and Cal.com URLs are hardcoded in the landing markup; changing them needs 
 redeploy. Admins need to update them in place.
 
 ### Existing patterns
+
 | Related | Similarity | Why not enough |
 |---|---|---|
 | Admin interview card | inline form in `.detail` | scoped to one application, not global settings |
 | Login card | modal-ish form | not reusable as an admin overlay |
 
 ### Proposed design
+
 | Property | Type | Default | Description |
 |---|---|---|---|
 | `open` | boolean | false | modal visibility |
@@ -86,6 +88,7 @@ URL inputs `type="url"` with `inputmode="url"`; Save announces via the toast (`a
 Entry point: a **Settings** button in the admin top bar → opens the modal.
 
 ### Open questions
+
 - One global settings doc, or per-environment? (MVP: one `settings/public`.)
 - Validate the URL is reachable, or just `https://` shape? (MVP: shape only.)
 
@@ -192,5 +195,6 @@ MFA decision,TOTP for admins? enforce for all or optional? keep a break-glass ad
 ```
 
 ## 10. Out of scope (Phase 3)
+
 Deploying Cloud Functions (still Spark for the data plane) · gated Cloud Storage assets · payment
 processing in-stack (Zeffy stays hosted) · merge to `main` (held per your instruction).
