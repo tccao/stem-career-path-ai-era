@@ -375,6 +375,7 @@ th { color:var(--muted); font-weight:600; font-size:.72rem; text-transform:upper
 .don-table .empty { text-align:center; color:var(--muted); }
 
 /* ---- Interview slot (Cal.com booking shown in the application detail) ---- */
+.iv-label { font-size:.72rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); margin:4px 0 6px; }
 .iv-slot { display:flex; align-items:center; gap:11px; border:1px solid var(--line); border-radius:12px; padding:12px 14px; font-size:.86rem; background:#faf7fd; color:var(--ink); }
 .iv-slot-loading, .iv-slot-none { color:var(--muted); font-style:italic; }
 .iv-slot-err { border-color:#f1c5cd; background:#fdeef0; color:#b23a4b; font-style:normal; }

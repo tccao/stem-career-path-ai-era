@@ -13,7 +13,7 @@ import { loadCurriculum } from '../lib/cache.js';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const toast = (m) => { const t = $('toast'); t.textContent = m; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); };
-// Staff/owner-gated Cloud Functions (grant/extendAccess/disableAccount/enableAccount/syncDonations + owner setRole/setLockdown/listAccounts).
+// Staff/owner-gated Cloud Functions (grant/extendAccess/disableAccount/enableAccount/getInterview/syncDonations + owner setRole/setLockdown/listAccounts).
 const call = (name, data) => httpsCallable(functions, name)(data).then((r) => r.data);
 const fmtDate = (ms) => (ms ? new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—');
 const stateTxt = (s) => (s === 'complete' ? 'Complete' : s === 'active' ? 'In progress' : 'Locked');
@@ -118,8 +118,9 @@ function openApp(a) {
     block = `
       <div class="card" style="margin-top:14px;padding:18px">
         <h2 style="font-size:.95rem;margin:0 0 6px">Review application</h2>
-        <p class="cmd-note">Approve grants access immediately, or reject. Pick the learning path the student starts on.</p>
-        <label for="ivPath" style="margin-top:6px">Learning path on grant</label>
+        <div class="iv-label">Interview booked on Cal.com</div>
+        <div id="ivSlot" class="iv-slot iv-slot-loading">Checking Cal.com for a booked interview…</div>
+        <label for="ivPath" style="margin-top:14px">Learning path on grant</label>
         <select id="ivPath"><option value="fasttrack">4-Week Fast Track</option><option value="roadmap">Full Roadmap</option></select>
         <div class="actions" style="margin-top:14px">
           <button class="btn" id="ivApprove">Approve &amp; grant</button>
@@ -137,6 +138,9 @@ function openApp(a) {
     ${block}
     <div class="timeline" id="timeline"></div>`;
   wireCmds();
+  // Show the applicant's self-booked Cal.com slot (key stays server-side in getInterview).
+  const slot = $('ivSlot');
+  if (slot) loadInterviewSlot(a.email, slot);
   const approve = $('ivApprove');
   if (approve) approve.onclick = async () => {
     approve.disabled = true; const orig = approve.textContent; approve.textContent = 'Granting…';
@@ -159,6 +163,19 @@ function openApp(a) {
     $('confirmCopy').onclick = () => navigator.clipboard?.writeText(build()).then(() => toast('Command copied')).catch(() => toast('Copy failed'));
   }
   loadTimeline(a.id, a.grantedUid);
+}
+
+async function loadInterviewSlot(email, el) {
+  try {
+    const { booking } = await call('getInterview', { email });
+    if (!booking) { el.className = 'iv-slot iv-slot-none'; el.textContent = 'No interview booked on Cal.com yet.'; return; }
+    const when = booking.start ? new Date(booking.start).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—';
+    el.className = 'iv-slot iv-slot-ok';
+    el.innerHTML = `<span class="iv-dot"></span><div><div class="iv-when">${esc(when)}</div><div class="iv-meta">${esc(booking.title || 'Interview')} · ${esc(booking.status || 'scheduled')}</div></div>`;
+  } catch (e) {
+    el.className = 'iv-slot iv-slot-err';
+    el.textContent = 'Could not load Cal.com booking: ' + (e.code || e.message);
+  }
 }
 
 async function loadTimeline(appId, uid) {

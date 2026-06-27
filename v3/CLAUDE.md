@@ -46,13 +46,12 @@ every fn; secrets `ZEFFY_API_KEY` + `CAL_API_KEY` are Functions secrets (never i
 writes; min-instances 0 (no idle cost). Set secrets once with `firebase functions:secrets:set <NAME>`;
 deploy with `firebase deploy --only functions:sync`. Full note: `docs/Architecture-V3.md` §11a.
 
-State machine: `SUBMITTED → GRANTED → ACTIVE → ENDED | REJECTED`. Interview scheduling/tracking was
-removed from the dashboard (the `INTERVIEW_SCHEDULED` state + Interview tab are retired; the
-`getInterview` fn is deployed but no longer called). The admin reviews a SUBMITTED application and
-clicks **Approve & grant** (the `grant` Cloud Function: createUser + claims + member doc; also
-`admin-cli/grant.mjs`) or **Reject** (client Rules write). Applicants may still self-book via the
-landing Cal.com link — the dashboard just doesn't track it. Member access is removed via **Disable**
-(`disableAccount`); the redundant Revoke button was dropped. Supporter path uses donation confirmation.
+State machine: `SUBMITTED → GRANTED → ACTIVE → ENDED | REJECTED`. The `INTERVIEW_SCHEDULED` state +
+Interview tab are retired, but the SUBMITTED application detail still shows the applicant's self-booked
+**Cal.com slot** (via `getInterview`). The admin reviews it and clicks **Approve & grant** (the `grant`
+Cloud Function: createUser + claims + member doc; also `admin-cli/grant.mjs`) or **Reject** (client Rules
+write). Member access is removed via **Disable** (`disableAccount`); the redundant Revoke button was
+dropped. Supporter path uses donation confirmation.
 
 ## Layout
 
