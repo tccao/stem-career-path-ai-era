@@ -1,14 +1,15 @@
 # V3 System Architecture (Rev. 1)
 
-Architecture reference for the **V3 hosted MVP** — the $0/no-card variant of the Code For Good
-STEM Career Path platform. Written for engineers and reviewers; every diagram below is validated
-headless with `mmdc` (Mermaid CLI) so it renders. Source-of-truth for behavior: [`Spark-Backend.md`](Spark-Backend.md);
-agent guide: [`../CLAUDE.md`](../CLAUDE.md).
+Architecture reference for the **V3 hosted MVP** of the Code For Good STEM Career Path platform.
+Written for engineers and reviewers; every diagram below is validated headless with `mmdc` (Mermaid
+CLI) so it renders. Source-of-truth for behavior: [`Spark-Backend.md`](Spark-Backend.md); install /
+configure / test: [`Setup-Guide.md`](Setup-Guide.md); agent guide: [`../CLAUDE.md`](../CLAUDE.md).
 
 > **One-line thesis.** Push the trust boundary into **Firestore Security Rules** (server-enforced,
-> free) and keep the *only* account-minting authority in a **local Admin-SDK CLI**, so a static
-> frontend on AWS Amplify + Firebase Spark delivers a vetted-access learning platform with **no
-> deployed server code, no card, and no weakening of the V2 security model.**
+> free) and keep every privileged authority — account-minting, role claims, the lockdown kill-switch,
+> and secret-backed integrations — in **admin/owner-gated Cloud Functions plus a local Admin-SDK CLI**,
+> never the browser. A static frontend on **AWS Amplify** + **Firebase (Blaze)** delivers a vetted-access
+> learning platform at ~$0, with the V2 security model intact and an **owner > admin > student** tier on top.
 
 ---
 

@@ -23,13 +23,21 @@ This project should be treated as a maintainable static web project, not just a 
 
 ## Project Horizons
 
-This repository covers two stages of the same initiative:
+This repository covers three stages of the same initiative:
 
 - **V1 — Static landing page (current MVP).** A single `index.html` marketing page on AWS static
   hosting. Most of this README documents V1.
-- **V2 — Vetted-access learning platform.** A standalone app (public / student / admin zones, an
-  apply → interview → donate → provision access flow, and the two learning paths) on an AWS
-  serverless stack. V2 is **fully planned** in the documents below but **not yet built**.
+- **V2 — Vetted-access learning platform (planned).** A standalone app (public / student / admin zones,
+  an apply → interview → donate → provision access flow, and the two learning paths) on an AWS
+  serverless stack. V2 is **fully planned** in the documents below but **not built**; a runnable local
+  prototype lives in `demo/`.
+- **V3 — Hosted MVP (LIVE).** A pragmatic ~$0 variant of V2: **AWS Amplify** hosts the frontend and
+  **Firebase (Blaze)** is the backend — Firestore + passwordless auth, enforcement in Firestore Security
+  Rules plus admin/owner-gated Cloud Functions, and an **owner > admin > student** role tier. Lives in
+  `v3/`. Start with **[`v3/docs/Setup-Guide.md`](v3/docs/Setup-Guide.md)** (install → configure → deploy
+  → test on Amplify + Firebase, incl. owner CLI ops); architecture in
+  [`v3/docs/Architecture-V3.md`](v3/docs/Architecture-V3.md); agent guide in
+  [`v3/CLAUDE.md`](v3/CLAUDE.md).
 
 ## Planning & Architecture Documentation
 

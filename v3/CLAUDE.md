@@ -58,7 +58,7 @@ dropped. Supporter path uses donation confirmation.
 ```text
 v3/
   CLAUDE.md  README.md  .gitignore
-  docs/  Architecture-V3.md (system architecture + 8 validated Mermaid diagrams) · Spark-Backend.md (ACTIVE backend) · MVP-Plan.md · Phase2-UI-Plan.md (UI port goal) · Phase3-Plan.md (next goal) · V3-Plan.md (Blaze ref)
+  docs/  Setup-Guide.md (install→configure→deploy→test on Amplify+Firebase + owner CLI ops) · Architecture-V3.md (system architecture + 8 validated Mermaid diagrams) · Spark-Backend.md (ACTIVE backend) · MVP-Plan.md · Phase2-UI-Plan.md (UI port goal) · Phase3-Plan.md (next goal) · V3-Plan.md (Blaze ref)
   frontend/  package.json  vite.config.js  .env(.example)         # → Amplify (appRoot)
     index.html   # ported V1 landing — apply→Firestore (COPPA gate), login→/app.html, donate→Zeffy
     app.html     # student app          admin.html   # admin console
@@ -72,7 +72,8 @@ v3/
     scripts/ live-apply.mjs  live-student-read.mjs                # live test utilities
   backend/
     firebase.json  .firebaserc  firestore.rules  firestore.indexes.json  storage.rules(unused)
-    admin-cli/ make-admin grant extend revoke expiry-sweep .mjs  lib/admin.mjs
+    admin-cli/ make-owner make-admin grant extend revoke expiry-sweep sync-donations confirm-donation call-fn .mjs  lib/admin.mjs
+      # call-fn.mjs = call a DEPLOYED function as a chosen account (owner live-prod testing); see docs/Setup-Guide.md §7.3/§8
       test/ flow.test.mjs grant-mint.mjs cleanup.mjs provision-keepers.mjs
     functions/ BLAZE REFERENCE ONLY (not deployed) — see functions/README.md
   ../amplify.yml   # repo-root monorepo build spec (appRoot v3/frontend) — REQUIRED at repo root

@@ -53,7 +53,8 @@ docs/Well-Architected-Review.md,V2 AWS WA review findings (applied in Arch Rev.4
 docs/Ops-Runbook.md,V2 weekly checklist alarms restore/rotation procedures
 demo/docs/Demo-Architecture.md,how the runnable local demo works (Mermaid) + demo↔AWS mapping — incl. self-serve donate auto-grant + provision-issues-credential
 demo/docs/Demo-Walkthrough.md,guided ~15-min tour of the running demo (admin state machine + self-serve donate + student roadmap/fast-track + expiry/gating) keyed to the seeded cast
-v3/CLAUDE.md,V3 source of truth for agents — Spark/Functions-free arch + run/test/deploy + security invariants (READ before V3 work)
+v3/CLAUDE.md,V3 source of truth for agents — Blaze arch (owner>admin>student) + run/test/deploy + security invariants (READ before V3 work)
+v3/docs/Setup-Guide.md,V3 install→configure→deploy→test on AWS Amplify + Firebase (Blaze) + owner CLI ops (admin-cli + call-fn live-prod testing) + troubleshooting
 v3/docs/Architecture-V3.md,V3 system architecture (senior-architect) — 8 mmdc-validated Mermaid diagrams (context icon-group flow lifecycle ER security portability Spark→Blaze) + trade-offs/risks
 v3/docs/Spark-Backend.md,V3 ACTIVE backend — Firestore Rules + local admin-cli + email-link auth (Functions-free on Spark)
 v3/docs/MVP-Plan.md,V3 MVP goal + env-config gates (CLI-verified) + small-commit plan
