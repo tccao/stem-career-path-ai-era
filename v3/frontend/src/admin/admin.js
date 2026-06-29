@@ -383,7 +383,10 @@ async function renderOwnerView() {
     const promo = promoteTarget(a.role), demo = demoteTarget(a.role);
     const acts = [];
     if (!self && promo) acts.push(`<button class="btn sec" data-prom="${esc(a.uid)}" data-to="${promo}">Promote</button>`);
-    if (!self && demo) acts.push(`<button class="btn warn" data-demo="${esc(a.uid)}" data-to="${demo}">Demote</button>`);
+    if (!self && demo) {
+      const demoLabel = a.role === 'admin' && a.memberStatus === 'ACTIVE' ? 'Restore student' : 'Demote';
+      acts.push(`<button class="btn warn" data-demo="${esc(a.uid)}" data-to="${demo}" data-label="${demoLabel}">${demoLabel}</button>`);
+    }
     if (!self && a.role !== 'owner') acts.push(a.disabled
       ? `<button class="btn sec" data-en="${esc(a.uid)}">Reactivate</button>`
       : `<button class="btn bad" data-dis="${esc(a.uid)}">Disable</button>`);
@@ -397,7 +400,7 @@ async function renderOwnerView() {
       <div class="owner-main">
         <div class="don-bar"><h2 style="font-size:1.05rem;margin:0">Accounts <span class="count-chip">${accounts.length}</span></h2><button class="btn sec" id="acctRefresh">Refresh</button></div>
         <div class="don-table"><table><thead><tr><th>Account</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows || '<tr><td colspan="4" class="empty">No accounts.</td></tr>'}</tbody></table></div>
-        <p class="owner-hint">Promote: student → admin → owner. Demote: owner → admin → remove role. Disable blocks sign-in + ends sessions immediately. You can't change or disable your own account, and an owner can't be disabled here.</p>
+        <p class="owner-hint">Promote: student → admin → owner. Demoting an admin restores their active student membership when one exists; otherwise it removes the staff role. Disable blocks sign-in + ends sessions immediately. You can't change or disable your own account, and an owner can't be disabled here.</p>
       </div>
       <aside class="owner-side">
         <div class="owner-card ${locked ? 'lock-on' : ''}">
@@ -415,13 +418,14 @@ async function renderOwnerView() {
   if ($('lockOn')) $('lockOn').onclick = () => setLockdown(true, $('lockReason').value.trim());
   if ($('lockOff')) $('lockOff').onclick = () => setLockdown(false, $('lockReason').value.trim());
   host.querySelectorAll('button[data-prom]').forEach((b) => { b.onclick = () => changeRole(b.dataset.prom, b.dataset.to, 'Promote'); });
-  host.querySelectorAll('button[data-demo]').forEach((b) => { b.onclick = () => changeRole(b.dataset.demo, b.dataset.to, 'Demote'); });
+  host.querySelectorAll('button[data-demo]').forEach((b) => { b.onclick = () => changeRole(b.dataset.demo, b.dataset.to, b.dataset.label || 'Demote'); });
   host.querySelectorAll('button[data-dis]').forEach((b) => { b.onclick = () => acctSetDisabled(b.dataset.dis, true); });
   host.querySelectorAll('button[data-en]').forEach((b) => { b.onclick = () => acctSetDisabled(b.dataset.en, false); });
 }
 const rolePill = (r) => `<span class="role-pill ${r || 'user'}">${esc(r || 'user')}</span>`;
 async function changeRole(uid, to, label) {
-  if (!confirm(`${label} this account to "${to === 'none' ? 'no staff role' : to}"?`)) return;
+  const destination = label === 'Restore student' ? 'student' : (to === 'none' ? 'no staff role' : to);
+  if (!confirm(`${label} this account to "${destination}"?`)) return;
   try { await call('setRole', { uid, role: to }); toast('Role updated'); await renderOwnerView(); }
   catch (e) { toast('Role change failed: ' + (e.code || e.message)); }
 }

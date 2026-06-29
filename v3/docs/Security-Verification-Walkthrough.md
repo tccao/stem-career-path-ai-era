@@ -191,7 +191,7 @@ Success criteria:
 | disable/enable | old token denied immediately; expired re-enabled member can be extended and member/claim agree on ACTIVE |
 | revoke | already-issued student token denied immediately |
 | lockdown | admin/student calls denied; owner can lift lockdown |
-| role removal | already-issued admin token denied immediately |
+| role removal | already-issued admin token denied immediately; an active member demoted from staff regains exact student claims |
 | audit | access.granted event includes actorId |
 
 Required baseline: 15 tests pass, 0 fail, and no duplicate account/member is created.

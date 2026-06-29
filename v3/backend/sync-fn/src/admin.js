@@ -212,12 +212,17 @@ export const listAccounts = onCall(callableOptions(), async (req) => {
   const { uid: actorId } = await assertStaff(req, { ownerOnly: true });
   const input = parse(z.object({ pageToken: z.string().max(2_048).optional() }).strict(), req.data || {});
   const page = await auth.listUsers(100, input.pageToken);
+  const members = page.users.length
+    ? await db.getAll(...page.users.map((user) => db.collection('members').doc(user.uid)))
+    : [];
+  const memberStatus = new Map(members.filter((member) => member.exists).map((member) => [member.id, member.get('status')]));
   const result = {
     accounts: page.users.filter((user) => user.email).map((user) => ({
       uid: user.uid,
       email: user.email,
       displayName: user.displayName || null,
       role: user.customClaims?.role || null,
+      memberStatus: memberStatus.get(user.uid) || null,
       mfaEnrolled: user.multiFactor?.enrolledFactors?.length > 0,
       disabled: user.disabled,
       lastSignIn: user.metadata.lastSignInTime || null,
@@ -236,8 +241,17 @@ export const setRole = onCall(callableOptions(), async (req) => {
   if (user.customClaims?.role === 'owner' && input.role !== 'owner' && await activeOwnerCount() <= 1) {
     throw new HttpsError('failed-precondition', 'cannot remove the last active owner');
   }
+  let effectiveRole = input.role;
   if (input.role === 'none') {
-    await auth.setCustomUserClaims(input.uid, {});
+    const member = await db.collection('members').doc(input.uid).get();
+    if (member.exists && member.get('status') === STATE.ACTIVE && Number(member.get('accessEnds') || 0) > Date.now()) {
+      effectiveRole = 'student';
+      await auth.setCustomUserClaims(input.uid, {
+        role: 'student', accessBasis: member.get('accessBasis'), accessEnds: member.get('accessEnds'),
+      });
+    } else {
+      await auth.setCustomUserClaims(input.uid, {});
+    }
   } else {
     const mfaEnrolled = IS_EMULATOR || (user.multiFactor?.enrolledFactors?.length || 0) > 0;
     await auth.setCustomUserClaims(input.uid, {
@@ -245,8 +259,8 @@ export const setRole = onCall(callableOptions(), async (req) => {
     });
   }
   await recordSessionRevocation(input.uid);
-  await writeAudit({ type: 'role.set', targetType: 'account', targetId: input.uid, actorId, reasonCode: input.role });
-  return { uid: input.uid, role: input.role, reauthenticationRequired: true };
+  await writeAudit({ type: 'role.set', targetType: 'account', targetId: input.uid, actorId, reasonCode: effectiveRole });
+  return { uid: input.uid, role: effectiveRole, reauthenticationRequired: true };
 });
 
 export const setLockdown = onCall(callableOptions(), async (req) => {

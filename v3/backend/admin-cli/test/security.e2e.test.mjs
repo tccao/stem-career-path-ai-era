@@ -279,6 +279,22 @@ test('V3 callable security flow', async (t) => {
   });
 
   await t.test('role removal invalidates the existing admin token', async () => {
+    const returning = await createRoleClient('returning-student', 'admin', { mfaEnrolled: true, testMfa: true });
+    const returningEnds = Date.now() + 30 * 86_400_000;
+    await db.collection('members').doc(returning.user.uid).set({
+      status: 'ACTIVE', accessBasis: 'beneficiary', accessEnds: returningEnds,
+      path: 'fasttrack', email: returning.user.email,
+    });
+    const restored = await owner.call('setRole', { uid: returning.user.uid, role: 'none' });
+    assert.equal(restored.role, 'student');
+    const restoredUser = await adminAuth.getUser(returning.user.uid);
+    assert.equal(restoredUser.customClaims.role, 'student');
+    assert.equal(restoredUser.customClaims.accessBasis, 'beneficiary');
+    assert.equal(restoredUser.customClaims.accessEnds, returningEnds);
+    await expectDenied(returning.call('listAccounts'), /unauthenticated|revoked/i);
+    const returningStudent = await client('returning-student-fresh', restoredUser);
+    assert.equal((await returningStudent.call('getStudentDashboard')).member.status, 'ACTIVE');
+
     await owner.call('setRole', { uid: admin.user.uid, role: 'none' });
     await expectDenied(admin.call('getCurriculum'), /unauthenticated|revoked/i);
   });
