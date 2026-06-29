@@ -1,36 +1,32 @@
-// Student app — design ported 1:1 from demo/public/app.html, wired to the Spark/Functions-free
-// Firebase backend: passwordless email-link auth, a client-built path view from Firestore +
-// the curriculum bundle, and a Firestore write to complete a stage. Sequential gating is
-// computed here; the access WINDOW is enforced by Firestore Rules (claim accessEnds).
+// Student app. All curriculum, progress, lock, and submission data crosses authenticated
+// App-Check-protected callables; the browser view is never the authorization boundary.
 import '../ui/theme.css';
-import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
-import { db, auth, functions } from '../firebase.js';
-import { requestSignInLink, completeSignInIfPresent, onAuthStateChanged } from '../lib/auth.js';
-import { loadCurriculum } from '../lib/cache.js';
+import { auth, functions } from '../firebase.js';
+import { clearSignInState, requestSignInLink, completeSignInIfPresent, onAuthStateChanged } from '../lib/auth.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const toast = (m) => { const t = $('toast'); t.textContent = m; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2400); };
-const call = (name, data) => httpsCallable(functions, name)(data).then((r) => r.data);
 
-let currentUid = null, member = null, progressMap = {}, lockMap = {}, latestView = null;
+let currentUid = null, member = null, progressMap = {}, lockMap = {}, curriculumData = null, latestView = null;
+const getStudentDashboard = httpsCallable(functions, 'getStudentDashboard', { timeout: 30_000 });
+const submitStageFn = httpsCallable(functions, 'submitStage', { timeout: 30_000 });
 
 // Pull the member's progress + admin stage-lock overrides together.
 async function refetch() {
-  const [ps, ls] = await Promise.all([
-    getDocs(collection(db, 'members', currentUid, 'progress')),
-    getDocs(collection(db, 'members', currentUid, 'stageLocks')).catch(() => ({ forEach() {} })),
-  ]);
-  progressMap = {}; ps.forEach((d) => { progressMap[d.id] = d.data(); });
-  lockMap = {}; ls.forEach((d) => { lockMap[d.id] = d.data().state; });
+  const result = (await getStudentDashboard()).data;
+  member = result.member;
+  curriculumData = result.curriculum;
+  progressMap = Object.fromEntries((result.progress || []).map((item) => [item.stageKey, item]));
+  lockMap = result.locks || {};
 }
 
 // ---------- view model (replaces the demo's GET /app/path) ----------
 async function buildView() {
   const pathKey = member.path || 'fasttrack';
-  const cur = await loadCurriculum();
+  const cur = curriculumData;
   const path = cur[pathKey] || cur.fasttrack;
   const defs = path.stages || [];
   const completedKeys = defs.filter((s) => progressMap[s.key]?.status === 'complete').map((s) => s.key);
@@ -84,27 +80,29 @@ async function login() {
   try { await requestSignInLink(email); $('loginMsg').textContent = `Link sent to ${email}. Open it on this device to finish signing in.`; }
   catch (e) { $('loginMsg').textContent = 'Error: ' + (e.code || e.message); $('loginBtn').disabled = false; }
 }
-function logout() { closeMenu(); signOut(auth).finally(() => { $('app').classList.add('hidden'); $('login').classList.remove('hidden'); }); }
+function logout() { closeMenu(); clearSignInState(); signOut(auth).finally(() => { $('app').classList.add('hidden'); $('login').classList.remove('hidden'); }); }
 
 async function boot(uid) {
   currentUid = uid;
   $('login').classList.add('hidden'); $('app').classList.remove('hidden');
   try {
-    const snap = await getDoc(doc(db, 'members', uid));
-    if (!snap.exists()) return showInactive('No active access yet', 'An admin needs to grant you a seat. Once granted, sign in again with the same email.');
-    member = snap.data();
+    await refetch();
+    if (!member) return showInactive('No active access yet', 'An admin needs to grant you a seat. Once granted, sign in again with the same email.');
     const first = (member.name || member.email || '').split(' ')[0];
     $('avatar').textContent = (first || '?').charAt(0).toUpperCase();
     $('userName').innerHTML = `${esc(first)}<small>Student · ${esc(member.accessBasis || '')}</small>`;
-    $('welcome').textContent = `Welcome back, ${esc(first)} 👋`;
+    $('welcome').textContent = `Welcome back, ${first} 👋`;
     const ends = member.accessEnds ? new Date(member.accessEnds).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
     $('accMeta').innerHTML = `Access until <b>${esc(ends)}</b><br>${esc(member.accessBasis || '')} access`;
     if (member.accessEnds && member.accessEnds <= Date.now()) {
       $('accStatus').className = 'status expired'; $('accStatus').innerHTML = '<span class="led"></span> EXPIRED';
       return showInactive('Your access has ended', 'Your learning window expired or access was revoked. Contact Code For Good to renew.');
     }
-    await loadPath();
-  } catch (e) { toast('Error: ' + (e.code || e.message)); }
+    renderPath(await buildView());
+  } catch (e) {
+    showInactive('Access unavailable', 'Your session is expired, revoked, or the system is temporarily locked. Sign in again or contact Code For Good.');
+    toast('Error: ' + (e.code || e.message));
+  }
 }
 
 function showInactive(title, body) {
@@ -320,7 +318,7 @@ async function submitStage(stageKey, url) {
   const deliverableUrl = normalizeUrl(url);
   if (!deliverableUrl) { toast('Enter a valid URL'); return; }
   try {
-    await call('submitStage', { stageKey, deliverableUrl });
+    await submitStageFn({ stageKey, deliverableUrl });
     await refetch();
     const v = await buildView();
     if (v.activeStage) history.replaceState(null, '', '#stage=' + encodeURIComponent(v.activeStage.stageKey));

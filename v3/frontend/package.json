@@ -5,21 +5,23 @@
   "type": "module",
   "description": "CFG V3 frontend — public site + student SPA + admin SPA. Built with Vite, deployed to AWS Amplify Hosting. Talks to the Firebase backend via the modular Web SDK.",
   "engines": {
-    "node": ">=20"
+    "node": ">=20.19.0"
   },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:production": "node scripts/check-production-env.mjs && vite build",
     "preview": "vite preview",
     "test:e2e": "playwright test",
-    "test:e2e:headed": "playwright test --headed"
+    "test:e2e:headed": "playwright test --headed",
+    "test:security": "node --test scripts/security-static.test.mjs",
+    "verify:live": "node scripts/verify-live-security.mjs"
   },
   "dependencies": {
-    "firebase": "^11.0.0",
-    "ulid": "^2.3.0"
+    "firebase": "^12.15.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
-    "vite": "^5.4.0"
+    "vite": "^8.1.0"
   }
 }

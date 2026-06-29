@@ -1,127 +1,113 @@
-# CFG V3 — hosted MVP (Amplify + Firebase Spark)
+# CFG V3 — secured hosted MVP
 
-The shipped, **$0 / no-card** variant of the V2 demo. **AWS Amplify** hosts the static
-frontend; **Firebase Spark** is the backend, **Functions-free**: enforcement lives in
-**Firestore Security Rules**, privileged ops in a local **`firebase-admin` CLI**, and auth is
-passwordless **email-link**. The V1 marketing landing page is the public front door. Deployed
-and end-to-end tested against the real project.
+V3 is the hosted Code For Good STEM Career Path MVP: a Vite multi-page frontend on AWS Amplify
+and a Firebase Blaze backend (Auth, Firestore, and 2nd-generation Cloud Functions).
 
-- **Live:** <https://feat-v3-mvp.d3eyz6x5b4wbjx.amplifyapp.com> — `/` landing · `/app.html` student · `/admin.html` admin
-- **Agent guides:** [`../AGENTS.md`](../AGENTS.md) (repo-wide) · [`CLAUDE.md`](CLAUDE.md) (V3 details)
-- **Designs:** [`docs/Spark-Backend.md`](docs/Spark-Backend.md) (backend) ·
-  [`docs/Phase2-UI-Plan.md`](docs/Phase2-UI-Plan.md) (UI port) ·
-  [`docs/MVP-Plan.md`](docs/MVP-Plan.md) · [`docs/V3-Plan.md`](docs/V3-Plan.md) (Blaze ref)
+Security and test source of truth:
+[`docs/Security-Verification-Walkthrough.md`](docs/Security-Verification-Walkthrough.md).
+Architecture source of truth: [`docs/Architecture-V3.md`](docs/Architecture-V3.md).
 
-## What's built (current)
+## Runtime context
 
-- **Landing page** (`/`) — the V1 marketing site, wired to V3: **Apply** writes a real Firestore
-  application after an age/consent gate; the UI offers only **13–17** (guardian consent required)
-  and **18+**. Unsupported age values are denied by Firestore Rules and are not a product state.
-  **Login** → `/app.html`; **Donate** → Zeffy.
-- **Student app** (`/app.html`) — full "vibrant" design ported from the V2 demo: glassy top bar +
-  progress ring, gradient sidebar + accordion path tree, momentum chips, a hero featuring the
-  active/selected stage, stage-detail with requirement checkboxes + proof-of-work submit, the
-  journey grid (fast-track weeks → day drill-down; roadmap pillar cards), and the earn ladder.
-- **Admin console** (`/admin.html`) — KPIs, status tabs, application queue + detail with an
-  **interview card** and **reject**, a members table, and per-stage **lock/unlock** gate overrides.
-  Reads go through Firestore Rules (admin claim); account-minting actions render the exact
-  **admin-cli command to copy** (Spark has no privileged hosted endpoint).
-- **Curriculum** — 8 pillars + 28 fast-track days (`public/curriculum.json`). **Both tracks** live:
-  Full Roadmap (12–18 months) and 4-Week Fast Track. Access defaults to **365 days** for either
-  track unless an operator explicitly supplies another duration.
+The numbered connections show the request and enforcement flow. Logo nodes use Mermaid's Iconify
+`logos` pack; render locally with `mmdc --iconPacks @iconify-json/logos`.
 
-## Log in (live)
+```mermaid
+flowchart LR
+  subgraph client["Client surface — untrusted"]
+    browser["Browser SPA<br/>applicant · student · admin / owner"]
+  end
 
-Email-link sign-in — open the link **on the same device/browser** that requested it.
+  subgraph aws["AWS edge"]
+    cdn@{ icon: "logos:aws-cloudfront", form: "square", label: "Managed CloudFront CDN", pos: "b" }
+    amp@{ icon: "logos:aws-amplify", form: "square", label: "Amplify Hosting", pos: "b" }
+  end
 
-| Role | URL | Email |
-|------|-----|-------|
-| Admin | `…/admin.html` | `caotinh98c@gmail.com` |
-| Student · Fast Track | `…/app.html` | `caotinh98c+student@gmail.com` |
-| Student · Roadmap | `…/app.html` | `caotinh98c+student2@gmail.com` |
+  subgraph firebase["Firebase / Google Cloud — server trust boundary"]
+    direction TB
 
-The `+alias` addresses deliver to the same Gmail inbox; one Auth account holds one role.
+    subgraph guard["Identity & attestation"]
+      direction LR
+      appcheck@{ icon: "logos:firebase", form: "square", label: "Firebase App Check", pos: "b" }
+      auth@{ icon: "logos:firebase", form: "square", label: "Firebase Auth + TOTP", pos: "b" }
+    end
 
-> **⚠️ Email-link sign-in limit (Spark): 5 sign-in emails per day.** Firebase recently lowered the
-> built-in email-link quota to **5/day** on the no-cost plan; past that you get `auth/quota-exceeded`.
-> Options: (1) **wait** ~24h for reset; (2) **Blaze** plan → 25,000/day (custom SMTP does *not* lift
-> this — it's plan-based); (3) **stay on Spark** and have the admin-cli **generate** the sign-in link
-> via `generateSignInWithEmailLink` (a separate 20,000 links/day quota) and open it directly.
-> See <https://firebase.google.com/docs/auth/limits>.
+    subgraph enforcement["Enforcement & data"]
+      direction LR
+      fn@{ icon: "logos:google-cloud-functions", form: "square", label: "Callable Functions", pos: "b" }
+      rules@{ icon: "logos:firebase", form: "square", label: "Firestore Security Rules", pos: "b" }
+      db@{ icon: "logos:firebase", form: "square", label: "Cloud Firestore", pos: "b" }
+    end
+  end
 
-## How it works
+  subgraph external["External SaaS"]
+    direction LR
+    zeffy["Zeffy API"]
+    cal["Cal.com API"]
+  end
 
-```text
-Browser ──Firebase Web SDK──► Firestore (reads/writes gated by Security Rules)
-                              └► Firebase Auth (email-link; persisted role/window claims)
-Admin operator ──firebase-admin CLI (local + service-account key)──► grant / extend / revoke / expiry
+  browser -->|"1) GET site / SPA over HTTPS"| cdn
+  cdn -->|"2) cache miss / deploy origin"| amp
+  browser -->|"3) establish or restore session"| auth
+  browser -->|"4) obtain request attestation"| appcheck
+  browser -->|"5) callable + ID / App Check tokens"| fn
+  appcheck -.->|"6) attest request"| fn
+  auth -.->|"7) verify ID token + claims"| fn
+  fn -->|"8) Admin SDK read / write"| db
+  fn -->|"9) accounts, claims, sessions"| auth
+  browser -->|"10) staff-only MFA read query"| rules
+  rules -->|"11) allow constrained read"| db
+  fn -->|"12) verify payments / campaigns"| zeffy
+  fn -->|"13) read interview bookings"| cal
 ```
 
-Access requires an admin grant: `grant.mjs` creates the Auth user, sets the `role=student` +
-`accessEnds` (+ `accessBasis`) claims, and writes the member doc — **no hosted code can mint
-accounts**. The admin browser can only do NON-minting writes (schedule interview, reject, stage
-lock/unlock). Full design + invariants: [`CLAUDE.md`](CLAUDE.md) / [`docs/Spark-Backend.md`](docs/Spark-Backend.md).
+| zone | implementation |
+| --- | --- |
+| public landing | frontend/index.html; submitApplication callable with App Check rate limit COPPA gate |
+| student | frontend/app.html; callable-only dashboard curriculum and sequential stage submission |
+| admin | frontend/admin.html; TOTP + App Check callables for every mutation |
+| owner | role/admin roster settings and global lockdown; last-owner/self-change protections |
+| backend | backend/sync-fn (the only registered Functions codebase) |
+| data protection | deny-all browser writes; revocation sessionVersion; TTL; PITR production gate |
+| audit | client-immutable Firestore events + structured Cloud Logging copies; locked bucket production gate |
 
-## Local dev (Java + firebase-tools installed)
+The old `backend/functions/` directory and `docs/Spark-Backend.md` are historical references and are
+not deployed.
+
+## Install
 
 ```bash
-cd v3/backend && firebase emulators:start --only firestore,auth          # backend
-cd v3/backend/admin-cli && npm install
-FIRESTORE_EMULATOR_HOST=localhost:8080 FIREBASE_AUTH_EMULATOR_HOST=localhost:9099 \
-  node make-admin.mjs you@example.com
-cd v3/frontend && npm install && npm run dev                              # frontend (.env → VITE_FB_*)
+nvm install 22
+npm install --global firebase-tools@15.22.2
+npm ci --prefix v3/frontend
+npm ci --prefix v3/backend/sync-fn
+npm ci --prefix v3/backend/admin-cli
 ```
 
-## Provision / manage (real project — needs the service-account key)
+## Verify locally
 
 ```bash
-export GOOGLE_APPLICATION_CREDENTIALS=v3/code4good-stem-career-path-firebase-adminsdk-*.json
+cd v3/frontend && npm run build && npm run test:security
+cd v3/frontend && npm run test:e2e
+
 cd v3/backend
-node admin-cli/grant.mjs   <applicationId> --path roadmap              # 365 days by default
-node admin-cli/grant.mjs   <applicationId> --path fasttrack            # also 365 days by default
-node admin-cli/extend.mjs  <uid> --days 90
-node admin-cli/revoke.mjs  <uid>
-node admin-cli/expiry-sweep.mjs
+DEBUG= firebase emulators:exec --only firestore \
+  'cd admin-cli && npm run test:rules'
+
+DEBUG= ZEFFY_API_KEY=test-key ZEFFY_API_BASE_URL=http://127.0.0.1:7777 \
+firebase emulators:exec --only auth,firestore,functions \
+  'cd admin-cli && npm run test:security'
+
+DEBUG= firebase emulators:exec --only firestore,auth \
+  'cd admin-cli && npm run test:flow'
 ```
 
-## Test (verified green)
-
-```bash
-cd v3/backend && firebase emulators:exec --project demo-cfg --only firestore,auth \
-  'cd admin-cli && node test/flow.test.mjs'
-cd v3 && firebase emulators:exec --config backend/firebase.json --only auth,firestore \
-  'cd frontend && node scripts/live-apply.mjs'
-cd v3/frontend && npm run build
-cd v3/frontend && npm run test:e2e                       # 7 Chrome browser scenarios
-cd v3 && tidy -q -e frontend/index.html                  # warnings may include valid modern HTML/SVG
-cd v3 && xmllint --html --noout frontend/index.html      # use HTML mode, not raw XML mode
-```
-
-The Playwright suite covers desktop/mobile layout, disclosure navigation, the supported age and
-guardian-consent flow, modal focus management, FAQ state, and graceful Firebase configuration
-failure. It uses the installed system Chrome and forces blank Firebase configuration so it cannot
-write production data.
+Do not use production credentials for these tests. Full setup, baselines, expected results,
+production configuration, deploy order, and read-only live checks are in the security walkthrough.
 
 ## Deploy
 
-```bash
-cd v3/backend && firebase deploy --only firestore --project code4good-stem-career-path   # rules + indexes
-# frontend: push to feat/v3-mvp → Amplify auto-builds (repo-root amplify.yml, appRoot v3/frontend)
-```
-
-`VITE_FB_*` (public config) live in `frontend/.env` and as Amplify env vars. The Amplify domain
-must be in **Firebase Auth → Authorized domains**. Note: CloudFront caches the root `/` HTML — a
-fresh landing may show stale until the CDN TTL / a hard-refresh (hashed JS/CSS assets aren't stale).
-
-## Security note
-
-The service-account key (`v3/code4good-…-firebase-adminsdk-*.json`) is **gitignored and must never
-be committed or shared** — it grants full admin to the Firebase project. Use the emulator
-(`*_EMULATOR_HOST`) when a key isn't needed.
-
-## Status
-
-**Live and feature-complete for the MVP**: landing + both student tracks + admin console all ported
-from the V2 design and wired to real data. Remaining: lift the email-link cap (Blaze or the
-link-generation workaround) for >5 logins/day, supporter/Zeffy verify, rules-unit tests, admin MFA,
-and merging `feat/v3-mvp` → `main`. See [`CLAUDE.md`](CLAUDE.md) TODO.
+Production deployment is intentionally gated. Required external controls include Identity Platform
+TOTP, App Check enforcement, exact CORS origins, Firebase secrets, Firestore PITR/TTL, a locked Cloud
+Logging audit bucket, budget alerts, and Amplify environment variables. Follow the ordered procedure
+in the security walkthrough; do not deploy individual pieces ad hoc.

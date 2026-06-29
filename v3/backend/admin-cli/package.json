@@ -3,23 +3,32 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Local admin-operated CLI for the Spark/Functions-free V3 backend. Privileged Admin-SDK ops (createUser, custom claims, grant/extend/revoke, expiry) that have no hosted home on Spark. Run by the admin with a service-account key, or against the emulator.",
+  "description": "Break-glass and emulator tooling for the V3 Firebase backend. Normal production mutations use MFA- and App-Check-protected callables.",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "make-admin": "node make-admin.mjs",
+    "configure:auth-security": "node configure-auth-security.mjs",
     "grant": "node grant.mjs",
     "extend": "node extend.mjs",
     "revoke": "node revoke.mjs",
-    "expiry": "node expiry-sweep.mjs"
+    "expiry": "node expiry-sweep.mjs",
+    "test:cli-safety": "node --test test/cli-safety.test.mjs",
+    "test:flow": "node test/flow.test.mjs",
+    "test:rules": "node --test test/firestore.rules.test.mjs",
+    "test:security": "node --test test/security.e2e.test.mjs"
   },
   "dependencies": {
     "firebase-admin": "^14.1.0",
     "ulid": "^2.3.0",
-    "zod": "^3.23.0"
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.1",
+    "firebase": "^12.15.0"
   },
   "overrides": {
-    "uuid": "^11.1.1"
+    "uuid": "11.1.1"
   }
 }

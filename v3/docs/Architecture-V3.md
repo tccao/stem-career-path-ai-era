@@ -1,378 +1,251 @@
-# V3 System Architecture (Rev. 1)
+# V3 System Architecture (Rev. 2)
 
-Architecture reference for the **V3 hosted MVP** of the Code For Good STEM Career Path platform.
-Written for engineers and reviewers; every diagram below is validated headless with `mmdc` (Mermaid
-CLI) so it renders. Source-of-truth for behavior: [`Spark-Backend.md`](Spark-Backend.md); install /
-configure / test: [`Setup-Guide.md`](Setup-Guide.md); agent guide: [`../CLAUDE.md`](../CLAUDE.md).
+Current architecture for the secured hosted MVP. Security verification and deployment procedure:
+[`Security-Verification-Walkthrough.md`](Security-Verification-Walkthrough.md).
 
-> **One-line thesis.** Push the trust boundary into **Firestore Security Rules** (server-enforced,
-> free) and keep every privileged authority — account-minting, role claims, the lockdown kill-switch,
-> and secret-backed integrations — in **admin/owner-gated Cloud Functions plus a local Admin-SDK CLI**,
-> never the browser. A static frontend on **AWS Amplify** + **Firebase (Blaze)** delivers a vetted-access
-> learning platform at ~$0, with the V2 security model intact and an **owner > admin > student** tier on top.
+## 1. Decision
 
----
+V3 keeps the low-operations Amplify + Firebase stack, but the trust boundary is no longer split
+between browser logic and Firestore writes. Browsers are read-only in Firestore. All intake,
+progress, lifecycle, payment, settings, role, and incident mutations run through App-Check-protected
+2nd-generation callable Functions.
 
-## 1. Context & goals
+| layer | service | responsibility |
+| --- | --- | --- |
+| edge | AWS Amplify Hosting + CloudFront | static Vite MPA + security/cache headers |
+| browser | Firebase Web SDK | session-only Auth; memory-only Firestore; App Check token |
+| identity | Firebase Auth with Identity Platform | email-link first factor + TOTP staff second factor |
+| API | Cloud Functions 2nd gen Node 22 | validation authorization transitions integrations audit |
+| data | Cloud Firestore | applications members progress locks payments revocations audit settings |
+| external | Zeffy + Cal.com | hosted payments and interviews; keys in Functions secrets |
+| operations | Cloud Logging + Firestore TTL/PITR | locked audit retention cleanup recovery |
 
-```csv
-goal,how V3 meets it,measure
-$0 / no-card pilot,Amplify free tier + Firebase Spark (Firestore+Auth); no always-on compute,monthly bill = $0
-keep V2 trust model,server-side enforcement via Rules + claims; account-minting CLI-only,no client can mint accounts or self-grant
-ship fast,static SPA + managed backend; no infra to operate,apply→grant→learn live + E2E-tested
-portable,thin seams over Auth/DB; Blaze upgrade path preserved in functions/,migrate without a frontend rewrite
-```
+## 2. Runtime topology
 
-Non-goals (this horizon): always-on API, real-time fan-out, multi-region, SSO/MFA at launch. Each
-has a documented re-entry path (§9–§10). **Exception:** a small set of on-demand, admin-gated Cloud
-Functions (`syncDonations`, `getInterview`, `grant`, `extendAccess`, `revokeAccess`) is deployed on
-Blaze — all scale-to-zero (no always-on compute). They keep the Zeffy/Cal.com keys server-side and run
-the Admin-SDK privileged ops (account-minting + claims) that cannot run in the browser (§11a).
-
----
-
-## 2. System context (C4 level 1)
+The numbered arrows show the runtime request and mutation flow. Service nodes use Mermaid's
+Iconify `logos` pack; render locally with `mmdc --iconPacks @iconify-json/logos`.
 
 ```mermaid
 flowchart LR
-  applicant(["Applicant / Student"])
-  admin(["Admin operator"])
-  donor(["Donor"])
-  subgraph edge["AWS Amplify Hosting · CloudFront CDN"]
-    spa["Static SPA<br/>landing · student · admin"]
+  subgraph clients["Client surfaces — untrusted"]
+    direction TB
+    browser["Browser SPA<br/>applicant · student · admin / owner"]
   end
-  subgraph fb["Firebase · Spark plan"]
-    auth["Firebase Auth<br/>email-link + custom claims"]
-    fs[("Cloud Firestore<br/>+ Security Rules")]
+
+  subgraph aws["AWS edge"]
+    direction TB
+    cdn@{ icon: "logos:aws-cloudfront", form: "square", label: "Managed CloudFront CDN", pos: "b" }
+    amp@{ icon: "logos:aws-amplify", form: "square", label: "Amplify Hosting", pos: "b" }
   end
-  cli["admin-cli<br/>firebase-admin · local + key"]
-  zeffy["Zeffy · hosted donations"]
-  applicant -->|HTTPS| spa
-  admin -->|HTTPS| spa
-  donor -->|donate| zeffy
-  spa -->|Web SDK| auth
-  spa -->|"Web SDK (gated by Rules)"| fs
-  cli -->|Admin SDK| auth
-  cli -->|Admin SDK| fs
+
+  subgraph firebase["Firebase / Google Cloud — server trust boundary"]
+    direction TB
+
+    subgraph guard["Identity & request attestation"]
+      direction LR
+      appcheck@{ icon: "logos:firebase", form: "square", label: "Firebase App Check", pos: "b" }
+      auth@{ icon: "logos:firebase", form: "square", label: "Firebase Auth + TOTP", pos: "b" }
+    end
+
+    subgraph compute["API & enforcement"]
+      direction LR
+      fn@{ icon: "logos:google-cloud-functions", form: "square", label: "Cloud Functions codebase sync", pos: "b" }
+      rules@{ icon: "logos:firebase", form: "square", label: "Firestore Security Rules", pos: "b" }
+    end
+
+    subgraph data["Data & immutable operations record"]
+      direction LR
+      db@{ icon: "logos:firebase", form: "square", label: "Cloud Firestore", pos: "b" }
+      logs@{ icon: "logos:google-cloud", form: "square", label: "Locked Cloud Logging bucket", pos: "b" }
+    end
+  end
+
+  subgraph external["External SaaS"]
+    direction LR
+    zeffy["Zeffy API"]
+    cal["Cal.com API"]
+  end
+
+  browser -->|"1) GET site / SPA over HTTPS"| cdn
+  cdn -->|"2) cache miss / deploy origin"| amp
+  browser -->|"3) establish or restore session"| auth
+  browser -->|"4) obtain request attestation"| appcheck
+  browser -->|"5) callable + ID / App Check tokens"| fn
+  appcheck -.->|"6) attest request"| fn
+  auth -.->|"7) verify ID token + claims"| fn
+  browser -->|"8) staff-only MFA read query"| rules
+  rules -->|"9) allow constrained read"| db
+  fn -->|"10) Admin SDK read / write"| db
+  fn -->|"11) accounts, claims, sessions"| auth
+  fn -->|"12) verify payments / campaigns"| zeffy
+  fn -->|"13) read interview bookings"| cal
+  fn -->|"14) structured securityAudit"| logs
 ```
 
----
+## 3. Trust zones
 
-## 3. Deployment topology — icon group
+| zone | trust | allowed |
+| --- | --- | --- |
+| anonymous browser | untrusted | public settings + anonymous Auth + submitApplication callable |
+| student browser | untrusted authenticated | getStudentDashboard getCurriculum submitStage callables |
+| staff browser | untrusted privileged | MFA + App Check callables; Rules-gated read-only admin views |
+| owner browser | untrusted highest human role | staff operations + roles settings lockdown recovery |
+| Functions | server trust boundary | Admin SDK mutations after in-handler checks |
+| local admin CLI | break-glass root | emulator or explicit production phrase + attributable operator |
+| Firestore Rules | server enforcement | deny writes; current MFA staff reads only |
 
-Built-in Mermaid `architecture-beta` icons (`internet`/`cloud`/`server`/`database`) so it renders
-without an external icon pack. For brand icons, render with `mmdc --iconPacks @iconify-json/logos`
-and swap to `logos:aws-amplify`, `logos:firebase`, etc.
+No browser state, route, button, curriculum copy, stage state, accessBasis, payment signal, or
+deliverable field is trusted for authorization.
 
-```mermaid
-architecture-beta
-  group aws(cloud)[AWS Amplify]
-  group gcp(cloud)[Firebase Spark]
-  group ops(server)[Admin workstation]
+## 4. Authentication and authorization
 
-  service user(internet)[Browser]
-  service cdn(cloud)[Amplify CDN] in aws
-  service auth(server)[Firebase Auth] in gcp
-  service db(database)[Firestore] in gcp
-  service cli(server)[admin cli] in ops
+Student authorization uses custom claims `role=student`, `accessBasis`, `accessEnds`, and
+`sessionVersion`. Staff uses `role=admin|owner`, `mfaEnrolled=true`, and `sessionVersion`.
 
-  user:R -- L:cdn
-  user:B -- T:auth
-  user:L -- T:db
-  cli:B -- B:auth
-  cli:R -- R:db
-```
+Every callable:
 
----
+1. Firebase verifies the ID token and App Check token.
+2. `security.js` verifies role, current `sessionVersion`, access window/MFA, and lockdown.
+3. The handler validates bounded input with a strict Zod schema.
+4. The operation re-derives state from server data and commits conditionally.
 
-## 4. Numbered end-to-end flow (apply → grant → learn)
+`revocations/{uid}` carries the required random `sessionVersion`. Disable, revoke, role change,
+grant, MFA confirmation, and re-enable rotate it and revoke refresh tokens. An already-issued token
+therefore fails immediately without waiting for its normal expiration.
+
+Staff TOTP enrollment is confirmed server-side from the Auth user record. The callable then sets
+`mfaEnrolled=true`, rotates the session, and requires a fresh email-link + TOTP sign-in.
+
+## 5. Firestore boundary
+
+| collection | browser read | browser write | server writer |
+| --- | --- | --- | --- |
+| settings/public | public | never | owner updateSettings |
+| applications | MFA current staff outside lockdown | never | submit/reject/grant callables |
+| members + subcollections | MFA current staff outside lockdown | never | lifecycle/student/admin callables |
+| donations + campaigns | MFA current staff outside lockdown | never | Zeffy integration |
+| auditLog | MFA current staff outside lockdown | never | audit helpers |
+| system | MFA current staff; owner during lockdown | never | owner setLockdown |
+| revocations/rateLimits/applicationIntake | never | never | security/intake handlers |
+
+Student data and curriculum are returned through one dashboard callable. This avoids public
+curriculum bytes, direct progress writes, and the previous multi-query student startup path.
+
+## 6. Intake
+
+`submitApplication` requires an anonymous Firebase session and production App Check. It enforces:
+
+- strict name/email/age/access schema and length limits;
+- under-13 denial;
+- guardian-consent boolean and timestamp for ages 13–17;
+- normalized email + SHA-256 email key;
+- five submissions/hour per anonymous uid;
+- one submission/day per normalized email;
+- server-generated document id/timestamps;
+- one-year PII expiry (90 days after rejection);
+- actor-attributed audit.
+
+## 7. Grant saga
+
+Auth and Firestore cannot share a transaction, so grant uses a resumable saga instead of claiming
+cross-service atomicity.
 
 ```mermaid
 sequenceDiagram
   autonumber
-  actor A as Applicant
-  participant L as Landing
-  participant FS as Firestore Rules
-  actor AD as Admin
-  participant CLI as admin-cli
-  participant AU as Firebase Auth
-  participant APP as Student app
-  A->>L: open home and submit application
-  L->>FS: anonymous create application doc, age and consent gate
-  AD->>FS: read queue, schedule interview via admin claim
-  AD->>CLI: run grant.mjs with id and path
-  CLI->>AU: createUser plus setCustomUserClaims role accessBasis accessEnds
-  CLI->>FS: application to GRANTED, member doc ACTIVE
-  AU-->>A: email-link sign-in email
-  A->>APP: open link, signInWithEmailLink
-  APP->>FS: read member doc plus progress, claims gate
-  A->>FS: submit stage, own progress, ACTIVE and in-window
+  actor Admin
+  participant F as grant callable
+  participant DB as Firestore
+  participant A as Firebase Auth
+  Admin->>F: beneficiary application + path + days
+  F->>DB: transaction reserve PROVISIONING(operationId)
+  F->>A: get/create email user, reject staff collision
+  F->>DB: write PROVISIONING member + grantedUid
+  F->>A: exact student claims + rotate sessionVersion
+  F->>DB: transaction member ACTIVE + application GRANTED + audit
+  F-->>Admin: uid/status
 ```
 
----
+Retries resume the deterministic operation. Concurrent calls converge on one Auth account and one
+member. A `GRANTED` application returns idempotently. Supporter applications cannot call this
+beneficiary route.
 
-## 5. Access lifecycle state machine
+## 8. Curriculum and progress
 
-Server-set; every transition to a privileged state runs through the admin-cli or a Rules-gated
-admin write. No path reaches `ACTIVE` without an admin grant (beneficiary) or verified payment (supporter).
+The server-owned curriculum is `backend/sync-fn/curriculum.json`; no copy is deployed by Amplify.
+`submitStage` transactionally checks:
 
-```mermaid
-stateDiagram-v2
-  [*] --> SUBMITTED
-  SUBMITTED --> INTERVIEW_SCHEDULED: admin schedules (Rules)
-  SUBMITTED --> GRANTED: supporter, payment verified (cli)
-  INTERVIEW_SCHEDULED --> GRANTED: beneficiary grant (cli)
-  SUBMITTED --> REJECTED: admin reject (Rules)
-  INTERVIEW_SCHEDULED --> REJECTED: admin reject (Rules)
-  GRANTED --> ACTIVE: member doc + persisted claims
-  ACTIVE --> ENDED: expiry sweep or revoke (cli)
-  REJECTED --> [*]
-  ENDED --> [*]
-```
+- current active student and member window;
+- stage exists in the member's path;
+- existing completion (idempotent success);
+- explicit administrative `locked` denial;
+- natural next stage or explicit `unlocked` override;
+- HTTPS proof URL and bounded key/length;
+- progress write and audit in the same transaction.
 
----
+## 9. Payments
 
-## 6. Data model (Firestore)
+Zeffy remains hosted; V3 stores no card data. `confirmDonation` re-fetches the payment using a
+read-only secret and requires succeeded status, no refund/dispute, supporter application, matching
+normalized buyer/applicant email, and one payment bound to one application. Only then is
+`verificationState=VERIFIED` written and supporter grant resumed.
 
-```mermaid
-erDiagram
-  applications {
-    string status
-    string accessChoice
-    string email
-    string ageBracket
-    bool guardianConsent
-    number interviewAt
-    string grantedUid
-  }
-  members {
-    string status
-    string accessBasis
-    number accessEnds
-    string path
-    string email
-  }
-  progress {
-    string status
-    string deliverableUrl
-    number completedAt
-  }
-  stageLocks {
-    string state
-  }
-  auditLog {
-    string type
-    string targetId
-    number ts
-  }
-  members ||--o{ progress : "subcollection"
-  members ||--o{ stageLocks : "subcollection (admin override)"
-  applications ||--o| members : "grant sets grantedUid"
-```
+`syncDonations` uses bounded pages and a single instance. A refund/dispute on a payment with
+`grantedUid` calls the same revocation path and records `revocationProcessedAt` idempotently.
 
-Read-light by design: a student renders from `members/{uid}` + its `progress` subcollection (≤3
-reads); curriculum is a static bundle (0 reads); the admin overview uses Firestore aggregation
-counts. Indexes: composite `(status, createdAt)` on applications, `(status, accessEnds)` on members.
+## 10. Staff and incident controls
 
----
+| control | behavior |
+| --- | --- |
+| owner hierarchy | admin cannot manage staff; self role/disable denied; last active owner cannot be removed |
+| settings | owner-only and zeffy.com/cal.com HTTPS hosts only |
+| disable | Auth disabled + session rotated + member ENDED |
+| enable | Auth enabled + member ACTIVE only if window remains + new session rotation |
+| revoke | expired claim + new sessionVersion + refresh-token revoke + member ENDED |
+| lockdown | all non-owner sensitive Firestore reads and callables denied; owner can investigate/lift |
+| break glass | service credential outside repo + exact phrase + operator uid; normal UI uses callables |
 
-## 7. Security architecture & trust boundaries
+## 11. Audit, retention, and recovery
 
-```mermaid
-flowchart TB
-  subgraph untrusted["Untrusted zone — public internet"]
-    anon["Anonymous applicant"]
-    stu["Student session (role=student claim)"]
-    adm["Admin session (role=admin claim)"]
-  end
-  subgraph enforced["Server-enforced boundary — Firestore"]
-    rules{{"Security Rules<br/>read token claims: role, accessEnds"}}
-  end
-  subgraph priv["Privileged zone — local + service-account key"]
-    cli["admin-cli (Admin SDK)"]
-  end
-  data[("Firestore data")]
-  authsvc["Firebase Auth"]
-  anon -->|"create application only"| rules
-  stu -->|"read own + write own progress"| rules
-  adm -->|"read all + interview/reject + stageLocks"| rules
-  rules --> data
-  cli -->|"bypasses Rules: createUser, claims, grant"| authsvc
-  cli --> data
-  authsvc -. "mints claims consumed by" .-> rules
-```
+Every privileged mutation records IDs/status/reason codes and actor uid without immutable PII.
+Firestore audit events are client-immutable and optimized for the admin timeline. The same events are
+JSON structured logs. Production routes `jsonPayload.securityAudit:*` to a 365-day locked Cloud
+Logging bucket; this is the tamper-resistant record.
 
-Security invariants (enforced, not aspirational):
+Firestore TTL covers application/member expiry and ephemeral rate/revocation metadata. A daily
+scheduled function expires due members and removes anonymous Auth accounts older than seven days.
+Firestore PITR and budget alerts are mandatory external configuration gates.
 
-```csv
-invariant,enforcement
-only the admin-cli mints accounts / sets role claims,no hosted or browser code calls createUser/setCustomUserClaims
-browser admin limited to non-minting writes,Rules allow admin claim to set INTERVIEW_SCHEDULED/REJECTED + stageLocks only
-apply behind age/consent gate,Rules accept only declared age groups and require guardian consent for ages 13–17 (bad shapes denied)
-student writes only own progress while ACTIVE,Rules: request.auth.uid == uid && role==student && accessEnds > now
-protected collections client-read-only,members/counters/donations/auditLog writable only via Admin SDK; auditLog append-only
-service-account key never committed,gitignored (*adminsdk*.json etc.); emulator path needs no key
-supporter ACTIVE requires verified payment,verifyDonation fails closed; never trusts a client claim
-```
+## 12. Reliability and scale
 
-Known operational limit: email-link sign-in emails are **5/day on Spark** (Blaze 25,000/day);
-mitigations in §10.
+| concern | control |
+| --- | --- |
+| function abuse | App Check + role/MFA + rate limits + maxInstances |
+| external latency | 15-second aborts and bounded pages |
+| Zeffy concurrency | syncDonations maxInstances=1 |
+| admin account listing | 100-user pages with continuation token |
+| student startup | one dashboard callable returns member progress locks curriculum |
+| partial grant | resumable PROVISIONING operation |
+| scheduled cleanup | maintenanceSweep maxInstances=1 |
+| deployment skew | owner lockdown + Functions/indexes → frontend → Rules ordered rollout |
+| dependency supply chain | lockfiles npm audit and full-history Gitleaks CI gates |
 
----
+The two-cloud stack remains an operational trade-off: Amplify provides the requested AWS edge while
+Firebase owns identity/data/functions. Static hosting is portable; Auth, Rules, and direct Firestore
+admin reads are Firebase-specific. No React/framework migration is required for this pilot.
 
-## 8. Technology choices & trade-offs (ADR digest)
+## 13. Latency posture
 
-```csv
-decision,chosen,alternatives,trade-off accepted
-hosting (frontend),AWS Amplify (Git-connect CDN),Firebase Hosting · S3+CloudFront,2-vendor split (Amplify+Firebase) for the user's stated stack; CORS + 2 consoles
-backend plan,Firebase Spark (no card),Blaze · all-AWS (V2),no Cloud Functions/Storage; trust boundary moves to Rules + local CLI
-enforcement,Firestore Security Rules + claims,app-server checks · API gateway,gating logic split across Rules + client; complex sequencing relaxed
-privileged ops,local firebase-admin CLI,deployed system-fn (Blaze),not always-on; admin runs commands (fine at pilot scale)
-auth,passwordless email-link,password · OAuth,depends on Firebase email quota (5/day Spark); no password store
-build,Vite multi-page (vanilla JS),React/Next,tiny bundle, no framework runtime; manual DOM in 3 SPAs
-data,Firestore (denormalized, read-light),DynamoDB (V2) · SQL,per-doc read billing; no joins; aggregation for counts
-```
+- Hashed assets are immutable-cached; HTML is `no-store/no-cache` to prevent deployment skew.
+- Student startup is one Auth restoration plus one dashboard callable rather than member → progress
+  → locks → public curriculum sequencing.
+- Scale-to-zero functions can cold-start; admin operations tolerate this, while dashboard functions
+  are bounded to one member and two small subcollections.
+- Current static security baseline caps total Brotli JavaScript at 220 KB and the logo at 300 KB.
+- External Zeffy/Cal calls are staff-only, timed out, and never on student rendering paths.
 
----
+## 14. Deferred/non-runtime references
 
-## 9. Portability (exit costs & seams)
-
-```mermaid
-flowchart LR
-  spa["SPA modules"] --> sdk["firebase.js<br/>(single init seam)"]
-  sdk --> auth["Auth adapter"]
-  sdk --> dbm["Firestore adapter"]
-  auth -. swap .-> auth2["Cognito / Auth0"]
-  dbm -. swap .-> db2["DynamoDB / Postgres"]
-  host["amplify.yml"] -. swap .-> host2["any static host"]
-```
-
-```csv
-concern,portability posture
-frontend host,plain static build (dist/) — movable to any CDN; only amplify.yml is host-specific
-auth,all SDK use funnels through src/firebase.js + lib/auth.js — one seam to repoint
-data access,reads/writes are localized in app.js/admin.js/landing.js; Firestore-specific calls are shallow
-privileged ops,admin-cli is plain Node + Admin SDK — portable to any runner (laptop, CI, Cloud Run on Blaze)
-curriculum,static JSON — portable verbatim; same content powers V1/V2/demo
-lock-in risk,Security Rules language is Firebase-specific (would be re-expressed as server checks on migration)
-```
-
----
-
-## 10. Future expansion & merge to Blaze
-
-The `functions/` directory is a **build-ready Blaze reference** (not deployed). Upgrading is additive
-— Rules stay; the local CLI logic lifts into callables/triggers; email + scheduling become managed.
-
-```mermaid
-flowchart LR
-  subgraph now["Now — Blaze (Functions-minimal)"]
-    r1["Firestore Rules"]
-    c1["admin-cli (local)"]
-    e1["email-link via Firebase (25k/day)"]
-    sd["admin fns: sync/grant/extend/revoke/getInterview"]
-  end
-  subgraph next["Future — Blaze"]
-    fn["Cloud Functions (callables)"]
-    sch["Scheduler (expiry sweep)"]
-    st["Cloud Storage (gated assets)"]
-    em["Custom SMTP / 25k-day email"]
-  end
-  c1 -->|"lift grant/revoke to callables"| fn
-  r1 -->|"unchanged"| fn
-  c1 -->|"cron -> scheduler"| sch
-  e1 -->|"raise quota"| em
-  now ==>|"add billing instrument"| next
-```
-
-```csv
-trigger to upgrade,what unlocks
->5 email-link sign-ins/day,Blaze raises to 25k/day (or generate links via Admin SDK: 20k/day, send via own SMTP)
-need an always-on API,deploy functions/ (callables) — students/admin call instead of writing Firestore directly
-gated curriculum bytes,Cloud Storage + signed URLs (Storage needs Blaze on new projects)
-scheduled expiry without a laptop,EventBridge-style Scheduler trigger replaces the manual expiry-sweep
-MFA / SSO,Firebase MFA + App Check (config-only on Blaze/Identity Platform)
-```
-
----
-
-## 11. Scalability, cost & ops
-
-```csv
-dimension,posture at pilot,scale lever
-cost,~$0 (Blaze + Amplify free tier); a few scale-to-zero admin functions (§11a),Blaze pay-as-you-go; read-light model keeps Firestore reads tiny
-reads,student ≤3 reads/view; curriculum 0 reads (static); admin counts via aggregation,denormalized rollups if views grow
-writes,apply (1) · stage submit (1) · admin overrides (small),batch + transactions already used for idempotency
-availability,managed (Amplify CDN + Firebase SLA); no self-run compute,multi-region is a Firebase/Amplify config
-observability,Firebase console (Auth/Firestore usage) + auditLog (PII-free),add Cloud Logging/metrics on Blaze
-recovery,Firestore PITR (enable) + rules/code in git,IaC (functions via SAM/Firebase deploy) on upgrade
-```
-
-### 11a. Deployed admin Cloud Functions (cost & constraints)
-
-The admin console's privileged actions run as **admin-claim-gated 2nd-gen callables** on **Blaze**,
-all in one codebase (`v3/backend/sync-fn`, codebase `sync`, nodejs22) so `firebase deploy --only functions`
-never touches the unrelated `functions/` reference design. They mirror the local `admin-cli` scripts,
-which remain an equivalent fallback.
-
-```csv
-function,gate,job,secret
-syncDonations,staff,Zeffy payments + campaigns → Firestore (Donations Refresh); persists campaigns/{id} so the name shows with 0 payments,ZEFFY_API_KEY
-getInterview,staff,reads the applicant's self-booked Cal.com slot for the interview modal,CAL_API_KEY
-grant,staff,account-minting: createUser + role/window claims + member doc (Approve & grant),—
-extendAccess,staff,push out a member's access window + claim (no re-login); refuses staff targets,—
-revokeAccess,staff,end a member + expire claim + revoke refresh tokens; refuses staff targets,—
-setRole,owner,manage the admin/owner roster (admin|owner|none); cannot target self,—
-disableAccount,staff,block sign-in + kill sessions of a compromised account (admin→students only; owner→anyone but an owner),—
-enableAccount,staff,re-enable a disabled account (same targeting rules),—
-setLockdown,owner,global kill-switch: writes system/lockdown; blocks every non-owner fn + client write until lifted,—
-```
-
-Role tiers: **owner > admin > student** (custom claim `role`). "staff" = admin or owner; owner-gated
-functions fail closed unless `role=='owner'`, so an admin can never promote/demote anyone, lift a
-lockdown, or disable an admin/owner. The first owner is minted **local-only** via `admin-cli/make-owner.mjs`
-(a root of trust hosted code can't forge). When `system/lockdown.enabled`, both the functions
-(`assertNotLockedDown`) and Firestore Rules (`notLocked()`) deny all non-owner activity.
-
-```csv
-constraint,detail
-why functions at all,the Zeffy + Cal.com keys are secrets (server-side only); grant/extend/revoke need the Admin SDK (createUser + setCustomUserClaims) which cannot run in the browser
-auth,fail-closed on EVERY fn — rejects unless the caller's verified custom claim role==admin (HttpsError permission-denied)
-invariant change,this relaxes the earlier 'no hosted account-minting' rule (we are on Blaze now); bounded by the admin gate + idempotent/conditional writes; the browser client still cannot createUser or set role claims
-idempotent,grant only from SUBMITTED/INTERVIEW_SCHEDULED; donations upsert-merge on payment id
-scale-to-zero,min instances = 0 → no idle cost; one invocation per admin click
-secret handling,defineSecret('ZEFFY_API_KEY'|'CAL_API_KEY'); set once via `firebase functions:secrets:set <NAME>` — not in git/config
-deploy scope,codebase "sync" → `firebase deploy --only functions:sync` (reference functions/ stays undeployed)
-```
-
-Cost: effectively **$0** at pilot scale. The Cloud Functions perpetual free tier (2M invocations,
-400K GB-seconds, 200K vCPU-seconds, 5 GB egress per month) dwarfs an admin-only refresh hit a few
-times a day. The only non-zero items are tiny: **Artifact Registry** storage for the function's
-container image (~$0.10/GB-month; often inside the free 0.5 GB) and **Cloud Build** on deploy (120
-free build-minutes/day). Realistic bill: **$0, occasionally a few cents/month.** Blaze's runaway-cost
-risk is bounded here because the function is admin-claim-gated and scale-to-zero.
-
----
-
-## 12. Risks & mitigations
-
-```csv
-risk,severity,mitigation
-email quota (5/day Spark),medium,Blaze done (25k/day); link-generation fallback documented
-cross-cloud split (Amplify+Firebase),low,single init seam; CORS locked to the Amplify origin; both managed
-Rules gaps (logic in two places),medium,rules-unit tests (planned) + live E2E (apply/grant/read verified)
-service-account key exposure,high,gitignored + never pasted; rotate via console if leaked; emulator for dev
-relaxed sequential gating,low,admin stageLocks override; strict gating returns with Functions (Blaze)
-single admin operator,low,bootstrap more admins via make-admin; CLI is portable to CI later
-```
-
----
-
-## Appendix — diagram validation
-
-All Mermaid blocks above are validated headless with `mmdc` (see `../CLAUDE.md` → "Render/validate
-a Mermaid diagram headless"). Re-validate after edits:
-
-```bash
-# extract each ```mermaid block to /tmp/dN.mmd and run mmdc with the snap-Chromium puppeteer config
-```
+`backend/functions/`, `docs/Spark-Backend.md`, `docs/V3-Plan.md`, `docs/MVP-Plan.md`, and phase plans
+describe earlier design stages. They are not deployment sources. `backend/firebase.json` registers
+only `backend/sync-fn`.

@@ -1,26 +1,20 @@
-// Public apply / fund-a-seat. Spark/Functions-free: anonymous sign-in, then write the
-// application directly to Firestore. The accepted age groups, guardian-consent requirement,
-// and document shape are enforced by Security Rules — see firestore.rules.
-import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { ulid } from 'ulid';
-import { db } from '../firebase.js';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '../firebase.js';
 import { ensureAnonymous } from '../lib/auth.js';
 
+const submitApplication = httpsCallable(functions, 'submitApplication', { timeout: 30_000 });
+
 export async function apply(form) {
-  // form: { name, email, ageBracket: '13-17'|'18plus', guardianConsent?, accessChoice, stage, track, reason }
   await ensureAnonymous();
-  const id = ulid();
-  await setDoc(doc(collection(db, 'applications'), id), {
-    status: 'SUBMITTED',
-    accessChoice: form.accessChoice,        // 'beneficiary' | 'supporter'
-    email: form.email,
-    name: form.name,
+  const result = await submitApplication({
+    name: String(form.name || '').trim(),
+    email: String(form.email || '').trim(),
     ageBracket: form.ageBracket,
-    guardianConsent: form.guardianConsent ?? false,
-    stage: form.stage || '',
-    track: form.track || '',
-    reason: form.reason || '',
-    createdAt: serverTimestamp(),
-  }); // Rules reject undeclared age groups, missing minor consent, and bad shapes.
-  return { applicationId: id, status: 'SUBMITTED', next: form.accessChoice === 'supporter' ? 'donate' : 'review' };
+    guardianConsent: form.guardianConsent === true,
+    accessChoice: form.accessChoice,
+    stage: String(form.stage || '').trim(),
+    track: form.track,
+    reason: String(form.reason || '').trim(),
+  });
+  return result.data;
 }

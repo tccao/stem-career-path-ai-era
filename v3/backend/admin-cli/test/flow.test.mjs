@@ -36,9 +36,11 @@ const claims = (await auth.getUser(uid)).customClaims || {};
 assert(claims.role === 'student', 'claim role=student');
 assert(typeof claims.accessEnds === 'number' && claims.accessEnds > Date.now(), 'claim accessEnds in future');
 
-// Idempotency: granting again must refuse (status no longer SUBMITTED).
+// Idempotency: granting again returns success without minting another account.
 const r2 = spawnSync(process.execPath, ['grant.mjs', id], { cwd: new URL('..', import.meta.url), env: process.env, encoding: 'utf8' });
-assert(r2.status !== 0, 'second grant refused (idempotent)');
+assert(r2.status === 0, 'second grant resumes idempotently');
+const users = await auth.listUsers();
+assert(users.users.filter((user) => user.email === email).length === 1, 'idempotent retry did not duplicate the account');
 
 console.log('ALL_PASS');
 process.exit(0);

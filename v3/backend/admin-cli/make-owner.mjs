@@ -3,15 +3,18 @@
 // forge, which is what makes "admins cannot escalate to owner" actually hold.
 //   node make-owner.mjs <email>
 // Owner > admin > student. Owner can manage admins, disable any account, and lock down the system.
-import { auth, db, STATE, audit, die } from './lib/admin.mjs';
+import { auth, audit, die, onEmulator, recordRevocation } from './lib/admin.mjs';
 
 const email = process.argv[2];
 if (!email) die('usage: node make-owner.mjs <email>');
+if (!onEmulator && process.env.CFG_OWNER_BOOTSTRAP !== 'I_UNDERSTAND_ROOT_ACCESS') {
+  die('set CFG_OWNER_BOOTSTRAP=I_UNDERSTAND_ROOT_ACCESS for the local root bootstrap');
+}
 
 const user = await auth.getUserByEmail(email).catch(() => auth.createUser({ email }));
-await auth.setCustomUserClaims(user.uid, { role: 'owner' });
-await auth.revokeRefreshTokens(user.uid); // force a fresh token so the owner claim takes effect now
-await db.collection('accountAccess').doc(user.uid).set({ uid: user.uid, email, role: 'owner', enabled: true, status: STATE.ACTIVE }, { merge: true });
-await audit({ type: 'owner.bootstrapped', targetType: 'owner', targetId: user.uid });
+const mfaEnrolled = onEmulator || (user.multiFactor?.enrolledFactors?.length || 0) > 0;
+await auth.setCustomUserClaims(user.uid, { role: 'owner', mfaEnrolled, ...(onEmulator ? { testMfa: true } : {}) });
+await recordRevocation(user.uid);
+await audit({ type: 'owner.bootstrapped', targetType: 'owner', targetId: user.uid, actorId: 'bootstrap:local' });
 console.log(`ok: ${email} is OWNER (uid=${user.uid}). Sign in via email-link on admin.html.`);
 process.exit(0);

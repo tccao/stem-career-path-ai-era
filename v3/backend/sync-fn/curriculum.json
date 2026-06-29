@@ -1,5 +1,5 @@
 {
-  "_note": "V3 curriculum bundle (Spark/Functions-free). On Spark there is no server runtime, so this static bundle IS the curriculum — the SPA reads it (0 Firestore reads) and computes sequential stage state client-side; Firestore Rules enforce the access window. Content extracted from references/ (same source as demo/src/content). Bump _version to bust client caches.",
+  "_note": "Server-owned V3 curriculum. Only authenticated callables return it; submitStage uses this same file for stage existence and ordering. No copy is deployed in the Amplify public assets.",
   "_version": 2,
   "fasttrack": {
     "title": "4-Week Fast Track — Prompt Like a Pro",

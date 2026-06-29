@@ -1,13 +1,11 @@
-// Admin console — design ported from demo/public/admin.html, wired to the Spark/Functions-free
-// backend. READS go straight to Firestore (allowed by Rules for the admin custom claim).
-// Privileged MUTATIONS have no hosted endpoint on Spark, so the buttons render the exact
-// admin-cli command to copy and run (the admin-cli holds AdminCreateUser / setCustomUserClaims).
+// Admin console. Reads are Rules-gated; every mutation crosses an MFA- and
+// App-Check-protected callable so lifecycle transitions and audits stay server-owned.
 import '../ui/theme.css';
-import { collection, query, where, orderBy, limit, getDocs, getDoc, getCountFromServer, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, getDocs, getDoc, getCountFromServer, doc } from 'firebase/firestore';
 import { signOut, getIdTokenResult } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
 import { db, auth, functions } from '../firebase.js';
-import { requestSignInLink, completeSignInIfPresent, onAuthStateChanged } from '../lib/auth.js';
+import { clearSignInState, enrollTotpMfa, hasEnrolledMfa, requestSignInLink, completeSignInIfPresent, onAuthStateChanged } from '../lib/auth.js';
 import { loadCurriculum } from '../lib/cache.js';
 
 const $ = (id) => document.getElementById(id);
@@ -33,6 +31,7 @@ async function login() {
   catch (e) { $('loginMsg').textContent = 'Error: ' + (e.code || e.message); $('loginBtn').disabled = false; }
 }
 function logout() {
+  clearSignInState();
   signOut(auth).finally(() => { ['app', 'session', 'topbar'].forEach((i) => $(i).classList.add('hidden')); $('login').classList.remove('hidden'); });
 }
 function showLogin(msg) {
@@ -46,6 +45,17 @@ async function showApp(user) {
   if (role !== 'admin' && role !== 'owner') {
     await signOut(auth).catch(() => {});
     return showLogin('That account is not staff. Ask an owner/admin to grant your email an admin role.');
+  }
+  if (tok?.claims.mfaEnrolled !== true) {
+    try {
+      if (!hasEnrolledMfa(user)) await enrollTotpMfa(user);
+      await call('confirmMfaEnrollment');
+      await signOut(auth);
+      return showLogin('MFA confirmed. Open a new email link and enter your authenticator code.');
+    } catch (error) {
+      await signOut(auth).catch(() => {});
+      return showLogin('MFA setup failed: ' + (error.code || error.message));
+    }
   }
   myRole = role;
   $('login').classList.add('hidden'); ['app', 'session', 'topbar'].forEach((i) => $(i).classList.remove('hidden'));
@@ -95,11 +105,6 @@ async function loadQueue() {
   $('queue').querySelectorAll('.adminrow').forEach((r) => { r.onclick = () => openApp(items.find((x) => x.id === r.dataset.id)); });
 }
 
-function cmdBox(cmd) { return `<div class="cmd"><code>${esc(cmd)}</code><button type="button" data-copy="${esc(cmd)}">Copy</button></div>`; }
-function wireCmds() { document.querySelectorAll('[data-copy]').forEach((b) => { b.onclick = () => navigator.clipboard?.writeText(b.dataset.copy).then(() => toast('Command copied')).catch(() => toast('Copy failed')); }); }
-
-const reopen = async (id) => { try { const d = await getDoc(doc(db, 'applications', id)); if (d.exists()) openApp({ id, ...d.data() }); } catch { /* ignore */ } };
-
 function openApp(a) {
   const f = (k, v) => `<div class="field"><span>${k}</span><span>${esc(v ?? '—')}</span></div>`;
   const vetting = (a.status === 'SUBMITTED' || a.status === 'INTERVIEW_SCHEDULED');
@@ -108,11 +113,12 @@ function openApp(a) {
     block = `
       <div class="card" style="margin-top:14px;padding:18px">
         <h2 style="font-size:.95rem;margin:0 0 6px">Confirm donation</h2>
-        <p class="cmd-note">Supporter path. Enter the Zeffy payment id (from your Zeffy dashboard / webhook). The CLI verifies it against the Zeffy API (fail-closed) and grants. Run in <b>v3/backend</b>:</p>
+        <p class="cmd-note">The server verifies payment status, refund/dispute state, and applicant email before granting access.</p>
         <label for="zpid">Zeffy payment id</label>
         <input id="zpid" type="text" placeholder="p1b2c3d4-..." />
-        <div class="cmd"><code id="confirmCode">node admin-cli/confirm-donation.mjs ${esc(a.id)} &lt;paymentId&gt;</code><button type="button" id="confirmCopy">Copy</button></div>
-        <div class="actions"><button class="btn bad" id="ivReject">Reject</button></div>
+        <label for="supportPath">Learning path</label>
+        <select id="supportPath"><option value="fasttrack">4-Week Fast Track</option><option value="roadmap">Full Roadmap</option></select>
+        <div class="actions"><button class="btn" id="confirmDonation">Verify &amp; grant</button><button class="btn bad" id="ivReject">Reject</button></div>
       </div>`;
   } else if (vetting) {
     block = `
@@ -137,37 +143,43 @@ function openApp(a) {
     ${f('Email', a.email)} ${f('Status', a.status)} ${f('Access choice', a.accessChoice)} ${f('Age bracket', a.ageBracket)} ${f('Guardian consent', a.guardianConsent ? 'yes' : '—')} ${f('Application ID', a.id)}
     ${block}
     <div class="timeline" id="timeline"></div>`;
-  wireCmds();
   // Show the applicant's self-booked Cal.com slot (key stays server-side in getInterview).
   const slot = $('ivSlot');
-  if (slot) loadInterviewSlot(a.email, slot);
+  if (slot) loadInterviewSlot(a.id, slot);
   const approve = $('ivApprove');
   if (approve) approve.onclick = async () => {
     approve.disabled = true; const orig = approve.textContent; approve.textContent = 'Granting…';
     try {
       const path = $('ivPath')?.value || 'fasttrack';
-      await call('grant', { applicationId: a.id, path, basis: 'beneficiary' });
+      await call('grant', { applicationId: a.id, path });
       toast('Access granted'); await refresh(); clearDetail();
     } catch (e) { toast('Grant failed: ' + (e.code || e.message)); approve.disabled = false; approve.textContent = orig; }
   };
   const rej = $('ivReject');
   if (rej) rej.onclick = async () => {
-    try { await call('rejectApplication', { applicationId: a.id, reason: 'not_eligible' }); toast('Application rejected'); await refresh(); clearDetail(); }
+    try { await call('rejectApplication', { applicationId: a.id, reasonCode: 'not_eligible' }); toast('Application rejected'); await refresh(); clearDetail(); }
     catch (e) { toast('Error: ' + (e.code || e.message)); }
   };
   const zpid = $('zpid');
   if (zpid) {
-    const code = $('confirmCode');
-    const build = () => `node admin-cli/confirm-donation.mjs ${a.id} ${zpid.value.trim() || '<paymentId>'}`;
-    zpid.addEventListener('input', () => { code.textContent = build(); });
-    $('confirmCopy').onclick = () => navigator.clipboard?.writeText(build()).then(() => toast('Command copied')).catch(() => toast('Copy failed'));
+    $('confirmDonation').onclick = async () => {
+      const paymentId = zpid.value.trim();
+      if (!paymentId) return toast('Enter the Zeffy payment id');
+      const btn = $('confirmDonation'); btn.disabled = true; btn.textContent = 'Verifying…';
+      try {
+        await call('confirmDonation', { applicationId: a.id, paymentId, path: $('supportPath').value });
+        toast('Payment verified and access granted'); await refresh(); clearDetail();
+      } catch (error) {
+        toast('Verification failed: ' + (error.code || error.message)); btn.disabled = false; btn.textContent = 'Verify & grant';
+      }
+    };
   }
   loadTimeline(a.id, a.grantedUid);
 }
 
-async function loadInterviewSlot(email, el) {
+async function loadInterviewSlot(applicationId, el) {
   try {
-    const { booking } = await call('getInterview', { email });
+    const { booking } = await call('getInterview', { applicationId });
     if (!booking) { el.className = 'iv-slot iv-slot-none'; el.textContent = 'No interview booked on Cal.com yet.'; return; }
     const when = booking.start ? new Date(booking.start).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—';
     el.className = 'iv-slot iv-slot-ok';
@@ -204,10 +216,17 @@ async function loadMembers() {
     const next = defs.find((s) => !completed.has(s.key));
     return { m, completed, comp, total, pct, defs, current: next ? `${next.label}: ${next.title}` : 'Path complete' };
   }));
-  $('members').innerHTML = `<table><thead><tr><th>Name</th><th>Email</th><th>Basis</th><th>Path</th><th>Progress</th><th>Current</th><th>Status</th><th>Access ends</th><th></th></tr></thead><tbody>${rows.map(({ m, comp, total, pct, current }) => `<tr class="member-row" data-uid="${esc(m.uid)}"><td>${esc(m.name || '—')}</td><td>${esc(m.email)}</td><td>${esc(m.accessBasis || '—')}</td><td>${esc(m.path === 'roadmap' ? 'Roadmap' : 'Fast track')}</td><td>${progressMini(pct, comp, total)}</td><td><div class="current-stage">${esc(current)}</div></td><td><span class="pill ${esc(m.status)}">${esc(m.status)}</span></td><td>${esc(fmtDate(m.accessEnds))}</td><td>${m.status === 'ACTIVE' ? `<button class="btn sec" data-ext="${esc(m.uid)}">Extend</button> ` : ''}<button class="btn bad" data-dis="${esc(m.uid)}">Disable</button></td></tr>`).join('')}</tbody></table>`;
+  $('members').innerHTML = `<table><thead><tr><th>Name</th><th>Email</th><th>Basis</th><th>Path</th><th>Progress</th><th>Current</th><th>Status</th><th>Access ends</th><th></th></tr></thead><tbody>${rows.map(({ m, comp, total, pct, current }) => {
+    const disabled = m.status === 'ENDED' && m.endedReason === 'disabled';
+    const actions = disabled
+      ? `<button class="btn sec" data-reactivate="${esc(m.uid)}">Reactivate</button>`
+      : `${m.status === 'ACTIVE' ? `<button class="btn sec" data-ext="${esc(m.uid)}">Extend</button> ` : ''}<button class="btn bad" data-dis="${esc(m.uid)}">Disable</button>`;
+    return `<tr class="member-row" data-uid="${esc(m.uid)}"><td>${esc(m.name || '—')}</td><td>${esc(m.email)}</td><td>${esc(m.accessBasis || '—')}</td><td>${esc(m.path === 'roadmap' ? 'Roadmap' : 'Fast track')}</td><td>${progressMini(pct, comp, total)}</td><td><div class="current-stage">${esc(current)}</div></td><td><span class="pill ${esc(m.status)}">${esc(m.status)}</span></td><td>${esc(fmtDate(m.accessEnds))}</td><td>${actions}</td></tr>`;
+  }).join('')}</tbody></table>`;
   $('members').querySelectorAll('.member-row').forEach((r) => { r.onclick = () => openMemberProgress(rows.find((x) => x.m.uid === r.dataset.uid)); });
   $('members').querySelectorAll('button[data-ext]').forEach((b) => { b.onclick = (e) => { e.stopPropagation(); showMemberExtend(b.dataset.ext); }; });
   $('members').querySelectorAll('button[data-dis]').forEach((b) => { b.onclick = (e) => { e.stopPropagation(); disableMember(b.dataset.dis); }; });
+  $('members').querySelectorAll('button[data-reactivate]').forEach((b) => { b.onclick = (e) => { e.stopPropagation(); reactivateMember(b.dataset.reactivate); }; });
 }
 const progressMini = (pct, completed, total) => `<div class="progress-mini"><div class="bar"><span style="width:${pct}%"></span></div><div class="txt">${pct}% · ${completed}/${total}</div></div>`;
 
@@ -262,8 +281,11 @@ async function openMemberProgress(row) {
 
 async function setStageLock(uid, stageKey, act, row) {
   try {
-    if (act === 'auto') await call('setStageLock', { uid, stageKey, state: 'unlocked' });
-    else await call('setStageLock', { uid, stageKey, state: act === 'lock' ? 'locked' : 'unlocked' });
+    await call('setStageLock', {
+      uid,
+      stageKey,
+      action: act === 'auto' ? 'auto' : act === 'lock' ? 'locked' : 'unlocked',
+    });
     toast(act === 'auto' ? 'Gate restored to automatic' : `Stage ${act}ed`);
     await openMemberProgress(row);
   } catch (e) { toast('Error: ' + (e.code || e.message)); }
@@ -271,7 +293,7 @@ async function setStageLock(uid, stageKey, act, row) {
 
 // ---------- site settings (Zeffy + Cal.com links) ----------
 function ensureSettingsButton() {
-  if ($('settingsBtn')) return;
+  if ($('settingsBtn') || myRole !== 'owner') return;
   const b = document.createElement('button');
   b.id = 'settingsBtn'; b.className = 'linkbtn'; b.textContent = 'Settings';
   b.onclick = openSettings;
@@ -360,7 +382,7 @@ async function renderOwnerView() {
     if (!self && promo) acts.push(`<button class="btn sec" data-prom="${esc(a.uid)}" data-to="${promo}">Promote</button>`);
     if (!self && demo) acts.push(`<button class="btn warn" data-demo="${esc(a.uid)}" data-to="${demo}">Demote</button>`);
     if (!self && a.role !== 'owner') acts.push(a.disabled
-      ? `<button class="btn sec" data-en="${esc(a.uid)}">Enable</button>`
+      ? `<button class="btn sec" data-en="${esc(a.uid)}">Reactivate</button>`
       : `<button class="btn bad" data-dis="${esc(a.uid)}">Disable</button>`);
     const nm = a.displayName || nameByUid[a.uid] || '—';
     const status = a.disabled ? '<span class="pill ENDED">Disabled</span>' : '<span class="pill ACTIVE">Active</span>';
@@ -409,6 +431,16 @@ async function disableMember(uid) {
   if (!confirm('Disable this member? They are signed out immediately and cannot sign back in until re-enabled.')) return;
   try { await call('disableAccount', { uid }); toast('Member disabled'); await loadMembers(); }
   catch (e) { toast('Disable failed: ' + (e.code || e.message)); }
+}
+async function reactivateMember(uid) {
+  if (!confirm('Reactivate this member account? They will be able to sign in again if their access window is still active.')) return;
+  try {
+    const result = await call('enableAccount', { uid });
+    toast(result.memberStatus === 'ACTIVE'
+      ? 'Member reactivated'
+      : 'Account re-enabled, but access is expired. Extend access to reactivate learning.');
+    await loadMembers();
+  } catch (e) { toast('Reactivate failed: ' + (e.code || e.message)); }
 }
 async function refreshDonations(btn) {
   const orig = btn.textContent; btn.disabled = true; btn.textContent = 'Syncing…';
@@ -510,7 +542,7 @@ async function openSettings() {
     if (!/^https:\/\//.test(zeffyUrl) || !/^https:\/\//.test(calComUrl)) { $('setMsg').textContent = 'Both must be https:// URLs.'; return; }
     $('setSave').disabled = true; $('setMsg').textContent = 'Saving…';
     try {
-      await setDoc(doc(db, 'settings', 'public'), { zeffyUrl, calComUrl, updatedAt: Date.now(), updatedBy: auth.currentUser?.uid || '' });
+      await call('updateSettings', { zeffyUrl, calComUrl });
       toast('Settings updated'); modal.remove();
     } catch (e) { $('setMsg').textContent = 'Error: ' + (e.code || e.message); $('setSave').disabled = false; }
   };

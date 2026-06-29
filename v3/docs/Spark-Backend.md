@@ -1,4 +1,8 @@
-# V3 Spark Backend — Functions-free, $0, no card (Rev. 1)
+# RETIRED — V3 Spark Backend (historical Rev. 1)
+
+> Do not implement, test, or deploy from this document. V3 now uses Firebase Blaze callables as the
+> security boundary. Current sources: [`Architecture-V3.md`](Architecture-V3.md) and
+> [`Security-Verification-Walkthrough.md`](Security-Verification-Walkthrough.md).
 
 Decision: V3 runs on Firebase **Spark** (no Blaze, no billing card). Spark **cannot deploy
 Cloud Functions** and has **no Cloud Storage** for new projects (verified 2026-06-25 — see
@@ -8,11 +12,10 @@ only as a **Blaze reference** (`v3/backend/functions/`, not deployed). This docu
 
 The trust boundary moves to two free places:
 
-```csv
-boundary,runs where,does
-Firestore Security Rules,enforced by Firestore itself (free),all client-facing authz — apply-gate, member/progress access, deny writes to protected data
-admin-cli (firebase-admin),admin operator's own machine (Node + service-account key),privileged Admin-SDK ops — createUser, set claims, grant/extend/revoke, expiry sweep
-```
+| boundary | runs where | does |
+| --- | --- | --- |
+| Firestore Security Rules | enforced by Firestore itself (free) | all client-facing authz — apply-gate, member/progress access, deny writes to protected data |
+| admin-cli (firebase-admin) | admin operator's own machine (Node + service-account key) | privileged Admin-SDK ops — createUser, set claims, grant/extend/revoke, expiry sweep |
 
 Nothing is always-on; there is no deployed API. The admin runs CLI commands to grant/revoke.
 For a single-operator pilot this is sufficient and free.
@@ -21,29 +24,27 @@ For a single-operator pilot this is sufficient and free.
 
 ## 1. What moved (Functions → Spark)
 
-```csv
-Functions design (Blaze),Spark replacement
-submitApplication callable,client writes applications/{id} directly; Rules enforce shape + age/consent gate
-grantAccess / approve (system-fn),admin-cli `grant.mjs` — createUser + setCustomUserClaims + member doc (Admin SDK works on Spark)
-redeemCode → custom token,Firebase email-link sign-in (client SDK, free); claims set by grant give role/window
-submitStage callable (re-derive gating),client writes members/{uid}/progress/{key}; Rules require ACTIVE+in-window+own-doc (self-attested)
-admin callables (list/extend/revoke),admin dashboard reads via Rules (isAdmin); extend/revoke via admin-cli
-aggregates triggers (memberDashboard, counters),no triggers on Spark → student app reads members/{uid} + progress (≤3 reads); admin overview = small status query
-expiry scheduler (system-fn),admin-cli `expiry-sweep.mjs` run manually or by the admin's own cron
-verifyDonation (Zeffy),admin-cli `confirm-donation.mjs` (fail-closed) — post-MVP
-gated curriculum (Cloud Storage),NOT used — curriculum served static from Amplify build; deliverables are external URLs
-```
+| Functions design (Blaze) | Spark replacement |
+| --- | --- |
+| submitApplication callable | client writes applications/{id} directly; Rules enforce shape + age/consent gate |
+| grantAccess / approve (system-fn) | admin-cli `grant.mjs` — createUser + setCustomUserClaims + member doc (Admin SDK works on Spark) |
+| redeemCode → custom token | Firebase email-link sign-in (client SDK, free); claims set by grant give role/window |
+| submitStage callable (re-derive gating) | client writes members/{uid}/progress/{key}; Rules require ACTIVE+in-window+own-doc (self-attested) |
+| admin callables (list/extend/revoke) | admin dashboard reads via Rules (isAdmin); extend/revoke via admin-cli |
+| aggregates triggers (memberDashboard | counters),no triggers on Spark → student app reads members/{uid} + progress (≤3 reads); admin overview = small status query |
+| expiry scheduler (system-fn) | admin-cli `expiry-sweep.mjs` run manually or by the admin's own cron |
+| verifyDonation (Zeffy) | admin-cli `confirm-donation.mjs` (fail-closed) — post-MVP |
+| gated curriculum (Cloud Storage) | NOT used — curriculum served static from Amplify build; deliverables are external URLs |
 
 ---
 
 ## 2. Auth — passwordless email-link
 
-```csv
-actor,flow
-applicant,anonymous sign-in (free) → create applications/{id} (Rules-gated) — gives a uid, limits spam
-beneficiary student,admin runs grant.mjs → createUser(email) + claims {role:student, accessBasis, accessEnds}; student signs in via Firebase email-link; claims ride in the ID token
-admin,bootstrap once: admin-cli make-admin.mjs sets role:admin claim; signs into admin.html via email-link
-```
+| actor | flow |
+| --- | --- |
+| applicant | anonymous sign-in (free) → create applications/{id} (Rules-gated) — gives a uid, limits spam |
+| beneficiary student | admin runs grant.mjs → createUser(email) + claims {role:student, accessBasis, accessEnds}; student signs in via Firebase email-link; claims ride in the ID token |
+| admin | bootstrap once: admin-cli make-admin.mjs sets role:admin claim; signs into admin.html via email-link |
 
 Why email-link (not the custom-token magic link from the Functions design): redeeming a code
 for a custom token needs the Admin SDK at request time, which has no home on Spark (no hosted
@@ -55,13 +56,12 @@ doc and no `student` claim**, so Rules deny everything — access still requires
 
 ## 3. Enforcement summary (Firestore Rules)
 
-```csv
-collection,client may,enforced by
-applications/{id},CREATE only, if status==SUBMITTED + declared ageBracket + (13-17 ⇒ guardianConsent) + allowed keys; READ if admin,Rules
-members/{uid},READ own or admin; NO writes (admin-cli only),Rules + Admin SDK bypass
-members/{uid}/progress/{key},READ own/admin; CREATE/UPDATE status=complete if ACTIVE+in-window+own doc,Rules (claims)
-counters / auditLog / donations / accessCodes,READ if admin; NO client writes,Rules + Admin SDK
-```
+| collection | client may | enforced by |
+| --- | --- | --- |
+| applications/{id} | CREATE only, if status==SUBMITTED + ageBracket!=under13 + (13-17 ⇒ guardianConsent) + allowed keys; READ if admin | Rules |
+| members/{uid} | READ own or admin; NO writes (admin-cli only) | Rules + Admin SDK bypass |
+| members/{uid}/progress/{key} | READ own/admin; CREATE/UPDATE status=complete if ACTIVE+in-window+own doc | Rules (claims) |
+| counters / auditLog / donations / accessCodes | READ if admin; NO client writes | Rules + Admin SDK |
 
 Preserved invariants: no access without an admin grant (member doc + `student` claim);
 claims-based authz with no lookup reads; protected collections are client-read-only;
@@ -77,14 +77,13 @@ read; still tiny at pilot scale.
 
 ## 4. admin-cli usage
 
-```csv
-command,effect
-node admin-cli/make-admin.mjs <email>,bootstrap: create/link admin user + set role:admin claim
-node admin-cli/grant.mjs <applicationId> [--days 90] [--basis beneficiary|supporter],vet→ACTIVE: createUser(email) + claims + member doc + audit; tells student to sign in
-node admin-cli/extend.mjs <uid> --days N,bump accessEnds claim + member doc (no re-auth needed)
-node admin-cli/revoke.mjs <uid>,claim accessEnds=now + member ENDED + revokeRefreshTokens + audit
-node admin-cli/expiry-sweep.mjs,members past accessEnds → ENDED + revoke + audit (run via cron)
-```
+| command | effect |
+| --- | --- |
+| node admin-cli/make-admin.mjs &lt;email&gt; | bootstrap: create/link admin user + set role:admin claim |
+| node admin-cli/grant.mjs &lt;applicationId&gt; [--days 365] [--basis beneficiary\|supporter] | vet→ACTIVE: createUser(email) + claims + member doc + audit; tells student to sign in |
+| node admin-cli/extend.mjs &lt;uid&gt; --days N | bump accessEnds claim + member doc (no re-auth needed) |
+| node admin-cli/revoke.mjs &lt;uid&gt; | claim accessEnds=now + member ENDED + revokeRefreshTokens + audit |
+| node admin-cli/expiry-sweep.mjs | members past accessEnds → ENDED + revoke + audit (run via cron) |
 
 Credentials: set `GOOGLE_APPLICATION_CREDENTIALS` to a **service-account key** JSON
 (Firebase Console → Project settings → Service accounts → Generate new private key). The key
@@ -98,12 +97,11 @@ emulator, set `FIRESTORE_EMULATOR_HOST` / `FIREBASE_AUTH_EMULATOR_HOST` instead 
 
 ## 5. Local testing (Java is installed)
 
-```csv
-gate,command
-rules unit tests,"firebase emulators:exec --only firestore 'node admin-cli/test/rules.test.mjs'" (uses @firebase/rules-unit-testing)
-admin-cli against emulator,start auth+firestore emulators → FIREBASE_AUTH_EMULATOR_HOST/FIRESTORE_EMULATOR_HOST set → run grant.mjs → assert member doc + claim
-frontend build,cd v3/frontend && npm ci && npm run build → dist/
-```
+| gate | command |
+| --- | --- |
+| rules unit tests | firebase emulators:exec --only firestore 'node admin-cli/test/rules.test.mjs' (uses @firebase/rules-unit-testing) |
+| admin-cli against emulator | start auth+firestore emulators → FIREBASE_AUTH_EMULATOR_HOST/FIRESTORE_EMULATOR_HOST set → run grant.mjs → assert member doc + claim |
+| frontend build | cd v3/frontend && npm ci && npm run build → dist/ |
 
 ---
 

@@ -6,20 +6,19 @@ Scope: seeded local demo at `http://localhost:3000`, desktop admin, desktop stud
 
 ## Captured Steps
 
-```csv
-step,screenshot,health,notes
-1,01-admin-sign-in.png,Good for local dev; risky for public demo,Clean centered form; seeded credentials are visible.
-2,02-admin-overview-submitted.png,Usable but utilitarian,KPIs and queue are clear; admin story feels technical and sparse.
-3,03-admin-application-detail.png,Mostly clear,Application actions are visible; raw status/path values reduce polish.
-4,04-admin-approved-tab.png,Needs fix,Queue changes to Approved but detail panel still shows the prior Submitted applicant.
-5,05-admin-members-table.png,Usable,Members table is readable on desktop; action buttons are easy to find.
-6,06-student-sign-in.png,Good for local dev; risky for public demo,Card is polished; seeded credentials are visible.
-7,07-student-fast-track-dashboard.png,Strong,Clear hierarchy, progress, current work, and gated path story.
-8,08-student-fast-track-pathway.png,Strong,The pathway and earn-while-you-learn ladder make the product promise tangible.
-9,09-student-full-roadmap-dashboard.png,Strong with density risk,Good roadmap framing; long sidebar labels become heavy.
-10,10-student-mobile-dashboard.png,Needs polish,Main layout works; brand/logout wrap awkwardly and primary action is clipped below fold.
-11,11-student-mobile-menu-open.png,Needs polish,Menu is usable but lacks a scrim/focus treatment and visually collides with page content.
-```
+| step | screenshot | health | notes |
+| --- | --- | --- | --- |
+| 1 | 01-admin-sign-in.png | Good for local dev; risky for public demo | Clean centered form; seeded credentials are visible. |
+| 2 | 02-admin-overview-submitted.png | Usable but utilitarian | KPIs and queue are clear; admin story feels technical and sparse. |
+| 3 | 03-admin-application-detail.png | Mostly clear | Application actions are visible; raw status/path values reduce polish. |
+| 4 | 04-admin-approved-tab.png | Needs fix | Queue changes to Approved but detail panel still shows the prior Submitted applicant. |
+| 5 | 05-admin-members-table.png | Usable | Members table is readable on desktop; action buttons are easy to find. |
+| 6 | 06-student-sign-in.png | Good for local dev; risky for public demo | Card is polished; seeded credentials are visible. |
+| 7 | 07-student-fast-track-dashboard.png | Strong | Clear hierarchy, progress, current work, and gated path story. |
+| 8 | 08-student-fast-track-pathway.png | Strong | The pathway and earn-while-you-learn ladder make the product promise tangible. |
+| 9 | 09-student-full-roadmap-dashboard.png | Strong with density risk | Good roadmap framing; long sidebar labels become heavy. |
+| 10 | 10-student-mobile-dashboard.png | Needs polish | Main layout works; brand/logout wrap awkwardly and primary action is clipped below fold. |
+| 11 | 11-student-mobile-menu-open.png | Needs polish | Menu is usable but lacks a scrim/focus treatment and visually collides with page content. |
 
 ## Priority Findings
 
@@ -64,13 +63,12 @@ The admin queue rows and tabs appear as clickable visual elements, but should be
 
 Completed on 2026-06-17:
 
-```csv
-fix,status,evidence
-Admin detail clears after lifecycle-tab change,done,12-admin-after-approved-tab.png
-Admin status/path/basis labels are demo-friendly,done,12-admin-after-approved-tab.png
-Visible seeded credentials replaced with demo-fill controls,done,admin.html and app.html sign-in screens
-Student mobile header no longer wraps brand/logout awkwardly,done,13-student-mobile-after.png
-Student mobile submit action is visible in first viewport,done,13-student-mobile-after.png
-Mobile sidebar adds backdrop and Escape close behavior,done,14-student-mobile-menu-after.png
-Locked-state text contrast strengthened,done,13-student-mobile-after.png and 14-student-mobile-menu-after.png
-```
+| fix | status | evidence |
+| --- | --- | --- |
+| Admin detail clears after lifecycle-tab change | done | 12-admin-after-approved-tab.png |
+| Admin status/path/basis labels are demo-friendly | done | 12-admin-after-approved-tab.png |
+| Visible seeded credentials replaced with demo-fill controls | done | admin.html and app.html sign-in screens |
+| Student mobile header no longer wraps brand/logout awkwardly | done | 13-student-mobile-after.png |
+| Student mobile submit action is visible in first viewport | done | 13-student-mobile-after.png |
+| Mobile sidebar adds backdrop and Escape close behavior | done | 14-student-mobile-menu-after.png |
+| Locked-state text contrast strengthened | done | 13-student-mobile-after.png and 14-student-mobile-menu-after.png |

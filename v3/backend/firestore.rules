@@ -1,107 +1,68 @@
 rules_version = '2';
-// Client-facing trust boundary (Spark-Backend.md §3). Authz comes from custom-token CLAIMS.
-// Role tiers: owner > admin > student. The Admin SDK (hosted admin-gated Cloud Functions +
-// local admin-cli) bypasses these rules for privileged writes (account-minting, role claims).
-// A global kill-switch lives at system/lockdown — when enabled, every non-owner client write
-// is denied (notLocked()), matching the Cloud Functions' lockdown guard.
+
+// V3 browser boundary. Every mutation is performed by an App-Check-protected callable
+// using the Admin SDK. Browser clients are read-only, and sensitive reads require a
+// current (not revoked), MFA-confirmed staff token while the system is not locked down.
 service cloud.firestore {
   match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function role() { return signedIn() ? request.auth.token.role : null; }
+    function isOwner() { return role() == 'owner'; }
+    function hasStaffRole() { return role() == 'admin' || role() == 'owner'; }
+    function hasStaffMfa() { return request.auth.token.mfaEnrolled == true; }
 
-    function isSignedIn() { return request.auth != null; }
-    function accountDoc(uid) { return get(/databases/$(database)/documents/accountAccess/$(uid)); }
-    function accountExists(uid) { return exists(/databases/$(database)/documents/accountAccess/$(uid)); }
-    function accountEnabled(uid) {
-      return accountExists(uid)
-        && accountDoc(uid).data.enabled == true
-        && accountDoc(uid).data.status != 'SUSPENDED'
-        && accountDoc(uid).data.status != 'DISABLED';
+    function tokenIsCurrent() {
+      return signedIn()
+        && (!exists(/databases/$(database)/documents/revocations/$(request.auth.uid))
+          || (request.auth.token.sessionVersion
+                == get(/databases/$(database)/documents/revocations/$(request.auth.uid)).data.sessionVersion
+              && request.auth.token.auth_time
+                >= get(/databases/$(database)/documents/revocations/$(request.auth.uid)).data.revokeTime - 1));
     }
-    function isAdmin() { return isSignedIn() && request.auth.token.role == 'admin' && accountEnabled(request.auth.uid); }
-    function isOwner() { return isSignedIn() && request.auth.token.role == 'owner' && accountEnabled(request.auth.uid); }
-    function isStaff() { return isAdmin() || isOwner(); }
-    function isActiveStudent(uid) {
-      return isSignedIn()
-        && request.auth.uid == uid
-        && request.auth.token.role == 'student'
-        && accountEnabled(uid)
-        && get(/databases/$(database)/documents/members/$(uid)).data.status == 'ACTIVE'
-        && request.auth.token.accessEnds > request.time.toMillis();
-    }
-    // Global kill-switch: true unless an owner has flipped system/lockdown.enabled.
+
     function notLocked() {
       return !exists(/databases/$(database)/documents/system/lockdown)
         || get(/databases/$(database)/documents/system/lockdown).data.enabled != true;
     }
-    // A non-owner write is allowed only while NOT locked down; the owner is always allowed.
-    function writableNow() { return isOwner() || notLocked(); }
 
-    // PUBLIC APPLY: an applicant (anonymous auth) may CREATE one SUBMITTED application.
-    // Only declared age groups are accepted; applicants aged 13–17 need guardian consent.
-    match /applications/{id} {
-      allow create: if isSignedIn() && notLocked()
-        && request.resource.data.status == 'SUBMITTED'
-        && request.resource.data.ageBracket in ['13-17', '18plus']
-        && (request.resource.data.ageBracket != '13-17' || request.resource.data.guardianConsent == true)
-        && request.resource.data.accessChoice in ['beneficiary', 'supporter']
-        && request.resource.data.keys().hasOnly(
-             ['status', 'accessChoice', 'email', 'name', 'ageBracket', 'guardianConsent', 'stage', 'track', 'reason', 'createdAt']);
-      allow read: if isStaff();
-      // Staff may schedule an interview or reject — NON-minting transitions only. Moving an
-      // application to GRANTED/ACTIVE still requires the Admin SDK (createUser + claims), which
-      // bypasses Rules; the browser can never set those statuses here.
-      allow update: if isStaff() && writableNow()
-        && request.resource.data.status in ['SUBMITTED', 'INTERVIEW_SCHEDULED', 'REJECTED']
-        && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['status', 'interviewAt', 'interviewNote', 'rejectedReason', 'rejectedAt', 'rejectedBy']);
-      allow delete: if false;
+    function staffCanRead() {
+      return tokenIsCurrent() && hasStaffRole() && hasStaffMfa() && (isOwner() || notLocked());
     }
 
-    // Provisioned member record — written only by the Admin SDK.
+    match /applications/{id} {
+      allow read: if staffCanRead();
+      allow write: if false;
+    }
+
     match /members/{uid} {
-      allow read: if isStaff() || (isSignedIn() && request.auth.uid == uid);
+      allow read: if staffCanRead();
       allow write: if false;
 
-      // Student self-attests completion of their OWN stage while ACTIVE + in-window + not locked.
       match /progress/{stageKey} {
-        allow read: if isStaff() || isActiveStudent(uid);
-        allow create, update, delete: if false;
+        allow read: if staffCanRead();
+        allow write: if false;
       }
 
-      // Admin/owner stage-gate overrides (lock/unlock). Read by the student app.
       match /stageLocks/{stageKey} {
-        allow read: if isStaff() || isActiveStudent(uid);
-        allow write, delete: if false;
+        allow read: if staffCanRead();
+        allow write: if false;
       }
     }
 
-    // Staff-only reads; all writes via the Admin SDK only.
-    match /donations/{id} { allow read: if isStaff(); allow write: if false; }
-    match /campaigns/{id} { allow read: if isStaff(); allow write: if false; }
-    match /counters/{id}  { allow read: if isStaff(); allow write: if false; }
-    match /accountAccess/{uid} { allow read: if isStaff() || (isSignedIn() && request.auth.uid == uid); allow write: if false; }
+    match /donations/{id} { allow read: if staffCanRead(); allow write: if false; }
+    match /campaigns/{id} { allow read: if staffCanRead(); allow write: if false; }
+    match /auditLog/{id} { allow read: if staffCanRead(); allow write: if false; }
 
-    // Append-only, tamper-evident: staff read, never client-writable.
-    match /auditLog/{id}  { allow read: if isStaff(); allow write: if false; }
+    match /system/{id} { allow read: if staffCanRead(); allow write: if false; }
 
-    // System control (lockdown kill-switch). Staff may READ it (to show the banner / let
-    // Rules check it); only the OWNER may write it — admins can never lift or set lockdown.
-    match /system/{id} {
-      allow read: if isStaff();
-      allow write: if isOwner()
-        && request.resource.data.keys().hasOnly(['enabled', 'reason', 'by', 'at'])
-        && request.resource.data.enabled is bool;
-    }
+    // These links are intentionally public. Hostname allowlisting and writes live in
+    // the owner-only updateSettings callable.
+    match /settings/public { allow read: if true; allow write: if false; }
 
-    // Public site settings (Zeffy donate + Cal.com booking links). Public READ; WRITE by staff,
-    // shape-validated, and blocked during lockdown for non-owners.
-    match /settings/{id} {
-      allow read: if true;
-      allow write: if isStaff() && writableNow()
-        && request.resource.data.keys().hasOnly(['zeffyUrl', 'calComUrl', 'updatedAt', 'updatedBy'])
-        && request.resource.data.zeffyUrl is string && request.resource.data.zeffyUrl.matches('https://.*')
-        && request.resource.data.calComUrl is string && request.resource.data.calComUrl.matches('https://.*');
-    }
+    match /revocations/{uid} { allow read, write: if false; }
+    match /rateLimits/{id} { allow read, write: if false; }
+    match /applicationIntake/{id} { allow read, write: if false; }
 
-    match /{document=**}  { allow read, write: if false; }
+    match /{document=**} { allow read, write: if false; }
   }
 }

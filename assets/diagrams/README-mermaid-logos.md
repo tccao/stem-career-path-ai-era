@@ -1,6 +1,7 @@
 # Mermaid AWS logos in yzane "Markdown PDF" exports
 
-The architecture docs (`docs/Architecture-Design.md`, `demo/docs/Demo-Architecture.md`)
+The architecture docs (`docs/Architecture-Design.md`, `demo/docs/Demo-Architecture.md`,
+`v3/docs/Architecture-V3.md`, and `v3/README.md`)
 use Mermaid `flowchart` nodes whose icons come from the iconify **`logos`** pack
 (`id@{ icon: "logos:aws-…" }`). The VS Code markdown preview registers that pack, so
 the logos show. The yzane **Markdown PDF** extension loads a plain mermaid build that

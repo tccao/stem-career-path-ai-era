@@ -1,0 +1,72 @@
+name: V3 security verification
+
+on:
+  pull_request:
+    paths:
+      - 'v3/**'
+      - 'amplify.yml'
+      - 'customHttp.yml'
+      - '.github/workflows/v3-security.yml'
+  push:
+    branches: [main, feat/v3-mvp]
+    paths:
+      - 'v3/**'
+      - 'amplify.yml'
+      - 'customHttp.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Secret scan (full Git history)
+        uses: gitleaks/gitleaks-action@dcedce43c6f43de0b836d1fe38946645c9c638dc # v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            v3/frontend/package-lock.json
+            v3/backend/sync-fn/package-lock.json
+            v3/backend/admin-cli/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install Firebase CLI
+        run: npm install --global firebase-tools@15.22.2
+      - name: Install locked dependencies
+        run: |
+          npm ci --prefix v3/frontend
+          npm ci --prefix v3/backend/sync-fn
+          npm ci --prefix v3/backend/admin-cli
+      - name: Dependency and syntax gates
+        run: |
+          npm audit --prefix v3/frontend --audit-level=moderate
+          npm audit --prefix v3/backend/sync-fn --audit-level=moderate
+          npm audit --prefix v3/backend/admin-cli --audit-level=moderate
+          find v3/backend/sync-fn/src -type f -name '*.js' -exec node --check {} \;
+          find v3/backend/admin-cli -path '*/node_modules' -prune -o -type f -name '*.mjs' -exec node --check {} \;
+          npm --prefix v3/backend/admin-cli run test:cli-safety
+      - name: Build and static security tests
+        working-directory: v3/frontend
+        run: npm run build && npm run test:security
+      - name: Firestore Rules tests
+        working-directory: v3/backend
+        run: DEBUG= firebase emulators:exec --only firestore 'cd admin-cli && npm run test:rules'
+      - name: Callable security tests
+        working-directory: v3/backend
+        env:
+          ZEFFY_API_KEY: test-key
+          ZEFFY_API_BASE_URL: http://127.0.0.1:7777
+        run: DEBUG= firebase emulators:exec --only auth,firestore,functions 'cd admin-cli && npm run test:security'
+      - name: Break-glass CLI regression
+        working-directory: v3/backend
+        run: DEBUG= firebase emulators:exec --only auth,firestore 'cd admin-cli && npm run test:flow'

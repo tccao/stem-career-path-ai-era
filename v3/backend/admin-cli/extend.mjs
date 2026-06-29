@@ -1,11 +1,16 @@
 // Extend a member's access window. Updates the persisted claim WITHOUT revoking — the client
 // picks up the new window on its next ID-token refresh (no re-auth needed).
 //   node extend.mjs <uid> --days N
-import { db, auth, STATE, DAY_MS, arg, audit, die } from './lib/admin.mjs';
+import { db, auth, STATE, DAY_MS, arg, audit, assertNotStaff, die, requireBreakGlass } from './lib/admin.mjs';
+
+const actorId = requireBreakGlass();
 
 const uid = process.argv[2];
 const days = Number(arg('days', ''));
-if (!uid || !days) die('usage: node extend.mjs <uid> --days N');
+if (!uid || !Number.isInteger(days) || days < 1 || days > 3650) die('usage: node extend.mjs <uid> --days <integer 1..3650>');
+const user = await assertNotStaff(uid);
+if (!user) die(`user ${uid} not found`);
+if (user.disabled) die('enable the account before extending it');
 
 const ref = db.collection('members').doc(uid);
 const snap = await ref.get();
@@ -14,10 +19,10 @@ const base = Math.max(Date.now(), snap.get('accessEnds') ?? Date.now());
 const accessEnds = base + days * DAY_MS;
 
 await ref.update({ accessEnds, status: STATE.ACTIVE });
-await auth.setCustomUserClaims(uid, { role: 'student', accessBasis: snap.get('accessBasis'), accessEnds });
-await db.collection('accountAccess').doc(uid).set({
-  uid, email: snap.get('email') ?? null, role: 'student', enabled: true, status: STATE.ACTIVE, accessEnds,
-}, { merge: true });
-await audit({ type: 'member.extended', targetType: 'member', targetId: uid });
+await auth.setCustomUserClaims(uid, {
+  role: 'student', accessBasis: snap.get('accessBasis'), accessEnds,
+  ...(user.customClaims?.sessionVersion ? { sessionVersion: user.customClaims.sessionVersion } : {}),
+});
+await audit({ type: 'member.extended', targetType: 'member', targetId: uid, actorId });
 console.log(`ok: ${uid} extended ${days}d → accessEnds=${new Date(accessEnds).toISOString()}`);
 process.exit(0);
