@@ -7,7 +7,7 @@ passwordless **email-link**. The V1 marketing landing page is the public front d
 and end-to-end tested against the real project.
 
 - **Live:** <https://feat-v3-mvp.d3eyz6x5b4wbjx.amplifyapp.com> — `/` landing · `/app.html` student · `/admin.html` admin
-- **Agent guide (authoritative):** [`CLAUDE.md`](CLAUDE.md)
+- **Agent guides:** [`../AGENTS.md`](../AGENTS.md) (repo-wide) · [`CLAUDE.md`](CLAUDE.md) (V3 details)
 - **Designs:** [`docs/Spark-Backend.md`](docs/Spark-Backend.md) (backend) ·
   [`docs/Phase2-UI-Plan.md`](docs/Phase2-UI-Plan.md) (UI port) ·
   [`docs/MVP-Plan.md`](docs/MVP-Plan.md) · [`docs/V3-Plan.md`](docs/V3-Plan.md) (Blaze ref)
@@ -15,7 +15,9 @@ and end-to-end tested against the real project.
 ## What's built (current)
 
 - **Landing page** (`/`) — the V1 marketing site, wired to V3: **Apply** writes a real Firestore
-  application behind the COPPA age/consent gate; **Login** → `/app.html`; **Donate** → Zeffy.
+  application after an age/consent gate; the UI offers only **13–17** (guardian consent required)
+  and **18+**. Unsupported age values are denied by Firestore Rules and are not a product state.
+  **Login** → `/app.html`; **Donate** → Zeffy.
 - **Student app** (`/app.html`) — full "vibrant" design ported from the V2 demo: glassy top bar +
   progress ring, gradient sidebar + accordion path tree, momentum chips, a hero featuring the
   active/selected stage, stage-detail with requirement checkboxes + proof-of-work submit, the
@@ -24,7 +26,9 @@ and end-to-end tested against the real project.
   **interview card** and **reject**, a members table, and per-stage **lock/unlock** gate overrides.
   Reads go through Firestore Rules (admin claim); account-minting actions render the exact
   **admin-cli command to copy** (Spark has no privileged hosted endpoint).
-- **Curriculum** — 8 pillars + 28 fast-track days (`public/curriculum.json`). **Both tracks** live.
+- **Curriculum** — 8 pillars + 28 fast-track days (`public/curriculum.json`). **Both tracks** live:
+  Full Roadmap (12–18 months) and 4-Week Fast Track. Access defaults to **365 days** for either
+  track unless an operator explicitly supplies another duration.
 
 ## Log in (live)
 
@@ -73,7 +77,8 @@ cd v3/frontend && npm install && npm run dev                              # fron
 ```bash
 export GOOGLE_APPLICATION_CREDENTIALS=v3/code4good-stem-career-path-firebase-adminsdk-*.json
 cd v3/backend
-node admin-cli/grant.mjs   <applicationId> --path roadmap --days 365   # grant (fasttrack|roadmap)
+node admin-cli/grant.mjs   <applicationId> --path roadmap              # 365 days by default
+node admin-cli/grant.mjs   <applicationId> --path fasttrack            # also 365 days by default
 node admin-cli/extend.mjs  <uid> --days 90
 node admin-cli/revoke.mjs  <uid>
 node admin-cli/expiry-sweep.mjs
@@ -82,9 +87,20 @@ node admin-cli/expiry-sweep.mjs
 ## Test (verified green)
 
 ```bash
-cd v3/backend && firebase emulators:exec --only firestore,auth 'cd admin-cli && node test/flow.test.mjs'
-cd v3/frontend && node scripts/live-apply.mjs            # live: deployed Rules from a client (no key)
+cd v3/backend && firebase emulators:exec --project demo-cfg --only firestore,auth \
+  'cd admin-cli && node test/flow.test.mjs'
+cd v3 && firebase emulators:exec --config backend/firebase.json --only auth,firestore \
+  'cd frontend && node scripts/live-apply.mjs'
+cd v3/frontend && npm run build
+cd v3/frontend && npm run test:e2e                       # 7 Chrome browser scenarios
+cd v3 && tidy -q -e frontend/index.html                  # warnings may include valid modern HTML/SVG
+cd v3 && xmllint --html --noout frontend/index.html      # use HTML mode, not raw XML mode
 ```
+
+The Playwright suite covers desktop/mobile layout, disclosure navigation, the supported age and
+guardian-consent flow, modal focus management, FAQ state, and graceful Firebase configuration
+failure. It uses the installed system Chrome and forces blank Firebase configuration so it cannot
+write production data.
 
 ## Deploy
 

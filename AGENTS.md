@@ -4,12 +4,14 @@ Guidance for AI agents working in this repo. Tables are CSV (token-lean). Read t
 
 ## What this is
 
-Code For Good nonprofit project, owner Tinh Cao. Two horizons in one repo:
+Code For Good nonprofit project, owner Tinh Cao. Three horizons in one repo:
 
 - **V1 — static landing page (BUILT).** Single marketing HTML file (`STEM Career Path Landing Page.html`, renamed to `index.html` for hosting). Plain HTML + embedded CSS + minimal JS. AWS static hosting.
 - **V2 — vetted-access learning platform (PLANNED, NOT BUILT).** AWS serverless app: apply → vet/donate → grant → learn → expire. Fully designed in `docs/`; no code yet.
+- **V3 — hosted Firebase MVP (BUILT).** `v3/` contains the deployed Amplify + Firebase Spark implementation: public landing page, student app, admin console, Firestore Rules, local privileged admin CLI, and Playwright browser tests. On `feat/v3-mvp`, `v3/README.md` and `v3/CLAUDE.md` are authoritative for implemented behavior.
 
-Source of truth: `docs/Project SRS.md` (V1) and `docs/Platform-SRS.md` (V2).
+Source of truth: `docs/Project SRS.md` (V1), `docs/Platform-SRS.md` (V2), and
+`v3/README.md` + `v3/CLAUDE.md` (implemented V3 behavior and operations).
 
 ## Repo layout
 
@@ -20,6 +22,7 @@ assets/{images,icons}/              # codeforgood-logo.png, cohort/profile imgs
 references/                         # CodeForGood_index.html + roadmap PDFs (source of truth) 
 docs/                               # all V2 planning (see Doc map)
 requirements.txt                    # validation apt deps (tidy, xmllint); venv via `uv venv --python 3.14`
+v3/                                 # current hosted MVP; Vite frontend + Firebase backend/admin CLI
 ```
 
 ## Doc map (read before V2 work)
@@ -50,7 +53,7 @@ Colors via CSS vars only (`--cfg-purple` `#6a0dad`, `--cfg-purple-dark` `#4b0082
 
 8 pillars (S-curve desktop, stacked mobile): AI-Augmented Skills, Deployed Project Portfolio, Gig Economy Entry, Personal Branding, Micro-Internships, Strategic Certifications, Industry Tooling, Community Impact Projects.
 
-Two tracks: During-School 12–18 mo; Recent-Graduate 8–12 wk. CTAs: Sign Up (primary), Donate (secondary) — placeholder anchors for now.
+Two tracks: Full Roadmap 12–18 mo; 4-Week Fast Track (28 days). CTAs: Sign Up (primary), Donate (secondary).
 
 Editing rules: one section at a time; copy an existing card as template; never remove `alt`/aria/focus styles; test desktop+mobile widths; check every link; no new libraries without CFG leadership approval.
 
@@ -61,7 +64,43 @@ action,command
 create venv,uv venv --python 3.14 (uv-managed Python 3.14)
 open,open index.html (or VS Code Live Server)
 html validate,tidy -q -e index.html
-xml/well-formed,xmllint --noout index.html
+html parse,xmllint --html --noout index.html
+```
+
+Raw `xmllint --noout` selects XML mode and incorrectly rejects valid HTML5 void elements, boolean
+attributes, and embedded JavaScript. `tidy` may also warn about valid modern attributes such as
+`decoding`, `aria-modal`, and fractional SVG `stroke-width`; treat those as compatibility warnings,
+not malformed markup. V3 behavioral validation must include `cd v3/frontend && npm run test:e2e`,
+not only static linting.
+
+## V3 — implemented MVP (current work)
+
+V3 is intentionally different from the V1 single-file constraints: it uses Vite, the modular
+Firebase Web SDK, Firebase Auth/Firestore, a local `firebase-admin` CLI, and Playwright tests.
+Do not apply V1's “no package manager/build tools” rule to files under `v3/`.
+
+```csv
+area,current behavior
+learning tracks,Full Roadmap (12–18 months) and 4-Week Fast Track (28 days)
+access duration,365 days by default for both tracks; operator may explicitly override
+age gate,UI exposes only 13–17 and 18+; 13–17 requires guardian consent before the full form
+unsupported ages,no under-13 product path/state; Firestore Rules defensively deny undeclared values
+application outcomes,beneficiary routes to Cal.com after submit; supporter routes to Zeffy
+privileged access,only local admin CLI grants/extends/revokes accounts; browser cannot mint users
+landing tests,7 Playwright Chrome scenarios in v3/frontend/tests/e2e/landing.spec.js
+```
+
+Run the V3 verification suite before committing landing or access changes:
+
+```bash
+cd v3/frontend && npm run build
+cd v3/frontend && npm run test:e2e
+cd v3 && firebase emulators:exec --config backend/firebase.json --only auth,firestore \
+  'cd frontend && node scripts/live-apply.mjs'
+cd v3/backend && firebase emulators:exec --project demo-cfg --only auth,firestore \
+  'cd admin-cli && node test/flow.test.mjs'
+cd v3 && tidy -q -e frontend/index.html
+cd v3 && xmllint --html --noout frontend/index.html
 ```
 
 ---
