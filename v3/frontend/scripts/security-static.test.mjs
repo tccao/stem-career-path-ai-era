@@ -43,6 +43,7 @@ test('Amplify headers establish the required browser security baseline', async (
   assert.doesNotMatch(csp, /script-src[^;]*'unsafe-inline'/);
   assert.doesNotMatch(csp, /https:\/\/\*\.(?:googleapis\.com|cloudfunctions\.net)/);
   assert.match(csp, /https:\/\/us-central1-code4good-stem-career-path\.cloudfunctions\.net/);
+  assert.match(csp, /https:\/\/content-firebaseappcheck\.googleapis\.com/);
   assert.match(yaml, /no-cache, no-store, must-revalidate/);
   assert.match(yaml, /max-age=31536000, immutable/);
 });
