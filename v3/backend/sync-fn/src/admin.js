@@ -83,6 +83,19 @@ export const updateSettings = onCall(callableOptions(), async (req) => {
   return settings;
 });
 
+async function assertSupporterExtensionEligible(tx, uid, member) {
+  if (member.get('accessBasis') !== 'supporter') return;
+  const donations = await tx.get(db.collection('donations').where('grantedUid', '==', uid).limit(10));
+  const eligible = donations.docs.some((donation) => (
+    donation.get('verificationState') === 'VERIFIED'
+    && donation.get('status') === 'succeeded'
+    && !['refunded', 'partially_refunded'].includes(donation.get('refundStatus'))
+    && donation.get('disputed') !== true
+    && !donation.get('revocationProcessedAt')
+  ));
+  if (!eligible) throw new HttpsError('failed-precondition', 'supporter access requires a current verified payment');
+}
+
 export const extendAccess = onCall(callableOptions(), async (req) => {
   const { uid: actorId } = await assertStaff(req);
   const input = parse(ExtendSchema, req.data);
@@ -90,20 +103,26 @@ export const extendAccess = onCall(callableOptions(), async (req) => {
   if (!user) throw new HttpsError('not-found', 'user not found');
   if (user.disabled) throw new HttpsError('failed-precondition', 'enable the account before extending it');
   const memberRef = db.collection('members').doc(input.uid);
-  const member = await memberRef.get();
-  if (!member.exists) throw new HttpsError('not-found', 'member not found');
-  const accessEnds = Math.max(Date.now(), Number(member.get('accessEnds') || 0)) + input.days * DAY_MS;
-  await auth.setCustomUserClaims(input.uid, {
-    role: 'student', accessBasis: member.get('accessBasis'), accessEnds,
-    ...(user.customClaims?.sessionVersion ? { sessionVersion: user.customClaims.sessionVersion } : {}),
-  });
+  let accessBasis;
+  let accessEnds;
   await db.runTransaction(async (tx) => {
     const fresh = await tx.get(memberRef);
     if (!fresh.exists) throw new HttpsError('not-found', 'member not found');
+    await assertSupporterExtensionEligible(tx, input.uid, fresh);
+    accessBasis = fresh.get('accessBasis');
+    accessEnds = Math.max(Date.now(), Number(fresh.get('accessEnds') || 0)) + input.days * DAY_MS;
     tx.update(memberRef, {
-      accessEnds, status: STATE.ACTIVE, endedReason: FieldValue.delete(), expiresAt: FieldValue.delete(),
+      accessEnds, status: STATE.ACTIVE, endedReason: FieldValue.delete(), endedAt: FieldValue.delete(),
+      expiresAt: FieldValue.delete(),
     });
-    queueAudit(tx, { type: 'member.extended', targetType: 'member', targetId: input.uid, actorId, toStatus: STATE.ACTIVE });
+    queueAudit(tx, {
+      type: 'member.extended', targetType: 'member', targetId: input.uid, actorId,
+      fromStatus: fresh.get('status'), toStatus: STATE.ACTIVE,
+    });
+  });
+  await auth.setCustomUserClaims(input.uid, {
+    role: 'student', accessBasis, accessEnds,
+    ...(user.customClaims?.sessionVersion ? { sessionVersion: user.customClaims.sessionVersion } : {}),
   });
   logCommittedAudit({ type: 'member.extended', targetType: 'member', targetId: input.uid, actorId });
   return { uid: input.uid, accessEnds };

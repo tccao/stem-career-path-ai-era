@@ -116,6 +116,14 @@ test('V3 callable security flow', async (t) => {
     const dashboard = await student.call('getStudentDashboard');
     assert.equal(dashboard.member.status, 'ACTIVE');
     assert.equal(dashboard.curriculum.fasttrack.stages.length, 28);
+    await expectDenied(student.call('submitStage', { stageKey: 'd01', deliverableUrl: 'http://example.test/insecure' }), /invalid-argument|https/i);
+    await expectDenied(student.call('submitStage', { stageKey: 'd02', deliverableUrl: 'https://example.test/too-early' }));
+    const first = await student.call('submitStage', { stageKey: 'd01', deliverableUrl: 'https://example.test/day-1-proof' });
+    assert.equal(first.status, 'complete');
+    const afterFirst = await student.call('getStudentDashboard');
+    assert.equal(afterFirst.progress.find((stage) => stage.stageKey === 'd01')?.deliverableUrl, 'https://example.test/day-1-proof');
+    const second = await student.call('submitStage', { stageKey: 'd02', deliverableUrl: 'https://example.test/day-2-proof' });
+    assert.equal(second.status, 'complete');
     await expectDenied(student.call('submitStage', { stageKey: 'd28', deliverableUrl: 'https://example.test/future' }));
     await admin.call('setStageLock', { uid: student.user.uid, stageKey: 'd28', action: 'locked' });
     await expectDenied(student.call('submitStage', { stageKey: 'd28', deliverableUrl: 'https://example.test/locked' }));
@@ -197,9 +205,10 @@ test('V3 callable security flow', async (t) => {
     const sync = await admin.call('syncDonations');
     assert.equal(sync.revoked, 1);
     await expectDenied(supporterClient.call('getStudentDashboard'), /unauthenticated|revoked/i);
+    await expectDenied(admin.call('extendAccess', { uid: supporterUser.uid, days: 30 }), /failed-precondition|verified payment/i);
   });
 
-  await t.test('disable is immediate and enable restores a consistent active member', async () => {
+  await t.test('disable is immediate and an enabled member with expired access can be restored', async () => {
     const application = await applicant.call('submitApplication', {
       name: 'Disable Test', email: `disable-${runId}@example.test`, ageBracket: '18plus',
       guardianConsent: false, accessChoice: 'beneficiary',
@@ -209,9 +218,20 @@ test('V3 callable security flow', async (t) => {
     const beforeDisable = await client('before-disable', user);
     await admin.call('disableAccount', { uid: user.uid });
     await expectDenied(beforeDisable.call('getStudentDashboard'), /unauthenticated|revoked/i);
+    const expiredAt = Date.now() - 86_400_000;
+    await db.collection('members').doc(user.uid).update({ accessEnds: expiredAt });
     const enabled = await admin.call('enableAccount', { uid: user.uid });
-    assert.equal(enabled.memberStatus, 'ACTIVE');
+    assert.equal(enabled.memberStatus, 'ENDED');
+    const restored = await admin.call('extendAccess', { uid: user.uid, days: 30 });
+    assert.ok(restored.accessEnds >= Date.now() + 30 * 86_400_000 - 5_000);
+    const member = await db.collection('members').doc(user.uid).get();
+    assert.equal(member.get('status'), 'ACTIVE');
+    assert.equal(member.get('endedReason'), undefined);
+    assert.equal(member.get('endedAt'), undefined);
+    assert.equal(member.get('expiresAt'), undefined);
     const refreshed = await adminAuth.getUser(user.uid);
+    assert.equal(refreshed.disabled, false);
+    assert.equal(refreshed.customClaims.accessEnds, restored.accessEnds);
     const afterEnable = await client('after-enable', refreshed);
     assert.equal((await afterEnable.call('getStudentDashboard')).member.status, 'ACTIVE');
   });

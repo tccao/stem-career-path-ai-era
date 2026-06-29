@@ -180,7 +180,7 @@ Success criteria:
 | concurrent grant | matching calls converge on one Auth user; conflicting duration is rejected |
 | staff collision | application using owner email is denied and owner claim remains owner |
 | student dashboard | active member receives both tracks through callable |
-| stage sequencing | day 28 denied before prerequisites |
+| stage sequencing | insecure proof denied; day 2 denied before day 1; valid day 1 proof unlocks day 2; day 28 remains denied |
 | admin lock | locked day denied; explicit unlock permits the intended override |
 | supporter bypass | beneficiary grant callable rejects supporter application |
 | payment verification | settled matching-email Zeffy payment grants supporter |
@@ -188,7 +188,7 @@ Success criteria:
 | staff MFA | staff token without confirmed MFA is denied |
 | reactivation | admin may reactivate students; only owner may reactivate disabled staff |
 | settings | admin denied; evil host denied; owner allowed for approved hosts |
-| disable/enable | old token denied immediately; re-enabled member and claim agree on ACTIVE |
+| disable/enable | old token denied immediately; expired re-enabled member can be extended and member/claim agree on ACTIVE |
 | revoke | already-issued student token denied immediately |
 | lockdown | admin/student calls denied; owner can lift lockdown |
 | role removal | already-issued admin token denied immediately |
@@ -372,7 +372,7 @@ npm run verify:live
 | HTML caching | no-store/no-cache and s-maxage=0 |
 | private curriculum | /curriculum.json returns 404 |
 | hashed assets | Cache-Control includes immutable |
-| unauthenticated callable | getStudentDashboard is denied |
+| callable deployment | dashboard, stage submission, access extension, and enable endpoints exist and deny unauthenticated probes |
 | production writes | none performed by this script |
 
 Also verify in Firebase Console that App Check shows valid traffic, rejected-unverified traffic is

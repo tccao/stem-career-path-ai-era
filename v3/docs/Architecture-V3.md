@@ -201,6 +201,7 @@ normalized buyer/applicant email, and one payment bound to one application. Only
 | settings | owner-only and zeffy.com/cal.com HTTPS hosts only |
 | disable | Auth disabled + session rotated + member ENDED |
 | enable | Auth enabled + member ACTIVE only if window remains + new session rotation |
+| extend/restore | active or ended enabled member receives a future window + ACTIVE state; reversed supporter payment remains denied |
 | revoke | expired claim + new sessionVersion + refresh-token revoke + member ENDED |
 | lockdown | all non-owner sensitive Firestore reads and callables denied; owner can investigate/lift |
 | break glass | service credential outside repo + exact phrase + operator uid; normal UI uses callables |

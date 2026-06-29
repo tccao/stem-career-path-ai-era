@@ -218,9 +218,12 @@ async function loadMembers() {
   }));
   $('members').innerHTML = `<table><thead><tr><th>Name</th><th>Email</th><th>Basis</th><th>Path</th><th>Progress</th><th>Current</th><th>Status</th><th>Access ends</th><th></th></tr></thead><tbody>${rows.map(({ m, comp, total, pct, current }) => {
     const disabled = m.status === 'ENDED' && m.endedReason === 'disabled';
+    const canExtend = m.status === 'ACTIVE'
+      || (m.status === 'ENDED' && m.endedReason !== 'payment_reversed' && !disabled);
+    const extendLabel = m.status === 'ACTIVE' ? 'Extend' : 'Restore access';
     const actions = disabled
       ? `<button class="btn sec" data-reactivate="${esc(m.uid)}">Reactivate</button>`
-      : `${m.status === 'ACTIVE' ? `<button class="btn sec" data-ext="${esc(m.uid)}">Extend</button> ` : ''}<button class="btn bad" data-dis="${esc(m.uid)}">Disable</button>`;
+      : `${canExtend ? `<button class="btn sec" data-ext="${esc(m.uid)}">${extendLabel}</button> ` : ''}<button class="btn bad" data-dis="${esc(m.uid)}">Disable</button>`;
     return `<tr class="member-row" data-uid="${esc(m.uid)}"><td>${esc(m.name || '—')}</td><td>${esc(m.email)}</td><td>${esc(m.accessBasis || '—')}</td><td>${esc(m.path === 'roadmap' ? 'Roadmap' : 'Fast track')}</td><td>${progressMini(pct, comp, total)}</td><td><div class="current-stage">${esc(current)}</div></td><td><span class="pill ${esc(m.status)}">${esc(m.status)}</span></td><td>${esc(fmtDate(m.accessEnds))}</td><td>${actions}</td></tr>`;
   }).join('')}</tbody></table>`;
   $('members').querySelectorAll('.member-row').forEach((r) => { r.onclick = () => openMemberProgress(rows.find((x) => x.m.uid === r.dataset.uid)); });
@@ -230,11 +233,11 @@ async function loadMembers() {
 }
 const progressMini = (pct, completed, total) => `<div class="progress-mini"><div class="bar"><span style="width:${pct}%"></span></div><div class="txt">${pct}% · ${completed}/${total}</div></div>`;
 
-// Extend a member's access window (admin-gated Cloud Function). To remove access, use Disable —
-// it ends the session and blocks sign-in (Revoke was redundant with Disable, so it's gone).
+// Extend an active member or restore an ended member's access window. A disabled account must be
+// reactivated first; payment-reversed supporter access cannot be restored through this control.
 function showMemberExtend(uid) {
   const host = $('memberProgress');
-  host.innerHTML = `<h3>Extend access</h3><p>Add days to this member's access window. The new window flows into their next ID-token refresh — no re-login needed.</p>
+  host.innerHTML = `<h3>Extend or restore access</h3><p>Add days from the later of today or the current access end. Ended access becomes active again; the member may need to sign in again to refresh a revoked session.</p>
     <label for="extDays">Days to add</label>
     <input id="extDays" type="number" min="1" value="365" />
     <div class="actions" style="margin-top:12px"><button class="btn" id="extApply">Extend</button></div>`;

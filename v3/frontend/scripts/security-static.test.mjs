@@ -17,6 +17,12 @@ test('obsolete production-mutation helpers are absent', async () => {
   }
 });
 
+test('admin member controls expose access restoration for ended accounts', async () => {
+  const source = await readFile(new URL('../src/admin/admin.js', import.meta.url), 'utf8');
+  assert.match(source, /m\.status === 'ENDED'.*m\.endedReason !== 'payment_reversed'/s);
+  assert.match(source, /m\.status === 'ACTIVE' \? 'Extend' : 'Restore access'/);
+});
+
 test('HTML contains no inline executable JavaScript or inline event handlers', async () => {
   for (const file of ['index.html', 'app.html', 'admin.html']) {
     const html = await readFile(new URL(file, dist), 'utf8');
