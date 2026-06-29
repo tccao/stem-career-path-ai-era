@@ -87,7 +87,7 @@ account-minting + claims only via Admin SDK — hosted STAFF-gated Cloud Functio
 owner is the top tier and admins can never override it,setRole/setLockdown are OWNER-gated (fail-closed unless role=='owner') so an admin cannot promote/demote anyone, lift lockdown, or disable an admin/owner; member ops refuse staff targets (assertTargetNotStaff); the first owner is minted LOCAL-ONLY via make-owner.mjs; nobody can change their own role/disable themselves
 global lockdown kill-switch is owner-only,setLockdown writes system/lockdown; when enabled every NON-owner privileged fn (assertNotLockedDown) AND client write (Rules notLocked()) is denied until the owner lifts it; owner stays exempt to recover
 Rules deny client writes to protected collections,members/counters/donations/campaigns/auditLog are admin-SDK-write-only; auditLog append-only; system/{id} owner-write + staff-read
-apply is create-only behind the age/consent gate,Rules reject under-13 and 13–17 without guardianConsent, and bad shapes (enforced again client-side in landing.js)
+apply is create-only behind the age/consent gate,Rules accept only declared age groups and require guardianConsent for ages 13–17; bad shapes are denied (enforced again client-side in landing.js)
 progress write needs ACTIVE+in-window+own-doc,student self-attests only their own stage while role=student & accessEnds>now
 service-account key NEVER committed or pasted,v3/.gitignore blocks *adminsdk*.json / *-key.json / *service-account*.json; the key lives in v3/ but is ignored
 supporter ACTIVE requires verified payment,verifyDonation fails closed (throws when unconfigured) — never a client claim

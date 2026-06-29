@@ -11,7 +11,7 @@ import { ACCESS_DAYS } from './config.js';
 const ApplySchema = z.object({
   name: z.string().min(1),
   email: z.string().email(),
-  ageBracket: z.enum(['under13', '13-17', '18plus']),
+  ageBracket: z.enum(['13-17', '18plus']),
   guardianConsent: z.boolean().optional(),
   accessChoice: z.enum(['beneficiary', 'supporter']),
 });
@@ -19,7 +19,6 @@ const ApplySchema = z.object({
 // PUBLIC: create a SUBMITTED application (age/consent gate runs server-side).
 export const submitApplication = onCall(async (req) => {
   const data = ApplySchema.parse(req.data);
-  if (data.ageBracket === 'under13') throw new HttpsError('failed-precondition', 'coppa_under13');
   if (data.ageBracket === '13-17' && !data.guardianConsent) {
     throw new HttpsError('failed-precondition', 'guardian_consent_required');
   }

@@ -208,7 +208,7 @@ Security invariants (enforced, not aspirational):
 invariant,enforcement
 only the admin-cli mints accounts / sets role claims,no hosted or browser code calls createUser/setCustomUserClaims
 browser admin limited to non-minting writes,Rules allow admin claim to set INTERVIEW_SCHEDULED/REJECTED + stageLocks only
-apply behind age/consent gate,Rules reject under-13 and 13-17 without guardian consent (and bad shapes)
+apply behind age/consent gate,Rules accept only declared age groups and require guardian consent for ages 13–17 (bad shapes denied)
 student writes only own progress while ACTIVE,Rules: request.auth.uid == uid && role==student && accessEnds > now
 protected collections client-read-only,members/counters/donations/auditLog writable only via Admin SDK; auditLog append-only
 service-account key never committed,gitignored (*adminsdk*.json etc.); emulator path needs no key

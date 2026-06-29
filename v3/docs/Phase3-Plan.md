@@ -121,7 +121,7 @@ enters the paymentId) — documented honestly.
 ```csv
 case,expect
 anon create valid application,ALLOW
-anon create under-13 / 13-17 without consent / bad shape,DENY
+anon create undeclared age / 13-17 without consent / bad shape,DENY
 student read own member + progress (ACTIVE),ALLOW
 student read another member,DENY
 student write own progress (ACTIVE+in-window),ALLOW

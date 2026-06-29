@@ -57,7 +57,7 @@ doc and no `student` claim**, so Rules deny everything — access still requires
 
 ```csv
 collection,client may,enforced by
-applications/{id},CREATE only, if status==SUBMITTED + ageBracket!=under13 + (13-17 ⇒ guardianConsent) + allowed keys; READ if admin,Rules
+applications/{id},CREATE only, if status==SUBMITTED + declared ageBracket + (13-17 ⇒ guardianConsent) + allowed keys; READ if admin,Rules
 members/{uid},READ own or admin; NO writes (admin-cli only),Rules + Admin SDK bypass
 members/{uid}/progress/{key},READ own/admin; CREATE/UPDATE status=complete if ACTIVE+in-window+own doc,Rules (claims)
 counters / auditLog / donations / accessCodes,READ if admin; NO client writes,Rules + Admin SDK

@@ -7,6 +7,7 @@
   <meta name="description"
     content="STEM Graduates Career Path — AI Era. A Code For Good initiative helping STEM students and recent graduates build AI-era skills, project portfolios, and career readiness.">
   <title>STEM Graduates Career Path — AI Era. Code For Good</title>
+  <link rel="icon" href="/assets/icons/codeforgood-logo.png" type="image/png">
 
   <!--
     Maintenance map
@@ -65,6 +66,10 @@
     *::before,
     *::after {
       box-sizing: border-box;
+    }
+
+    [hidden] {
+      display: none !important;
     }
 
     /* Ensures smooth scrolling to anchor links and adds a top padding so fixed headers don't overlap content. */
@@ -139,6 +144,18 @@
 
     .skip:focus {
       left: 0;
+    }
+
+    .visually-hidden {
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      padding: 0 !important;
+      margin: -1px !important;
+      overflow: hidden !important;
+      clip: rect(0, 0, 0, 0) !important;
+      white-space: nowrap !important;
+      border: 0 !important;
     }
 
     /* ================= HEADER ================= */
@@ -363,16 +380,6 @@
       padding: 8px;
       list-style: none;
       margin: 0;
-      opacity: 0;
-      pointer-events: none;
-      transform: translateY(-4px);
-      transition: opacity 0.16s ease, transform 0.16s ease;
-    }
-
-    .dropdown[data-open="true"] .dropdown-menu {
-      opacity: 1;
-      pointer-events: auto;
-      transform: translateY(0);
     }
 
     .dropdown-menu li {
@@ -461,13 +468,13 @@
     }
 
     .btn-secondary {
-      background: var(--cfg-coral);
+      background: var(--cfg-coral-dark);
       color: #fff;
       box-shadow: 0 8px 20px rgba(232, 90, 107, 0.28);
     }
 
     .btn-secondary:hover {
-      background: var(--cfg-coral-dark);
+      background: #a93442;
       transform: translateY(-1px);
     }
 
@@ -599,7 +606,7 @@
     }
 
     .hero h1 .accent {
-      background: linear-gradient(120deg, var(--cfg-purple) 0%, var(--cfg-lavender) 100%);
+      background: linear-gradient(120deg, var(--cfg-purple) 0%, var(--cfg-purple-dark) 100%);
       -webkit-background-clip: text;
       background-clip: text;
       color: transparent;
@@ -1548,6 +1555,29 @@
 
     .footer-brand .brand {
       color: #fff;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+
+    .footer-brand .brand-mark {
+      width: 44px;
+      height: 44px;
+      flex: 0 0 44px;
+      display: grid;
+      place-items: center;
+    }
+
+    .footer-brand .brand-mark svg {
+      width: 32px;
+      height: 32px;
+    }
+
+    .footer-brand .brand-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
     }
 
     .footer-brand .brand-text small {
@@ -1881,7 +1911,6 @@
       align-items: flex-start;
       justify-content: center;
       padding: 40px 20px;
-      overflow-y: auto;
       z-index: 1000;
       opacity: 0;
       pointer-events: none;
@@ -1901,6 +1930,9 @@
       max-width: 540px;
       margin: auto;
       overflow: hidden;
+      max-height: calc(100vh - 80px);
+      display: flex;
+      flex-direction: column;
       transform: translateY(14px) scale(0.98);
       transition: transform 0.22s ease;
     }
@@ -1915,6 +1947,8 @@
 
     .modal-head {
       position: relative;
+      flex: 0 0 auto;
+      z-index: 1;
       padding: 28px 32px 22px;
       background: linear-gradient(135deg, var(--cfg-purple-dark) 0%, var(--cfg-purple) 100%);
       color: #fff;
@@ -1960,6 +1994,8 @@
 
     .modal-body {
       padding: 26px 32px 32px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
     }
 
     .field {
@@ -1975,7 +2011,7 @@
     }
 
     .field label .req {
-      color: var(--cfg-coral);
+      color: var(--cfg-coral-dark);
     }
 
     .field input,
@@ -1990,6 +2026,25 @@
       border-radius: var(--r-md);
       background: #fff;
       transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .form-hint {
+      margin: 7px 0 0;
+      color: var(--cfg-muted);
+      font-size: 0.82rem;
+      line-height: 1.45;
+    }
+
+    .check-label {
+      display: flex !important;
+      align-items: flex-start;
+      gap: 9px;
+    }
+
+    .check-label input {
+      width: auto;
+      margin-top: 4px;
+      flex: 0 0 auto;
     }
 
     .field textarea {
@@ -2014,6 +2069,20 @@
     @media (max-width: 520px) {
       .form-row {
         grid-template-columns: 1fr;
+      }
+
+      .modal-overlay {
+        padding: 20px;
+      }
+
+      .modal {
+        max-height: calc(100vh - 40px);
+      }
+
+      .modal-head,
+      .modal-body {
+        padding-left: 24px;
+        padding-right: 24px;
       }
     }
 
@@ -2258,22 +2327,22 @@
           <li><a href="https://www.codeforgood.us/#success">Success Stories</a></li>
           <li><a href="https://www.codeforgood.us/#contact">Contact</a></li>
           <li class="dropdown" id="programDropdown">
-            <button class="dropdown-trigger" aria-expanded="false" aria-haspopup="true">
+            <button class="dropdown-trigger" aria-expanded="false" aria-controls="programMenu">
               STEM Career Path
               <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
                 stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M6 9l6 6 6-6"></path>
               </svg>
             </button>
-            <ul class="dropdown-menu" role="menu">
-              <li><a href="#overview" role="menuitem">Overview</a></li>
-              <li><a href="#pillars" role="menuitem">Program Pillars</a></li>
-              <li><a href="#how" role="menuitem">How It Works</a></li>
-              <li><a href="#tracks" role="menuitem">Timeline Tracks</a></li>
-              <li><a href="#impact" role="menuitem">Testimonials</a></li>
-              <li><a href="#resources" role="menuitem">Resources</a></li>
-              <li><a href="#faq" role="menuitem">FAQ</a></li>
-              <li><a class="menu-cta js-signup" href="#" role="menuitem">Sign Up →</a></li>
+            <ul class="dropdown-menu" id="programMenu" hidden>
+              <li><a href="#overview">Overview</a></li>
+              <li><a href="#pillars">Program Pillars</a></li>
+              <li><a href="#how">How It Works</a></li>
+              <li><a href="#tracks">Timeline Tracks</a></li>
+              <li><a href="#impact">Testimonials</a></li>
+              <li><a href="#resources">Resources</a></li>
+              <li><a href="#faq">FAQ</a></li>
+              <li><a class="menu-cta js-signup" href="#">Sign Up →</a></li>
             </ul>
           </li>
         </ul>
@@ -2282,7 +2351,7 @@
       <!-- Right cluster: CTAs (right-aligned) + mobile toggle -->
       <div class="nav-right">
         <div class="nav-cta">
-          <button class="btn btn-primary btn-sm js-signup" type="button">SignUp</button>
+          <button class="btn btn-primary btn-sm js-signup" type="button">Sign Up</button>
           <button class="btn btn-ghost btn-sm" type="button" id="loginBtn">Login</button>
         </div>
         <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation" aria-expanded="false"
@@ -2328,6 +2397,7 @@
             <!-- Donate button -->
             <a class="btn btn-secondary" href="https://www.zeffy.com/en-US/donation-form/donate-to-codeforgood" target="_blank" rel="noopener">
               Donate to Support
+              <span class="visually-hidden"> (opens in a new tab)</span>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
                 stroke-linejoin="round">
                 <path
@@ -2368,19 +2438,19 @@
             <!-- Cohort 1 -->
             <div class="hv-cohort hv-cohort-1">
               <!-- <image-slot id="cohort-spring-2026" shape="circle" placeholder="Spring 2026"></image-slot> -->
-              <img src="assets/images/cohort1.jpg" alt="Spring 2027">
+              <img src="assets/images/cohort1.jpg" alt="" width="64" height="64" decoding="async">
               <span class="lbl">Spring 2026</span>
             </div>
             <!-- Cohort 2 -->
             <div class="hv-cohort hv-cohort-2">
               <!-- <image-slot id="cohort-fall-2026" shape="circle" placeholder="Fall 2026"></image-slot> -->
-              <img src="assets/images/cohort2.jpg" alt="Spring 2027">
+              <img src="assets/images/cohort2.jpg" alt="" width="64" height="64" decoding="async">
               <span class="lbl">Fall 2026</span>
             </div>
             <!-- Cohort 3 -->
             <div class="hv-cohort hv-cohort-3">
               <!-- <image-slot id="cohort-spring-2027" shape="circle" placeholder="Spring 2027"></image-slot> -->
-              <img src="assets/images/cohort3.jpg" alt="Spring 2027">
+              <img src="assets/images/cohort3.jpg" alt="" width="64" height="64" decoding="async">
               <span class="lbl">Spring 2027</span>
             </div>
             <!-- Bottom badge -->
@@ -2389,17 +2459,17 @@
               <div class="hv-people">
                 <div class="hv-person">
                   <!-- <image-slot id="hero-cohort" shape="circle" placeholder="Cohort"></image-slot> -->
-                  <img src="assets/images/cohort4.jpg" alt="Spring 2027">
+                  <img src="assets/images/cohort4.jpg" alt="" width="56" height="56" decoding="async">
                   <span class="lbl">Cohort</span>
                 </div>
                 <div class="hv-person">
                   <!-- <image-slot id="hero-volunteers" shape="circle" placeholder="Volunteers"></image-slot> -->
-                  <img src="assets/images/Profile2.jpg" alt="Volunteers Image">
+                  <img src="assets/images/Profile2.jpg" alt="" width="56" height="56" decoding="async">
                   <span class="lbl">Volunteers</span>
                 </div>
                 <div class="hv-person">
                   <!-- <image-slot id="hero-mentors" shape="circle" placeholder="Mentors"></image-slot> -->
-                  <img src="assets/images/Profile2.jpg" alt="Volunteers Image">
+                  <img src="assets/images/Profile2.jpg" alt="" width="56" height="56" decoding="async">
                   <span class="lbl">Mentors</span>
                 </div>
               </div>
@@ -2672,7 +2742,7 @@
             </ol>
           </article>
 
-          <!-- Recent Graduate Track -->
+          <!-- 4-Week Fast Track -->
           <article class="track track-fast">
             <div class="track-meta">
               <div class="track-icon" aria-hidden="true">
@@ -2681,11 +2751,11 @@
                   <path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z"></path>
                 </svg>
               </div>
-              <span class="track-duration">8–12 weeks</span>
+              <span class="track-duration">4 weeks · 28 days</span>
             </div>
-            <h3>Recent Graduate Track</h3>
-            <p class="track-for">For students who have graduated or are close to graduation and need a focused
-              career-readiness sprint.</p>
+            <h3>4-Week Fast Track</h3>
+            <p class="track-for">For students who have graduated or are close to graduation and want a focused
+              28-day sprint with one practical deliverable each day.</p>
 
             <h4>Main outcomes</h4>
             <ul class="track-outcomes">
@@ -2696,14 +2766,12 @@
               <li>Job, freelance, internship, or startup ready</li>
             </ul>
 
-            <h4>Suggested milestones</h4>
+            <h4>Weekly outcomes</h4>
             <ol class="track-milestones">
-              <li>Career direction and readiness audit</li>
-              <li>Resume, LinkedIn, and GitHub cleanup</li>
-              <li>Portfolio project sprint</li>
-              <li>AI and industry tooling practice</li>
-              <li>Applications and mock interviews</li>
-              <li>Final readiness review with mentor</li>
+              <li>Week 1: Career direction and professional profiles</li>
+              <li>Week 2: AI workflows and industry tooling</li>
+              <li>Week 3: Deployable portfolio project sprint</li>
+              <li>Week 4: Applications, interviews, and launch plan</li>
             </ol>
           </article>
         </div>
@@ -2946,8 +3014,8 @@
             <div class="faq-a">
               <div class="faq-a-inner">
                 Two tracks: <b>12–18 months</b> for current students who can build readiness across multiple terms, and
-                <b>8–12 weeks</b> for a focused sprint after graduation. You can move between tracks as your situation
-                changes.
+                a <b>4-week fast track</b> with 28 daily deliverables for students close to or after graduation. An
+                administrator can move you between tracks when your situation changes.
               </div>
             </div>
           </div>
@@ -3038,6 +3106,7 @@
             </a>
             <a class="btn btn-secondary" id="donate" href="https://www.zeffy.com/en-US/donation-form/donate-to-codeforgood" target="_blank" rel="noopener">
               Donate to Support
+              <span class="visually-hidden"> (opens in a new tab)</span>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
                 stroke-linejoin="round">
                 <path
@@ -3098,7 +3167,7 @@
         <div class="footer-col">
           <h4>Code For Good</h4>
           <ul>
-            <li><a href="https://www.codeforgood.us" target="_blank" rel="noopener noreferrer">codeforgood.org</a></li>
+            <li><a href="https://www.codeforgood.us" target="_blank" rel="noopener noreferrer">codeforgood.us<span class="visually-hidden"> (opens in a new tab)</span></a></li>
             <li><a href="https://www.codeforgood.us/#about" target="_blank" rel="noopener noreferrer">About</a></li>
             <li><a href="https://www.codeforgood.us/#volunteer" target="_blank" rel="noopener noreferrer">Volunteer</a>
             </li>
@@ -3131,10 +3200,19 @@
       var toggle = document.getElementById('navToggle');
       var nav = document.getElementById('primaryNav');
       if (toggle && nav) {
+        function setNavOpen(state) {
+          nav.setAttribute('data-open', state ? 'true' : 'false');
+          toggle.setAttribute('aria-expanded', state ? 'true' : 'false');
+        }
         toggle.addEventListener('click', function () {
           var open = nav.getAttribute('data-open') === 'true';
-          nav.setAttribute('data-open', open ? 'false' : 'true');
-          toggle.setAttribute('aria-expanded', open ? 'false' : 'true');
+          setNavOpen(!open);
+        });
+        nav.querySelectorAll('a').forEach(function (link) {
+          link.addEventListener('click', function () { setNavOpen(false); });
+        });
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape') setNavOpen(false);
         });
       }
     })();
@@ -3161,27 +3239,16 @@
       var dd = document.getElementById('programDropdown');
       if (!dd) return;
       var trigger = dd.querySelector('.dropdown-trigger');
+      var menu = dd.querySelector('.dropdown-menu');
       function setOpen(state) {
         dd.setAttribute('data-open', state ? 'true' : 'false');
         trigger.setAttribute('aria-expanded', state ? 'true' : 'false');
+        menu.hidden = !state;
       }
       trigger.addEventListener('click', function (e) {
         e.preventDefault();
         var open = dd.getAttribute('data-open') === 'true';
         setOpen(!open);
-      });
-      // Desktop hover support; click remains the primary accessible control.
-      var hoverTimer;
-      dd.addEventListener('mouseenter', function () {
-        if (window.matchMedia('(min-width: 769px)').matches) {
-          clearTimeout(hoverTimer);
-          setOpen(true);
-        }
-      });
-      dd.addEventListener('mouseleave', function () {
-        if (window.matchMedia('(min-width: 769px)').matches) {
-          hoverTimer = setTimeout(function () { setOpen(false); }, 140);
-        }
       });
       // Global close behaviors keep the dropdown from lingering open.
       document.addEventListener('click', function (e) {
@@ -3201,19 +3268,25 @@
     (function () {
       var faqWrap = document.getElementById('faqWrap');
       if (!faqWrap) return;
-      faqWrap.querySelectorAll('.faq-item').forEach(function (item) {
+      function setFaqOpen(item, state) {
         var btn = item.querySelector('.faq-q');
+        var panel = item.querySelector('.faq-a');
+        item.setAttribute('data-open', state ? 'true' : 'false');
+        btn.setAttribute('aria-expanded', state ? 'true' : 'false');
+        panel.hidden = !state;
+      }
+      faqWrap.querySelectorAll('.faq-item').forEach(function (item, index) {
+        var btn = item.querySelector('.faq-q');
+        var panel = item.querySelector('.faq-a');
+        panel.id = panel.id || 'faq-answer-' + (index + 1);
+        btn.setAttribute('aria-controls', panel.id);
+        setFaqOpen(item, false);
         btn.addEventListener('click', function () {
           var open = item.getAttribute('data-open') === 'true';
-          // Optional: close others for a single-open accordion feel
           faqWrap.querySelectorAll('.faq-item[data-open="true"]').forEach(function (o) {
-            if (o !== item) {
-              o.setAttribute('data-open', 'false');
-              o.querySelector('.faq-q').setAttribute('aria-expanded', 'false');
-            }
+            if (o !== item) setFaqOpen(o, false);
           });
-          item.setAttribute('data-open', open ? 'false' : 'true');
-          btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+          setFaqOpen(item, !open);
         });
       });
     })();
@@ -3221,8 +3294,9 @@
 
   </script>
 
-  <!-- ================= APPLICATION MODAL (Subscribe) ================= -->
-  <div class="modal-overlay" id="applyModal" role="dialog" aria-modal="true" aria-labelledby="applyTitle">
+  <!-- ================= APPLICATION MODAL ================= -->
+  <div class="modal-overlay" id="applyModal" role="dialog" aria-modal="true" aria-labelledby="applyTitle"
+    aria-describedby="applyDescription" hidden>
     <div class="modal" role="document">
       <div class="modal-head">
         <span class="eyebrow">Request access</span>
@@ -3232,207 +3306,93 @@
             <path d="M6 6l12 12M18 6L6 18"></path>
           </svg>
         </button>
-        <h3 id="applyTitle">Join the STEM Career Path</h3>
-        <p>Tell us a bit about you. Next, you'll book a 15-minute interview.</p>
+        <h3 id="applyTitle">Start your application</h3>
+        <p id="applyDescription">Choose your age group first, then tell us which learning path fits your goals.</p>
       </div>
       <div class="modal-body">
         <form id="applyForm" novalidate>
           <div class="field">
-            <label for="af-name">Full name <span class="req">*</span></label>
-            <input id="af-name" name="name" type="text" placeholder="e.g. Tinh Cao" required autocomplete="name">
-          </div>
-          <div class="field">
-            <label for="af-email">Email <span class="req">*</span></label>
-            <input id="af-email" name="email" type="email" placeholder="caotinh98c@email.com" required autocomplete="email">
-          </div>
-          <div class="field">
-            <label for="af-age">Age <span class="req">*</span></label>
+            <label for="af-age">Age group <span class="req">*</span></label>
             <select id="af-age" name="ageBracket" required>
               <option value="" disabled selected>Select…</option>
-              <option value="18plus">18 or older</option>
               <option value="13-17">13–17</option>
-              <option value="under13">Under 13</option>
+              <option value="18plus">18 or older</option>
             </select>
           </div>
-          <div class="field" id="consentField" style="display:none">
-            <label style="display:flex;align-items:flex-start;gap:8px"><input type="checkbox" id="af-consent" style="width:auto;margin-top:4px"> A parent or guardian consents to my participation <span class="req">*</span></label>
+          <div class="field" id="consentField" hidden>
+            <label class="check-label" for="af-consent">
+              <input type="checkbox" id="af-consent">
+              <span>A parent or guardian consents to my participation <span class="req">*</span></span>
+            </label>
           </div>
-          <div class="form-row">
+
+          <div id="applicationFields" hidden>
             <div class="field">
-              <label for="af-stage">Current stage <span class="req">*</span></label>
-              <select id="af-stage" name="stage" required>
-                <option value="" disabled selected>Select…</option>
-                <option>Current student</option>
-                <option>Recent graduate</option>
-                <option>Upskilling professional</option>
-              </select>
+              <label for="af-name">Full name <span class="req">*</span></label>
+              <input id="af-name" name="name" type="text" placeholder="e.g. Tinh Cao" required autocomplete="name">
             </div>
             <div class="field">
-              <label for="af-track">Preferred track <span class="req">*</span></label>
-              <select id="af-track" name="track" required>
-                <option value="" disabled selected>Select…</option>
-                <option>Full Roadmap (12–18 mo)</option>
-                <option>Fast Track (8–12 wk)</option>
-                <option>Not sure yet</option>
-              </select>
+              <label for="af-email">Email <span class="req">*</span></label>
+              <input id="af-email" name="email" type="email" placeholder="you@example.com" required autocomplete="email">
             </div>
+            <div class="form-row">
+              <div class="field">
+                <label for="af-stage">Current stage <span class="req">*</span></label>
+                <select id="af-stage" name="stage" required>
+                  <option value="" disabled selected>Select…</option>
+                  <option value="student">Current student</option>
+                  <option value="recent-graduate">Recent graduate</option>
+                  <option value="professional">Upskilling professional</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="af-track">Preferred track <span class="req">*</span></label>
+                <select id="af-track" name="track" required>
+                  <option value="" disabled selected>Select…</option>
+                  <option value="roadmap">Full Roadmap (12–18 mo)</option>
+                  <option value="fasttrack">4-Week Fast Track</option>
+                  <option value="unsure">Not sure yet</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label for="af-choice">Application type <span class="req">*</span></label>
+              <select id="af-choice" name="accessChoice" required aria-describedby="applicationTypeHint">
+                <option value="" disabled selected>Select…</option>
+                <option value="beneficiary">Beneficiary — request sponsored access</option>
+                <option value="supporter">Supporter — fund a seat and receive access</option>
+              </select>
+              <p class="form-hint" id="applicationTypeHint">Both types receive the same student experience. Supporter applications continue to the hosted donation page.</p>
+            </div>
+            <div class="field">
+              <label for="af-reason">Why are you applying? <span class="req">*</span></label>
+              <textarea id="af-reason" name="reason" placeholder="A sentence or two about your goals…" required></textarea>
+            </div>
+            <div class="modal-actions">
+              <button class="btn btn-primary" type="submit">
+                Submit application
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                  stroke-linejoin="round">
+                  <path d="M5 12h14M13 5l7 7-7 7"></path>
+                </svg>
+              </button>
+            </div>
+            <p class="modal-foot">Already approved? <a href="/app.html">Log in instead</a></p>
           </div>
-          <div class="field">
-            <label for="af-reason">Why are you applying? <span class="req">*</span></label>
-            <textarea id="af-reason" name="reason" placeholder="A sentence or two about your goals…"
-              required></textarea>
-          </div>
-          <div class="modal-actions">
-            <button class="btn btn-primary" type="submit">
-              Continue to interview booking
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
-                stroke-linejoin="round">
-                <path d="M5 12h14M13 5l7 7-7 7"></path>
-              </svg>
-            </button>
-          </div>
-          <p class="modal-foot">Already approved? <a class="js-login">Log in instead</a></p>
         </form>
 
-        <!-- Shown after form submit: cal.com opened in new tab -->
-        <div id="bookingLaunched" style="display:none; text-align:center; padding: 8px 0 16px;">
+        <div id="applicationSubmitted" role="status" aria-live="polite" tabindex="-1" hidden
+          style="text-align:center; padding: 8px 0 16px;">
           <div style="width:64px;height:64px;border-radius:50%;background:rgba(46,162,122,0.12);color:#2ea27a;display:grid;place-items:center;margin:0 auto 18px;">
             <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
           </div>
-          <h3 style="margin:0 0 10px;font-size:1.25rem;">Booking opened!</h3>
-          <p style="color:#5b5170;margin:0 0 24px;font-size:0.95rem;line-height:1.6;">
-            Complete your 15-minute interview on Cal.com in the new tab.<br>
-            When you're done, continue to your dashboard below.
-          </p>
-          <div class="modal-actions">
-            <a id="toDashboardBtn" href="mock-dashboard.html" class="btn btn-primary">
-              Continue to your dashboard
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><path d="M5 12h14M13 5l7 7-7 7"></path></svg>
-            </a>
-          </div>
+          <h3 style="margin:0 0 10px;font-size:1.25rem;">Application submitted</h3>
+          <p style="color:#5b5170;margin:0 0 24px;font-size:0.95rem;line-height:1.6;"></p>
+          <div class="modal-actions"></div>
         </div>
       </div>
     </div>
   </div>
-
-  <!-- ================= LOGIN MODAL ================= -->
-  <div class="modal-overlay" id="loginModal" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
-    <div class="modal modal-login" role="document">
-      <div class="modal-head">
-        <span class="eyebrow">Member sign in</span>
-        <button class="modal-close" type="button" data-close aria-label="Close dialog">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"
-            stroke-linecap="round">
-            <path d="M6 6l12 12M18 6L6 18"></path>
-          </svg>
-        </button>
-        <h3 id="loginTitle">Welcome back</h3>
-        <p>Sign in to your participant dashboard.</p>
-      </div>
-      <div class="modal-body">
-        <form id="loginForm" novalidate>
-          <div class="field">
-            <label for="lf-email">Email</label>
-            <input id="lf-email" name="email" type="email" placeholder="you@email.com" value="Tinh@email.com"
-              autocomplete="email">
-          </div>
-          <div class="field">
-            <label for="lf-pass">Password</label>
-            <input id="lf-pass" name="password" type="password" placeholder="••••••••" value="demo1234"
-              autocomplete="current-password">
-          </div>
-          <div class="modal-actions">
-            <button class="btn btn-primary" type="submit">Sign in →</button>
-          </div>
-          <p class="modal-foot">No account yet? <a class="js-signup">Request access</a></p>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <!-- Legacy mock funnel disabled — replaced by the V3 module /src/public/landing.js -->
-  <script type="application/json" id="legacy-mock-funnel">
-    /*
-      Demo-only funnel logic:
-      - Sign-up opens the application modal.
-      - Application submit stores a temporary applicant object in sessionStorage.
-      - Login and application completion route into the mock dashboard flow.
-      Replace these redirects with real auth/API calls when wiring the product.
-    */
-
-    (function () {
-      var body = document.body;
-      var applyModal = document.getElementById('applyModal');
-      var loginModal = document.getElementById('loginModal');
-
-      function openModal(m) {
-        closeModals();
-        m.setAttribute('data-open', 'true');
-        body.classList.add('modal-open');
-        var first = m.querySelector('input, select, textarea');
-        if (first) setTimeout(function () { first.focus(); }, 60);
-      }
-
-      function closeModals() {
-        [applyModal, loginModal].forEach(function (m) { m.setAttribute('data-open', 'false'); });
-        body.classList.remove('modal-open');
-      }
-
-      // Subscribe / Sign Up triggers -> application modal
-      document.querySelectorAll('.js-signup').forEach(function (el) {
-        el.addEventListener('click', function (e) { e.preventDefault(); openModal(applyModal); });
-      });
-      // Login triggers -> login modal
-      document.querySelectorAll('.js-login, #loginBtn').forEach(function (el) {
-        el.addEventListener('click', function (e) { e.preventDefault(); openModal(loginModal); });
-      });
-      // Close handlers
-      document.querySelectorAll('[data-close]').forEach(function (el) {
-        el.addEventListener('click', closeModals);
-      });
-      [applyModal, loginModal].forEach(function (m) {
-        m.addEventListener('click', function (e) { if (e.target === m) closeModals(); });
-      });
-      document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModals(); });
-
-      // Application submit -> open real Cal.com booking in new tab, show next-step state
-      document.getElementById('applyForm').addEventListener('submit', function (e) {
-        e.preventDefault();
-        var fd = new FormData(this);
-        var name = (fd.get('name') || '').toString().trim();
-        var email = (fd.get('email') || '').toString().trim();
-        var reason = (fd.get('reason') || '').toString().trim();
-        if (!name || !email || !fd.get('stage') || !fd.get('track') || !reason) {
-          if (this.reportValidity) this.reportValidity();
-          return;
-        }
-        var data = { name: name, email: email, stage: fd.get('stage'), track: fd.get('track'), reason: reason };
-        try { sessionStorage.setItem('cfg_applicant', JSON.stringify(data)); } catch (err) { }
-        // Open real Cal.com booking in a new tab
-        window.open('https://cal.com/tinhcao001', '_blank', 'noopener');
-        // Swap modal to the "booking launched" state
-        var firstName = name.split(' ')[0];
-        var dash = 'mock-dashboard.html?name=' + encodeURIComponent(firstName);
-        document.getElementById('toDashboardBtn').setAttribute('href', dash);
-        document.getElementById('applyForm').style.display = 'none';
-        document.getElementById('bookingLaunched').style.display = 'block';
-        // Update modal header copy
-        var applyTitle = document.getElementById('applyTitle');
-        if (applyTitle) applyTitle.textContent = 'Almost there, ' + firstName + '!';
-      });
-
-      // Login submit -> dashboard
-      document.getElementById('loginForm').addEventListener('submit', function (e) {
-        e.preventDefault();
-        var name = 'Tinh';
-        try {
-          var saved = JSON.parse(sessionStorage.getItem('cfg_applicant') || 'null');
-          if (saved && saved.name) name = saved.name.split(' ')[0];
-        } catch (err) { }
-        window.location.href = 'mock-dashboard.html?name=' + encodeURIComponent(name);
-      });
-    })();
-  </script>
 
 
   <script type="module" src="/src/public/landing.js"></script>
