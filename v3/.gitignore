@@ -6,6 +6,9 @@ dist/
 .env.*
 !.env.example
 frontend/.vite/
+frontend/output/
+frontend/playwright-report/
+frontend/test-results/
 
 # NEVER commit secrets — Firebase service-account keys + the Zeffy API key
 *serviceaccount*.json
