@@ -152,7 +152,7 @@ function openApp(a) {
   };
   const rej = $('ivReject');
   if (rej) rej.onclick = async () => {
-    try { await updateDoc(doc(db, 'applications', a.id), { status: 'REJECTED', rejectedReason: 'not_eligible' }); toast('Application rejected'); await refresh(); clearDetail(); }
+    try { await call('rejectApplication', { applicationId: a.id, reason: 'not_eligible' }); toast('Application rejected'); await refresh(); clearDetail(); }
     catch (e) { toast('Error: ' + (e.code || e.message)); }
   };
   const zpid = $('zpid');
@@ -217,7 +217,7 @@ function showMemberExtend(uid) {
   const host = $('memberProgress');
   host.innerHTML = `<h3>Extend access</h3><p>Add days to this member's access window. The new window flows into their next ID-token refresh — no re-login needed.</p>
     <label for="extDays">Days to add</label>
-    <input id="extDays" type="number" min="1" value="90" />
+    <input id="extDays" type="number" min="1" value="365" />
     <div class="actions" style="margin-top:12px"><button class="btn" id="extApply">Extend</button></div>`;
   $('extApply').onclick = async () => {
     const days = Number($('extDays').value);
@@ -262,9 +262,8 @@ async function openMemberProgress(row) {
 
 async function setStageLock(uid, stageKey, act, row) {
   try {
-    const ref = doc(db, 'members', uid, 'stageLocks', stageKey);
-    if (act === 'auto') await deleteDoc(ref);
-    else await setDoc(ref, { state: act === 'lock' ? 'locked' : 'unlocked' });
+    if (act === 'auto') await call('setStageLock', { uid, stageKey, state: 'unlocked' });
+    else await call('setStageLock', { uid, stageKey, state: act === 'lock' ? 'locked' : 'unlocked' });
     toast(act === 'auto' ? 'Gate restored to automatic' : `Stage ${act}ed`);
     await openMemberProgress(row);
   } catch (e) { toast('Error: ' + (e.code || e.message)); }

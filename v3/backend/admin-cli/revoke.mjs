@@ -8,6 +8,7 @@ if (!uid) die('usage: node revoke.mjs <uid>');
 await db.collection('members').doc(uid).update({ status: STATE.ENDED, endedReason: 'revoked' });
 await auth.setCustomUserClaims(uid, { role: 'student', accessEnds: Date.now() }); // Rules deny on next refresh
 await auth.revokeRefreshTokens(uid);                                              // block new tokens
+await db.collection('accountAccess').doc(uid).set({ uid, role: 'student', enabled: false, status: STATE.SUSPENDED }, { merge: true });
 await audit({ type: 'member.revoked', targetType: 'member', targetId: uid, toStatus: STATE.ENDED });
 console.log(`ok: revoked ${uid}`);
 process.exit(0);

@@ -8,13 +8,23 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     function isSignedIn() { return request.auth != null; }
-    function isAdmin() { return isSignedIn() && request.auth.token.role == 'admin'; }
-    function isOwner() { return isSignedIn() && request.auth.token.role == 'owner'; }
+    function accountDoc(uid) { return get(/databases/$(database)/documents/accountAccess/$(uid)); }
+    function accountExists(uid) { return exists(/databases/$(database)/documents/accountAccess/$(uid)); }
+    function accountEnabled(uid) {
+      return accountExists(uid)
+        && accountDoc(uid).data.enabled == true
+        && accountDoc(uid).data.status != 'SUSPENDED'
+        && accountDoc(uid).data.status != 'DISABLED';
+    }
+    function isAdmin() { return isSignedIn() && request.auth.token.role == 'admin' && accountEnabled(request.auth.uid); }
+    function isOwner() { return isSignedIn() && request.auth.token.role == 'owner' && accountEnabled(request.auth.uid); }
     function isStaff() { return isAdmin() || isOwner(); }
     function isActiveStudent(uid) {
       return isSignedIn()
         && request.auth.uid == uid
         && request.auth.token.role == 'student'
+        && accountEnabled(uid)
+        && get(/databases/$(database)/documents/members/$(uid)).data.status == 'ACTIVE'
         && request.auth.token.accessEnds > request.time.toMillis();
     }
     // Global kill-switch: true unless an owner has flipped system/lockdown.enabled.
@@ -26,7 +36,7 @@ service cloud.firestore {
     function writableNow() { return isOwner() || notLocked(); }
 
     // PUBLIC APPLY: an applicant (anonymous auth) may CREATE one SUBMITTED application.
-    // The age/consent gate is enforced HERE (under-13 denied; 13–17 needs guardian consent).
+    // Only declared age groups are accepted; applicants aged 13–17 need guardian consent.
     match /applications/{id} {
       allow create: if isSignedIn() && notLocked()
         && request.resource.data.status == 'SUBMITTED'
@@ -34,7 +44,7 @@ service cloud.firestore {
         && (request.resource.data.ageBracket != '13-17' || request.resource.data.guardianConsent == true)
         && request.resource.data.accessChoice in ['beneficiary', 'supporter']
         && request.resource.data.keys().hasOnly(
-             ['status', 'accessChoice', 'email', 'name', 'ageBracket', 'guardianConsent', 'createdAt']);
+             ['status', 'accessChoice', 'email', 'name', 'ageBracket', 'guardianConsent', 'stage', 'track', 'reason', 'createdAt']);
       allow read: if isStaff();
       // Staff may schedule an interview or reject — NON-minting transitions only. Moving an
       // application to GRANTED/ACTIVE still requires the Admin SDK (createUser + claims), which
@@ -42,7 +52,7 @@ service cloud.firestore {
       allow update: if isStaff() && writableNow()
         && request.resource.data.status in ['SUBMITTED', 'INTERVIEW_SCHEDULED', 'REJECTED']
         && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['status', 'interviewAt', 'interviewNote', 'rejectedReason']);
+             .hasOnly(['status', 'interviewAt', 'interviewNote', 'rejectedReason', 'rejectedAt', 'rejectedBy']);
       allow delete: if false;
     }
 
@@ -54,19 +64,13 @@ service cloud.firestore {
       // Student self-attests completion of their OWN stage while ACTIVE + in-window + not locked.
       match /progress/{stageKey} {
         allow read: if isStaff() || isActiveStudent(uid);
-        allow create, update: if isActiveStudent(uid) && notLocked()
-          && request.resource.data.status == 'complete'
-          && request.resource.data.keys().hasOnly(['status', 'deliverableUrl', 'completedAt']);
-        allow delete: if false;
+        allow create, update, delete: if false;
       }
 
       // Admin/owner stage-gate overrides (lock/unlock). Read by the student app.
       match /stageLocks/{stageKey} {
         allow read: if isStaff() || isActiveStudent(uid);
-        allow write: if isStaff() && writableNow()
-          && request.resource.data.keys().hasOnly(['state'])
-          && request.resource.data.state in ['locked', 'unlocked'];
-        allow delete: if isStaff() && writableNow();
+        allow write, delete: if false;
       }
     }
 
@@ -74,6 +78,7 @@ service cloud.firestore {
     match /donations/{id} { allow read: if isStaff(); allow write: if false; }
     match /campaigns/{id} { allow read: if isStaff(); allow write: if false; }
     match /counters/{id}  { allow read: if isStaff(); allow write: if false; }
+    match /accountAccess/{uid} { allow read: if isStaff() || (isSignedIn() && request.auth.uid == uid); allow write: if false; }
 
     // Append-only, tamper-evident: staff read, never client-writable.
     match /auditLog/{id}  { allow read: if isStaff(); allow write: if false; }

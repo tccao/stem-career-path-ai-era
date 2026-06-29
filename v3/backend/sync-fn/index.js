@@ -23,9 +23,11 @@ const auth = getAuth();
 
 const REGION = 'us-central1';
 const DAY_MS = 86_400_000;
+const DEFAULT_DAYS = 365;
 const STATE = Object.freeze({
   SUBMITTED: 'SUBMITTED', INTERVIEW_SCHEDULED: 'INTERVIEW_SCHEDULED',
   GRANTED: 'GRANTED', ACTIVE: 'ACTIVE', ENDED: 'ENDED', REJECTED: 'REJECTED',
+  SUSPENDED: 'SUSPENDED', DISABLED: 'DISABLED',
 });
 
 // Role tiers: owner > admin > student. "staff" = admin or owner.
@@ -46,6 +48,17 @@ async function assertNotLockedDown(req) {
     throw new HttpsError('unavailable', 'The system is in lockdown. Contact the owner.');
   }
 }
+async function accountAccess(uid) {
+  const snap = await db.collection('accountAccess').doc(uid).get();
+  return snap.exists ? snap.data() : null;
+}
+async function requireEnabledAccount(uid) {
+  const acc = await accountAccess(uid);
+  if (!acc || acc.enabled !== true || acc.status === STATE.SUSPENDED || acc.status === STATE.DISABLED) {
+    throw new HttpsError('permission-denied', 'account disabled');
+  }
+  return acc;
+}
 // Resolve a target user by uid or email.
 async function resolveUser(data) {
   if (data?.uid) return auth.getUser(String(data.uid));
@@ -60,6 +73,17 @@ async function assertTargetNotStaff(uid) {
 }
 async function audit(ev) {
   await db.collection('auditLog').add({ ...ev, ts: FieldValue.serverTimestamp() });
+}
+async function setAccountAccess(uid, patch) {
+  await db.collection('accountAccess').doc(uid).set({ uid, ...patch, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+}
+async function getOrCreateUserByEmail(email) {
+  try {
+    return await auth.getUserByEmail(email);
+  } catch (e) {
+    if (e?.code !== 'auth/user-not-found' && e?.errorInfo?.code !== 'auth/user-not-found') throw e;
+    return auth.createUser({ email });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -173,7 +197,7 @@ export const grant = onCall({ region: REGION, timeoutSeconds: 60, cors: true }, 
   assertStaff(req); await assertNotLockedDown(req);
   const applicationId = String(req.data?.applicationId || '').trim();
   if (!applicationId) throw new HttpsError('invalid-argument', 'applicationId required');
-  const days = Number(req.data?.days ?? 90);
+  const days = Number(req.data?.days ?? DEFAULT_DAYS);
   const accessBasis = req.data?.basis === 'supporter' ? 'supporter' : 'beneficiary';
   const path = req.data?.path === 'roadmap' ? 'roadmap' : 'fasttrack';
 
@@ -184,17 +208,31 @@ export const grant = onCall({ region: REGION, timeoutSeconds: 60, cors: true }, 
   if (![STATE.SUBMITTED, STATE.INTERVIEW_SCHEDULED].includes(a.status)) {
     throw new HttpsError('failed-precondition', `application is ${a.status}, expected SUBMITTED or INTERVIEW_SCHEDULED`);
   }
+  if (accessBasis === 'beneficiary' && a.accessChoice !== 'beneficiary') {
+    throw new HttpsError('failed-precondition', 'beneficiary grant requires beneficiary application');
+  }
+  if (accessBasis === 'supporter' && a.accessChoice !== 'supporter') {
+    throw new HttpsError('failed-precondition', 'supporter grant requires supporter application');
+  }
+  const existing = await auth.getUserByEmail(a.email).catch(() => null);
+  if (existing?.customClaims?.role === 'admin' || existing?.customClaims?.role === 'owner') {
+    throw new HttpsError('permission-denied', 'refusing to overwrite a staff account');
+  }
 
   const accessEnds = Date.now() + days * DAY_MS;
-  const user = await auth.getUserByEmail(a.email).catch(() => auth.createUser({ email: a.email }));
+  const user = existing || await getOrCreateUserByEmail(a.email);
   await auth.setCustomUserClaims(user.uid, { role: 'student', accessBasis, accessEnds });
 
   const batch = db.batch();
-  batch.update(appRef, { status: STATE.GRANTED, grantedUid: user.uid });
+  batch.update(appRef, { status: STATE.GRANTED, grantedUid: user.uid, grantedAt: FieldValue.serverTimestamp() });
   batch.set(db.collection('members').doc(user.uid), {
     status: STATE.ACTIVE, accessBasis, accessEnds, email: a.email, name: a.name ?? '',
     path, applicationId, createdAt: FieldValue.serverTimestamp(),
   });
+  batch.set(db.collection('accountAccess').doc(user.uid), {
+    uid: user.uid, email: a.email, role: 'student', enabled: true, status: STATE.ACTIVE,
+    accessBasis, accessEnds, path, applicationId,
+  }, { merge: true });
   await batch.commit();
   await audit({ type: 'access.granted', targetType: 'member', targetId: user.uid, toStatus: STATE.ACTIVE });
   return { uid: user.uid, accessEnds, path };
@@ -209,6 +247,7 @@ export const extendAccess = onCall({ region: REGION, timeoutSeconds: 30, cors: t
   const days = Number(req.data?.days);
   if (!uid || !days) throw new HttpsError('invalid-argument', 'uid and days required');
   await assertTargetNotStaff(uid);
+  await requireEnabledAccount(uid);
 
   const ref = db.collection('members').doc(uid);
   const snap = await ref.get();
@@ -218,6 +257,7 @@ export const extendAccess = onCall({ region: REGION, timeoutSeconds: 30, cors: t
 
   await ref.update({ accessEnds, status: STATE.ACTIVE });
   await auth.setCustomUserClaims(uid, { role: 'student', accessBasis: snap.get('accessBasis'), accessEnds });
+  await setAccountAccess(uid, { enabled: true, role: 'student', status: STATE.ACTIVE, accessEnds });
   await audit({ type: 'member.extended', targetType: 'member', targetId: uid });
   return { uid, accessEnds };
 });
@@ -231,10 +271,11 @@ export const revokeAccess = onCall({ region: REGION, timeoutSeconds: 30, cors: t
   if (!uid) throw new HttpsError('invalid-argument', 'uid required');
   await assertTargetNotStaff(uid);
 
-  await db.collection('members').doc(uid).update({ status: STATE.ENDED, endedReason: 'revoked' });
+  await db.collection('members').doc(uid).update({ status: STATE.SUSPENDED, endedReason: 'revoked' });
   await auth.setCustomUserClaims(uid, { role: 'student', accessEnds: Date.now() });
   await auth.revokeRefreshTokens(uid);
-  await audit({ type: 'member.revoked', targetType: 'member', targetId: uid, toStatus: STATE.ENDED });
+  await setAccountAccess(uid, { enabled: false, role: 'student', status: STATE.SUSPENDED });
+  await audit({ type: 'member.revoked', targetType: 'member', targetId: uid, toStatus: STATE.SUSPENDED });
   return { uid };
 });
 
@@ -262,6 +303,7 @@ export const listAccounts = onCall({ region: REGION, timeoutSeconds: 30, cors: t
         role: u.customClaims?.role ?? null,
         disabled: u.disabled === true,
         lastSignIn: u.metadata.lastSignInTime ?? null,
+        access: await accountAccess(u.uid),
       });
     }
     pageToken = res.pageToken;
@@ -278,6 +320,12 @@ export const setRole = onCall({ region: REGION, timeoutSeconds: 30, cors: true }
   if (u.uid === req.auth.uid) throw new HttpsError('failed-precondition', 'you cannot change your own role');
   await auth.setCustomUserClaims(u.uid, role === 'none' ? {} : { role });
   await auth.revokeRefreshTokens(u.uid); // new role takes effect on next token
+  await setAccountAccess(u.uid, {
+    email: u.email ?? null,
+    role: role === 'none' ? 'student' : role,
+    enabled: true,
+    status: STATE.ACTIVE,
+  });
   await audit({ type: 'role.set', targetType: 'account', targetId: u.uid, role, by: req.auth.uid });
   return { uid: u.uid, email: u.email ?? null, role };
 });
@@ -295,8 +343,9 @@ export const disableAccount = onCall({ region: REGION, timeoutSeconds: 30, cors:
 
   await auth.updateUser(u.uid, { disabled: true });
   await auth.revokeRefreshTokens(u.uid);
+  await setAccountAccess(u.uid, { enabled: false, role: targetRole, status: STATE.DISABLED });
   const m = db.collection('members').doc(u.uid);
-  if ((await m.get()).exists) await m.update({ status: STATE.ENDED, endedReason: 'disabled' });
+  if ((await m.get()).exists) await m.set({ status: STATE.SUSPENDED, endedReason: 'disabled' }, { merge: true });
   await audit({ type: 'account.disabled', targetType: 'account', targetId: u.uid, by: req.auth.uid });
   return { uid: u.uid, email: u.email ?? null, disabled: true };
 });
@@ -310,6 +359,9 @@ export const enableAccount = onCall({ region: REGION, timeoutSeconds: 30, cors: 
   if (caller === 'admin' && targetRole !== 'student') throw new HttpsError('permission-denied', 'admins can only re-enable students');
 
   await auth.updateUser(u.uid, { disabled: false });
+  await setAccountAccess(u.uid, { enabled: true, role: targetRole, status: STATE.ACTIVE });
+  const m = db.collection('members').doc(u.uid);
+  if ((await m.get()).exists) await m.set({ status: STATE.ACTIVE, endedReason: FieldValue.delete() }, { merge: true });
   await audit({ type: 'account.enabled', targetType: 'account', targetId: u.uid, by: req.auth.uid });
   return { uid: u.uid, email: u.email ?? null, disabled: false };
 });
@@ -325,4 +377,53 @@ export const setLockdown = onCall({ region: REGION, timeoutSeconds: 20, cors: tr
   });
   await audit({ type: enabled ? 'system.lockdown.on' : 'system.lockdown.off', targetType: 'system', targetId: 'lockdown', by: req.auth.uid });
   return { enabled, reason };
+});
+
+export const rejectApplication = onCall({ region: REGION, timeoutSeconds: 30, cors: true }, async (req) => {
+  assertStaff(req); await assertNotLockedDown(req);
+  const applicationId = String(req.data?.applicationId || '').trim();
+  const reason = String(req.data?.reason || 'not_eligible').trim().slice(0, 120);
+  if (!applicationId) throw new HttpsError('invalid-argument', 'applicationId required');
+  await db.collection('applications').doc(applicationId).set({
+    status: STATE.REJECTED, rejectedReason: reason, rejectedAt: FieldValue.serverTimestamp(), rejectedBy: req.auth.uid,
+  }, { merge: true });
+  await audit({ type: 'application.rejected', targetType: 'application', targetId: applicationId, by: req.auth.uid });
+  return { applicationId, status: STATE.REJECTED };
+});
+
+export const setStageLock = onCall({ region: REGION, timeoutSeconds: 30, cors: true }, async (req) => {
+  assertStaff(req); await assertNotLockedDown(req);
+  const uid = String(req.data?.uid || '').trim();
+  const stageKey = String(req.data?.stageKey || '').trim();
+  const state = req.data?.state === 'locked' ? 'locked' : req.data?.state === 'unlocked' ? 'unlocked' : null;
+  if (!uid || !stageKey || !state) throw new HttpsError('invalid-argument', 'uid, stageKey, state required');
+  await db.collection('members').doc(uid).collection('stageLocks').doc(stageKey).set({
+    state, updatedAt: FieldValue.serverTimestamp(), updatedBy: req.auth.uid,
+  }, { merge: true });
+  await audit({ type: 'stage.lock', targetType: 'member', targetId: uid, by: req.auth.uid });
+  return { uid, stageKey, state };
+});
+
+export const submitStage = onCall({ region: REGION, timeoutSeconds: 30, cors: true }, async (req) => {
+  const uid = req.auth?.uid;
+  if (!uid) throw new HttpsError('unauthenticated', 'sign in required');
+  await requireEnabledAccount(uid);
+  const stageKey = String(req.data?.stageKey || '').trim();
+  const deliverableUrl = String(req.data?.deliverableUrl || '').trim();
+  if (!stageKey || !deliverableUrl) throw new HttpsError('invalid-argument', 'stageKey and deliverableUrl required');
+
+  const memberSnap = await db.collection('members').doc(uid).get();
+  if (!memberSnap.exists) throw new HttpsError('failed-precondition', 'member record missing');
+  const member = memberSnap.data();
+  if (member.status !== STATE.ACTIVE) throw new HttpsError('failed-precondition', 'member is not active');
+  if (member.accessEnds && member.accessEnds <= Date.now()) throw new HttpsError('failed-precondition', 'access expired');
+
+  const lockSnap = await db.collection('members').doc(uid).collection('stageLocks').doc(stageKey).get();
+  if (lockSnap.exists && lockSnap.data().state === 'locked') throw new HttpsError('failed-precondition', 'stage locked');
+
+  await db.collection('members').doc(uid).collection('progress').doc(stageKey).set({
+    status: 'complete', deliverableUrl, completedAt: FieldValue.serverTimestamp(), completedBy: uid,
+  }, { merge: true });
+  await audit({ type: 'stage.completed', targetType: 'member', targetId: uid, by: uid });
+  return { uid, stageKey, status: 'complete' };
 });

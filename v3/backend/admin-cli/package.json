@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Local admin-operated CLI for the Spark/Functions-free V3 backend. Privileged Admin-SDK ops (createUser, custom claims, grant/extend/revoke, expiry) that have no hosted home on Spark. Run by the admin with a service-account key, or against the emulator.",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "make-admin": "node make-admin.mjs",
     "grant": "node grant.mjs",
@@ -13,8 +15,11 @@
     "expiry": "node expiry-sweep.mjs"
   },
   "dependencies": {
-    "firebase-admin": "^12.7.0",
+    "firebase-admin": "^14.1.0",
     "ulid": "^2.3.0",
     "zod": "^3.23.0"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
   }
 }

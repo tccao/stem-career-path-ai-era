@@ -3,15 +3,17 @@
 // the curriculum bundle, and a Firestore write to complete a stage. Sequential gating is
 // computed here; the access WINDOW is enforced by Firestore Rules (claim accessEnds).
 import '../ui/theme.css';
-import { doc, getDoc, collection, getDocs, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
-import { db, auth } from '../firebase.js';
+import { httpsCallable } from 'firebase/functions';
+import { db, auth, functions } from '../firebase.js';
 import { requestSignInLink, completeSignInIfPresent, onAuthStateChanged } from '../lib/auth.js';
 import { loadCurriculum } from '../lib/cache.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const toast = (m) => { const t = $('toast'); t.textContent = m; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2400); };
+const call = (name, data) => httpsCallable(functions, name)(data).then((r) => r.data);
 
 let currentUid = null, member = null, progressMap = {}, lockMap = {}, latestView = null;
 
@@ -318,7 +320,7 @@ async function submitStage(stageKey, url) {
   const deliverableUrl = normalizeUrl(url);
   if (!deliverableUrl) { toast('Enter a valid URL'); return; }
   try {
-    await setDoc(doc(db, 'members', currentUid, 'progress', stageKey), { status: 'complete', deliverableUrl, completedAt: serverTimestamp() });
+    await call('submitStage', { stageKey, deliverableUrl });
     await refetch();
     const v = await buildView();
     if (v.activeStage) history.replaceState(null, '', '#stage=' + encodeURIComponent(v.activeStage.stageKey));

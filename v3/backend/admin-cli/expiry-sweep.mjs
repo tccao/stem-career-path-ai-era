@@ -14,6 +14,7 @@ for (const m of due.docs) {
   await m.ref.update({ status: STATE.ENDED, endedReason: 'expired' });
   await auth.setCustomUserClaims(m.id, { role: 'student', accessEnds: now });
   await auth.revokeRefreshTokens(m.id);
+  await db.collection('accountAccess').doc(m.id).set({ uid: m.id, role: 'student', enabled: false, status: STATE.ENDED }, { merge: true });
   await audit({ type: 'member.expired', targetType: 'member', targetId: m.id, toStatus: STATE.ENDED });
   n++;
 }

@@ -15,6 +15,9 @@ const accessEnds = base + days * DAY_MS;
 
 await ref.update({ accessEnds, status: STATE.ACTIVE });
 await auth.setCustomUserClaims(uid, { role: 'student', accessBasis: snap.get('accessBasis'), accessEnds });
+await db.collection('accountAccess').doc(uid).set({
+  uid, email: snap.get('email') ?? null, role: 'student', enabled: true, status: STATE.ACTIVE, accessEnds,
+}, { merge: true });
 await audit({ type: 'member.extended', targetType: 'member', targetId: uid });
 console.log(`ok: ${uid} extended ${days}d → accessEnds=${new Date(accessEnds).toISOString()}`);
 process.exit(0);
