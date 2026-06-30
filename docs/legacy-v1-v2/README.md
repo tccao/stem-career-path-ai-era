@@ -60,3 +60,13 @@ When the production V3 branch is eventually merged into `main`:
   dependencies; and
 - treat [`v3/README.md`](../../v3/README.md) and the implemented V3 security documentation as the
   active operational sources of truth.
+
+A read-only `git merge-tree` rehearsal against `origin/feat/v3-mvp` on 2026-06-29 identified the
+expected future conflicts:
+
+- content conflicts in `README.md`, `AGENTS.md`, `CLAUDE.md`, and `v3/docs/V3-Plan.md`; resolve by
+  taking the newest V3 guidance and restoring the archive link and retirement policy;
+- modify/delete conflicts for `assets/diagrams/README-mermaid-logos.md` and
+  `demo/audit-ui-v1-2026-06-17/README.md`; resolve by keeping both files deleted.
+
+The rehearsal created no merge commit and changed no branch or working-tree files.
