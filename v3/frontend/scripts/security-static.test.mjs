@@ -23,6 +23,14 @@ test('admin member controls expose access restoration for ended accounts', async
   assert.match(source, /m\.status === 'ACTIVE' \? 'Extend' : 'Restore access'/);
 });
 
+test('staff TOTP enrollment renders a local QR code with a manual-key fallback', async () => {
+  const source = await readFile(new URL('../src/lib/auth.js', import.meta.url), 'utf8');
+  assert.match(source, /import QRCode from 'qrcode'/);
+  assert.match(source, /QRCode\.toCanvas\([^,]+, uri,/s);
+  assert.match(source, /secret\.textContent = secretKey/);
+  assert.doesNotMatch(source, /prompt\('Add this key or otpauth URI/);
+});
+
 test('HTML contains no inline executable JavaScript or inline event handlers', async () => {
   for (const file of ['index.html', 'app.html', 'admin.html']) {
     const html = await readFile(new URL(file, dist), 'utf8');

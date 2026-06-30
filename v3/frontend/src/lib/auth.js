@@ -8,6 +8,7 @@ import {
   signInAnonymously,
   signInWithEmailLink,
 } from 'firebase/auth';
+import QRCode from 'qrcode';
 import { auth, authReady } from '../firebase.js';
 
 const STORAGE_KEY = 'cfg.emailForSignIn';
@@ -52,6 +53,107 @@ async function resolveTotpSignIn(error) {
   return resolver.resolveSignIn(assertion);
 }
 
+function requestTotpEnrollmentCode(uri, secretKey) {
+  return new Promise((resolve, reject) => {
+    const previousFocus = document.activeElement;
+    const overlay = document.createElement('div');
+    overlay.className = 'mfa-overlay';
+    overlay.innerHTML = `
+      <div class="mfa-dialog" role="dialog" aria-modal="true" aria-labelledby="mfaTitle" aria-describedby="mfaHelp">
+        <h1 id="mfaTitle">Set up your authenticator</h1>
+        <p id="mfaHelp">Scan this QR code with Microsoft Authenticator, Google Authenticator, or another TOTP app.</p>
+        <canvas class="mfa-qr" role="img" aria-label="QR code for adding this Code For Good account to an authenticator app"></canvas>
+        <details class="mfa-manual">
+          <summary>Can't scan it? Enter a setup key</summary>
+          <p>Choose manual entry in your authenticator app, then use this key:</p>
+          <div class="mfa-secret-row">
+            <code class="mfa-secret"></code>
+            <button class="linkbtn mfa-copy" type="button">Copy</button>
+          </div>
+          <div class="hint mfa-copy-status" role="status" aria-live="polite"></div>
+        </details>
+        <form class="mfa-form">
+          <label for="mfaCode">6-digit code from your app</label>
+          <input id="mfaCode" class="cfg-input" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required />
+          <div class="actions">
+            <button class="btn btn-purple" type="submit">Verify and finish</button>
+            <button class="btn sec mfa-cancel" type="button">Cancel</button>
+          </div>
+          <div class="cfg-msg mfa-error" role="alert"></div>
+        </form>
+      </div>`;
+
+    const secret = overlay.querySelector('.mfa-secret');
+    const input = overlay.querySelector('#mfaCode');
+    const error = overlay.querySelector('.mfa-error');
+    const copyStatus = overlay.querySelector('.mfa-copy-status');
+    secret.textContent = secretKey;
+
+    let settled = false;
+    const finish = (code) => {
+      if (settled) return;
+      settled = true;
+      document.removeEventListener('keydown', onKeydown);
+      overlay.remove();
+      if (previousFocus instanceof HTMLElement) previousFocus.focus();
+      if (code) resolve(code);
+      else reject(new Error('MFA enrollment was cancelled.'));
+    };
+    const onKeydown = (event) => {
+      if (event.key === 'Escape') {
+        finish();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const focusable = [...overlay.querySelectorAll('button, input, summary')]
+        .filter((element) => element.offsetParent !== null && !element.disabled);
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    overlay.querySelector('.mfa-copy').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(secretKey);
+        copyStatus.textContent = 'Setup key copied.';
+      } catch {
+        copyStatus.textContent = 'Copy was blocked. Select and copy the setup key manually.';
+      }
+    });
+    overlay.querySelector('.mfa-cancel').addEventListener('click', () => finish());
+    overlay.querySelector('.mfa-form').addEventListener('submit', (event) => {
+      event.preventDefault();
+      const code = input.value.trim();
+      if (!/^\d{6}$/.test(code)) {
+        error.textContent = 'Enter the current 6-digit code from your authenticator app.';
+        input.focus();
+        return;
+      }
+      finish(code);
+    });
+    document.addEventListener('keydown', onKeydown);
+    document.body.appendChild(overlay);
+
+    QRCode.toCanvas(overlay.querySelector('.mfa-qr'), uri, {
+      width: 220,
+      margin: 2,
+      errorCorrectionLevel: 'M',
+      color: { dark: '#3a006b', light: '#ffffff' },
+    }).catch(() => {
+      overlay.querySelector('.mfa-qr').classList.add('hidden');
+      overlay.querySelector('.mfa-manual').open = true;
+      error.textContent = 'The QR code could not be rendered. Use the setup key instead.';
+    });
+    input.focus();
+  });
+}
+
 export async function completeSignInIfPresent() {
   await authReady;
   if (!isSignInWithEmailLink(auth, location.href)) return null;
@@ -75,10 +177,8 @@ export async function enrollTotpMfa(user) {
   const session = await multiFactor(user).getSession();
   const secret = await TotpMultiFactorGenerator.generateSecret(session);
   const uri = secret.generateQrCodeUrl(user.email, 'Code For Good STEM Career Path');
-  window.prompt('Add this key or otpauth URI to your authenticator app, then continue.', `${secret.secretKey}\n${uri}`);
-  const code = window.prompt('Enter the current 6-digit authenticator code to finish enrollment');
-  if (!code) throw new Error('MFA enrollment was cancelled.');
-  const assertion = TotpMultiFactorGenerator.assertionForEnrollment(secret, code.trim());
+  const code = await requestTotpEnrollmentCode(uri, secret.secretKey);
+  const assertion = TotpMultiFactorGenerator.assertionForEnrollment(secret, code);
   await multiFactor(user).enroll(assertion, 'CFG authenticator');
 }
 
