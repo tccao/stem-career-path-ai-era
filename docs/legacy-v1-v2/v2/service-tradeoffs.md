@@ -5,7 +5,7 @@
 **Owner:** Tinh Cao  
 **Status:** Audited draft for leadership review — rev. June 2026 (payment phasing + event-flow / webhook analysis)  
 **Audience:** Non-technical decision-makers (board, leadership, program leads)  
-**Companion docs:** [docs/Architecture-Design.md](Architecture-Design.md) · [docs/Customer-Journey.md](Customer-Journey.md) · [docs/Sitemap-and-Wireframes.md](Sitemap-and-Wireframes.md)
+**Companion docs:** [architecture.md](architecture.md) · [customer-journey.md](customer-journey.md) · [sitemap-wireframes.md](sitemap-wireframes.md)
 
 > Pricing and program assumptions were re-verified in **June 2026** from vendor pages. Event-flow /
 > webhook capabilities were also re-verified June 2026: **Zeffy's public API is read-only (Beta),
@@ -174,7 +174,7 @@ Leadership action items:
 | Netlify | Easy deploys; free/paid tiers | Friendly developer workflow | Another vendor; build/runtime limits; less AWS audit cohesion | Fine, but not better here |
 | Vercel | Excellent frontend DX | Great for Next.js | Hobby plan restrictions and paid per-seat model for org use | Avoid unless app specifically needs Vercel features |
 
-**Verdict.** Since the organization is already on Amplify, use Amplify Hosting for the public site and SPA shell this pilot. Do not migrate the *frontend* to S3 + CloudFront unless WAF cost or hosting scale makes that worthwhile later. **Note:** the **gated curriculum** is a separate matter — it is delivered from a small **private-S3 + CloudFront distribution with signed-cookie access**, so the access gate is enforced server-side rather than only in the UI (`Architecture-Design.md` §9.2). That is a content-delivery component with **no WAF** and free-tier egress (~$0), **not** a frontend-hosting migration.
+**Verdict.** Since the organization is already on Amplify, use Amplify Hosting for the public site and SPA shell this pilot. Do not migrate the *frontend* to S3 + CloudFront unless WAF cost or hosting scale makes that worthwhile later. **Note:** the **gated curriculum** is a separate matter — it is delivered from a small **private-S3 + CloudFront distribution with signed-cookie access**, so the access gate is enforced server-side rather than only in the UI (`architecture.md` §9.2). That is a content-delivery component with **no WAF** and free-tier egress (~$0), **not** a frontend-hosting migration.
 
 ---
 
@@ -285,7 +285,7 @@ confirmations that follow — into the rest of the platform, and whether that ea
 Zeffy-first decision. It is the right question to press on, because event-flow integration is exactly
 where Zeffy and Stripe differ most. Here is the honest test.
 
-**What "good" looks like (the architecture's target).** `docs/Architecture-Design.md` draws the payment
+**What "good" looks like (the architecture's target).** `architecture.md` draws the payment
 path as *signed webhook → SQS → `provisioning-fn` → Cognito*. The processor pushes a cryptographically
 signed event the instant a payment completes; the handler verifies the signature, writes the payment
 reference idempotently (deduped on the processor's event ID), and hands off to a queue that provisions

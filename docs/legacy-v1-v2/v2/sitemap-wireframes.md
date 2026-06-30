@@ -4,8 +4,8 @@
 **Doc type:** Information Architecture + Low-Fidelity Wireframes
 **Owner:** Tinh Cao
 **Status:** Draft for review
-**Source of truth:** `docs/Platform-SRS.md` (platform) · `docs/Project SRS.md` (Phase-0 landing page)
-**Companion docs:** `docs/Customer-Journey.md` · `docs/Architecture-Design.md`
+**Source of truth:** `requirements.md` (platform) · `../v1/requirements.md` (Phase-0 landing page)
+**Companion docs:** `customer-journey.md` · `architecture.md`
 
 ---
 
@@ -16,8 +16,8 @@ access), and **roughly what each screen contains** (low-fidelity wireframes). It
 does **not** specify visual design, final copy, or the internal structure of courses/lessons.
 
 The user journey behind these screens (apply → vet → provision → learn → expire) lives in
-`docs/Customer-Journey.md`. The technical platform that enforces the access rules lives in
-`docs/Architecture-Design.md`. Wireframe fidelity is intentionally low: boxes and labels, no
+`customer-journey.md`. The technical platform that enforces the access rules lives in
+`architecture.md`. Wireframe fidelity is intentionally low: boxes and labels, no
 styling — the goal is to agree on structure and flow before build.
 
 ---
@@ -180,7 +180,7 @@ Every wireframe maps to a route, and every route maps to a wireframe (or is a re
 **Guard semantics** — unauthenticated request to a guarded route → redirect `/login`;
 authenticated but wrong role → `/access/denied`; valid session but lapsed access →
 `/access/expired`. "Gating" means a content lock (phase/week/day) enforced server-side
-on top of the role guard (see `docs/Architecture-Design.md`).
+on top of the role guard (see `architecture.md`).
 
 ---
 
@@ -312,7 +312,7 @@ override** can unlock or re-lock any stage per student and is logged.
 
 > Credential model is **email + password** (set on first sign-in, persists until revoked).
 > Password reset and optional email verification live under `/auth/*`. Sign-in attempts are
-> rate-limited and audit-logged (see `docs/Architecture-Design.md`).
+> rate-limited and audit-logged (see `architecture.md`).
 
 ### 5.5 Student — Dashboard  `/app`  (sidebar shell)
 
@@ -453,7 +453,7 @@ override** can unlock or re-lock any stage per student and is logged.
 
 > "Approve & Provision" is the moment the Admin **creates the account and grants access**.
 > It writes the member record, assigns the Cognito group, sets the access window, and emits an
-> audit event + SES notification (see `docs/Customer-Journey.md` §access flow).
+> audit event + SES notification (see `customer-journey.md` §access flow).
 
 ### 5.10 Admin — Members / Users  `/admin/members`
 
@@ -524,7 +524,7 @@ reporting but does **not** change in-app permissions.
    (`/access/expired` and `/apply` both link to "Re-apply".)
 5. **Donate-to-access screen** — the access flow adds an interview + donation branch the public
    sitemap should eventually show: `/apply/interview`, `/apply/donate`, `/apply/receipt`, plus an
-   Admin donation/receipt review view. Tracked in `docs/Customer-Journey.md`.
+   Admin donation/receipt review view. Tracked in `customer-journey.md`.
 
 ---
 
@@ -536,4 +536,4 @@ reporting but does **not** change in-app permissions.
       continue-learning, track/progress).
 - [ ] Admin experience supports reviewing applications and provisioning access.
 - [ ] Course-access structure reflects the two supplied paths (Full Roadmap + Fast Track), §4.
-- [ ] Role-based nav map is consistent with the access model in `docs/Customer-Journey.md`.
+- [ ] Role-based nav map is consistent with the access model in `customer-journey.md`.

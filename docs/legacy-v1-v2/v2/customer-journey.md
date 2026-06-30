@@ -4,14 +4,14 @@
 **Doc type:** Personas + Access Lifecycle + End-to-End Journey Maps
 **Owner:** Tinh Cao
 **Status:** Draft for review
-**Source of truth:** `docs/Platform-SRS.md` (platform) · `docs/Project SRS.md` (Phase-0 landing page)
-**Companion docs:** `docs/Sitemap-and-Wireframes.md` · `docs/Architecture-Design.md`
+**Source of truth:** `requirements.md` (platform) · `../v1/requirements.md` (Phase-0 landing page)
+**Companion docs:** `sitemap-wireframes.md` · `architecture.md`
 **Credential model:** Email + password (resolved)
 
 > **Launch-phase note (rev. 3).** At launch, donations stay on **Zeffy's hosted platform** (no
 > Stripe, no receipt upload — the `PAID_AUTO` and `RECEIPT_REVIEW` states and every "Stripe
 > webhook" interaction below belong to the **future** automated-payment phase,
-> `Architecture-Design.md` Appendix A). **Supporters now self-serve without an interview:** the
+> `architecture.md` Appendix A). **Supporters now self-serve without an interview:** the
 > applicant donates on the Zeffy hosted page, `system-fn` **polls Zeffy's read-only Payments API**
 > on a short schedule, verifies the payment and matches it to the application **by email**
 > (idempotent on the Zeffy payment ID), and **auto-grants access within minutes** —
@@ -26,8 +26,8 @@
 
 This document describes **who the people are** and **the path they travel** through the
 platform — from first hearing about the program to finishing (or lapsing). It is the human
-counterpart to the structural `Sitemap-and-Wireframes.md` and the technical
-`Architecture-Design.md`. The access lifecycle here is what the architecture enforces server-side.
+counterpart to the structural `sitemap-wireframes.md` and the technical
+`architecture.md`. The access lifecycle here is what the architecture enforces server-side.
 
 Access is **earned and vetted, not open.** Every member arrives through one of two acquisition
 paths that both end in an Admin-provisioned account:
@@ -135,7 +135,7 @@ converge again at provisioning.
 
 Every application moves through a guarded state machine. Transitions are **idempotent** and
 protected by conditional writes, so a retry or a duplicate webhook can never double-provision or
-skip the gate (enforced in `docs/Architecture-Design.md`).
+skip the gate (enforced in `architecture.md`).
 
 | State | Meaning | Set by |
 |-------|---------|--------|
@@ -235,7 +235,7 @@ sequenceDiagram
   different donor email), it falls back to **admin confirm-in-dashboard**. The Zeffy **read-only
   API key** lives in SSM Parameter Store (SecureString); there is still **no webhook, no card
   data, and no receipt upload** in our stack.
-- **Future phase (Stripe, automated — `Architecture-Design.md` Appendix A):** redirect to Stripe
+- **Future phase (Stripe, automated — `architecture.md` Appendix A):** redirect to Stripe
   Checkout; on the `checkout.session.completed` webhook (signature-verified, event-id de-duped),
   the application moves `PAID_AUTO` → `ACTIVE`. A per-application tokened receipt-upload fallback
   (`RECEIPT_REVIEW`) returns in this phase too.
@@ -376,7 +376,7 @@ as **external links** (GitHub / URL / Loom / LinkedIn), not files the platform h
 - **Expired / revoked** → `/access/expired`; the screen offers *Contact program owner* and
   *Re-apply*. Re-application re-enters the state machine at `SUBMITTED`.
 - **Open decision:** whether a rejected/expired applicant can re-apply, and after how long
-  (cooldown). Tracked in `docs/Sitemap-and-Wireframes.md` §7.
+  (cooldown). Tracked in `sitemap-wireframes.md` §7.
 - **Admin levers** on a member row: **Edit · Extend · Revoke · Unlock stage.** Extend pushes the
   access window; Revoke moves to `REVOKED`; Unlock stage is the per-student content-gating
   override — all four are audit-logged.
@@ -398,7 +398,7 @@ The journey is built so the person can trust the gate and the org can account fo
   granted it on `/app/profile`.
 - **Logged decisions** — every admin action (approve / reject / provision / extend / revoke /
   unlock-override) is recorded for nonprofit accountability; the audit-trail design lives in
-  `docs/Architecture-Design.md`.
+  `architecture.md`.
 
 ---
 

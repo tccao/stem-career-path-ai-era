@@ -3,10 +3,10 @@
 **Project:** STEM Graduates Career Path — AI Era (Code For Good)
 **Doc type:** Build-ready architecture & security design (AWS serverless)
 **Owner:** Tinh Cao
-**Status:** Rev. 5 — state-cycle & data-flow audit corrections applied (re-activation transition, status ownership, lapsed-application TTL, Figure 2A grouping/authorizer fix); Rev. 4 applied AWS Well-Architected review findings (`docs/Well-Architected-Review.md`); self-serve supporter access (Zeffy read-only poll) added in Rev. 3
-**Source of truth:** `docs/Platform-SRS.md` (platform) · `docs/Project SRS.md` (Phase-0 landing page)
-**Companion docs:** `docs/Sitemap-and-Wireframes.md` · `docs/Customer-Journey.md` ·
-`docs/Service-Tradeoff-Analysis.md` · `docs/Ops-Runbook.md`
+**Status:** Rev. 5 — state-cycle & data-flow audit corrections applied (re-activation transition, status ownership, lapsed-application TTL, Figure 2A grouping/authorizer fix); Rev. 4 applied AWS Well-Architected review findings (`legacy-v1-v2-final:docs/Well-Architected-Review.md`); self-serve supporter access (Zeffy read-only poll) added in Rev. 3
+**Source of truth:** `requirements.md` (platform) · `../v1/requirements.md` (Phase-0 landing page)
+**Companion docs:** `sitemap-wireframes.md` · `customer-journey.md` ·
+`service-tradeoffs.md` · `legacy-v1-v2-final:docs/Ops-Runbook.md`
 **Focus areas:** audit trail, role separation, server-side gating, **lowest-cost launch on
 Amplify + AWS serverless**, single-maintainer operability
 
@@ -17,7 +17,7 @@ Amplify + AWS serverless**, single-maintainer operability
 > while keeping edge-cached read economics); hash chain **dropped** in favor of IAM append-only + CloudTrail data events +
 > WORM exports; **mandatory admin MFA**; PITR + deletion protection on all tables; PII-free audit
 > events with per-table retention TTLs; **WAF and Cognito Plus deferred to phase-2 triggers**
-> (aligning with `Service-Tradeoff-Analysis.md`); the **\$1,000 nonprofit credit target** as the
+> (aligning with `service-tradeoffs.md`); the **\$1,000 nonprofit credit target** as the
 > single canonical figure; and §6.3 split into Day-1 actual vs. target governance.
 >
 > **Rev. 3 change — self-serve supporter access without an interview.** Supporters now donate on
@@ -39,7 +39,7 @@ Amplify + AWS serverless**, single-maintainer operability
 > **CORS lockdown + `public-fn` input validation**, **Object Lock set at bucket creation**, a
 > **`system-fn` async on-failure DLQ**, a stated **single-region DR posture**, **Cost Anomaly
 > Detection**, and an explicit **Sustainability** section (§12.1). Findings + status:
-> `docs/Well-Architected-Review.md`.
+> `legacy-v1-v2-final:docs/Well-Architected-Review.md`.
 >
 > **Rev. 5 change — state-cycle & flow audit corrections.** Closed gaps found auditing the access
 > machine end-to-end. **(1) Re-activation** of a returning `EXPIRED`/`REVOKED` member is now a
@@ -52,7 +52,7 @@ Amplify + AWS serverless**, single-maintainer operability
 > looked up via `byEmail` (§5.2). **Figure 2A:** all twelve AWS services now sit in labelled groups
 > (added *API & identity*, *Async & scheduling*, *Secrets & email*), the three Lambda nodes' broken
 > `pos:` is restored so labels line up, and JWT verification is shown on the **API Gateway
-> authorizer** rather than an `app-fn`→Cognito call. The companion `docs/Customer-Journey.md` §4
+> authorizer** rather than an `app-fn`→Cognito call. The companion `customer-journey.md` §4
 > `ACTIVE → REVOKED` label is aligned to include auto-revoke on refund/chargeback.
 
 ---
@@ -62,7 +62,7 @@ Amplify + AWS serverless**, single-maintainer operability
 The platform is a **vetted-access learning app**: only Admin-provisioned emails become accounts,
 free seats are gated by a human interview, and a donation path (Zeffy, fully external) self-funds
 the rest. It must be **cheap at rest** (a nonprofit running near-zero traffic between cohorts),
-**operable by one volunteer** (see `Platform-SRS.md` §3 — team of one, no cohort yet), and
+**operable by one volunteer** (see `requirements.md` §3 — team of one, no cohort yet), and
 **accountable** (every privileged action traceable).
 
 Design principles:
@@ -97,7 +97,7 @@ Design principles:
 > **Cost note.** Cognito's free tier is **10,000 MAU** on the **Essentials** tier (default for
 > new user pools); threat protection lives in the **Plus** tier at ~\$0.02/MAU and is a phase-2
 > item. The canonical credit figure is the **\$1,000 AWS nonprofit credit target** from
-> `Service-Tradeoff-Analysis.md` §4.2 (the previous "\$2,000/yr" claim in this doc was wrong and
+> `service-tradeoffs.md` §4.2 (the previous "\$2,000/yr" claim in this doc was wrong and
 > is withdrawn). Full cost posture: §12.
 
 ---
@@ -110,13 +110,13 @@ and **(B)** the **trust zones** and the IAM seams between them. Figure 2A groups
 boundary (each group's logo sits in the title), gives every AWS service its logo, and labels each
 arrow with the connection type. The numbered steps trace a member's **read** session (1–4); **step
 5 is the admin-initiated grant** that provisioning consumes — a separate actor flow. The AWS
-Well-Architected review of this design lives in `docs/Well-Architected-Review.md`.
+Well-Architected review of this design lives in `legacy-v1-v2-final:docs/Well-Architected-Review.md`.
 
 > **Rendering note.** Figure 2A is a Mermaid `flowchart` (Mermaid ≥ 11.3) whose nodes use the
 > iconify **`logos`** icon pack via the icon-shape syntax (`id@{ icon: "logos:aws-…" }`). GitHub
 > renders the graph and labels, but the AWS logos appear only where the renderer has registered the
 > pack (`mermaid.registerIconPacks([{ name: "logos", icons }])`). A self-contained preview that
-> registers it and renders the real logos is in `assets/diagrams/architecture-2A.html`.
+> registers it and renders the real logos is in `legacy-v1-v2-final:assets/diagrams/architecture-2A.html`.
 > (`flowchart` is used instead of `architecture-beta` because that diagram type cannot label edges.)
 
 **Figure 2A — request & data flow.**
@@ -262,7 +262,7 @@ is the *target* shape if a second maintainer joins — kept in Appendix B — bu
 
 Stateless: no in-memory sessions; concurrent invocations are safe. Frontend is a static SPA on
 **Amplify Hosting** (resolved — it is Code For Good's existing platform; see
-`Service-Tradeoff-Analysis.md` §6.2), using relative asset paths.
+`service-tradeoffs.md` §6.2), using relative asset paths.
 
 **Runtime & consumers:** functions run on a **pinned arm64/Graviton runtime** (~20% cheaper and
 faster; small bundles bound cold starts — provisioned concurrency stays deferred, §9A.4).
@@ -288,12 +288,12 @@ destination/DLQ** so a failed expiry/reconcile run is visible, not silent (§11)
 | Async provisioning | **SQS + DLQ** | see rationale below |
 | Transactional email | **Amazon SES** | production access + SPF/DKIM/DMARC are launch checklist items (§16) |
 | Payment / access verification | **Zeffy (external, hosted) + read-only Payments API** | Card entry on Zeffy (SAQ-A); `system-fn` **polls the read-only API to verify supporter donations** and auto-provision (matched by email, idempotent on Zeffy payment ID). **No webhook, no card data.** Read-only API key in SSM SecureString |
-| Scheduling | **Cal.com free tier** | decide at setup; no architectural impact (matches `Service-Tradeoff-Analysis.md`) |
+| Scheduling | **Cal.com free tier** | decide at setup; no architectural impact (matches `service-tradeoffs.md`) |
 | Expiry / reminders / donation reconcile | **EventBridge Scheduler → `system-fn`** | one schedule drives the Zeffy reconcile poll (verify donations) + expiry sweep + SES reminders |
-| Secrets | **Two keys** — CloudFront signing key (first-party) + **Zeffy read-only API key** (third-party) | Both in **SSM Parameter Store SecureString** (free, KMS-encrypted): signing key read-scoped to `app-fn`; Zeffy key read-scoped to `system-fn`. The Zeffy key is **read-only** (low blast radius, manual quarterly rotation — `Ops-Runbook.md`), so **Secrets Manager** is still not needed; it enters only with the Stripe phase (Appendix A) |
+| Secrets | **Two keys** — CloudFront signing key (first-party) + **Zeffy read-only API key** (third-party) | Both in **SSM Parameter Store SecureString** (free, KMS-encrypted): signing key read-scoped to `app-fn`; Zeffy key read-scoped to `system-fn`. The Zeffy key is **read-only** (low blast radius, manual quarterly rotation — `legacy-v1-v2-final:docs/Ops-Runbook.md`), so **Secrets Manager** is still not needed; it enters only with the Stripe phase (Appendix A) |
 | Platform audit trail | **CloudTrail** (multi-region, log validation) → **S3 Object Lock** | data events on `AuditLog` + `Members` (§7.1) |
 | Encryption (KMS) | **AWS-managed keys** for most stores; **customer-managed CMK** for `AuditLog` + the WORM bucket | the CMK key policy denies the maintainer key-administration, completing the "ultimate authority controls *access*, never the ability to erase the record" SoD (§6.3, §7). ~\$1/mo per CMK — the one item needing **board cost sign-off** |
-| Logs / metrics / alarms | **CloudWatch** | structured JSON; **explicit log-group retention set in IaC** (≈30–90 d app logs; longer for trail) — never the default never-expire; **Cost Anomaly Detection** alongside the budget alarm; destinations in `Ops-Runbook.md` |
+| Logs / metrics / alarms | **CloudWatch** | structured JSON; **explicit log-group retention set in IaC** (≈30–90 d app logs; longer for trail) — never the default never-expire; **Cost Anomaly Detection** alongside the budget alarm; destinations in `legacy-v1-v2-final:docs/Ops-Runbook.md` |
 | Tracing | **None at launch** | X-Ray is enable-when-investigating, not a standing cost |
 | IaC | **AWS SAM** (chosen; §13) | one stack per environment; templated PITR / deletion-protection / TTL / log-retention; canary deploy with alarm rollback |
 
@@ -320,12 +320,12 @@ state-machine writes use conditional expressions (idempotency + optimistic locki
 | `applicationId` (PK) | string (ULID) | |
 | `email` | string | applicant email (login identity later) |
 | `fullName`, `stage`, `preferredTrack`, `background`, `links` | string | from `/apply` form |
-| `ageBracket`, `guardianConsentAt` | string | **consent gate** (`Platform-SRS.md` §6): under-13 not accepted; 13–17 require guardian acknowledgment |
+| `ageBracket`, `guardianConsentAt` | string | **consent gate** (`requirements.md` §6): under-13 not accepted; 13–17 require guardian acknowledgment |
 | `status` | string | state machine value (Customer-Journey §4) |
 | `accessBasis` | string | `beneficiary` \| `supporter` (set at decision) |
 | `version` | number | optimistic-lock counter |
 | `interviewAt`, `decidedBy`, `decidedAt`, `rejectReason` | string | vetting metadata |
-| `expiresAt` | number (epoch) | **DynamoDB TTL** — set to final-state + 12 months for `REJECTED`/lapsed applications so PII auto-purges (`Platform-SRS.md` §6). **Lapsed** = a non-terminal pre-`ACTIVE` application (`DONATION_REQUIRED` never paid, `INTERVIEW_SCHEDULED` no-show) with no state change for the configured staleness window; the scheduled sweep stamps `expiresAt` on these (§9.3) |
+| `expiresAt` | number (epoch) | **DynamoDB TTL** — set to final-state + 12 months for `REJECTED`/lapsed applications so PII auto-purges (`requirements.md` §6). **Lapsed** = a non-terminal pre-`ACTIVE` application (`DONATION_REQUIRED` never paid, `INTERVIEW_SCHEDULED` no-show) with no state change for the configured staleness window; the scheduled sweep stamps `expiresAt` on these (§9.3) |
 | `createdAt`, `updatedAt` | string (ISO-8601) | |
 | GSI `byStatus` | PK `status`, SK `createdAt` | admin queue |
 | GSI `byEmail` | PK `email` | dedupe / re-application lookup |
@@ -468,7 +468,7 @@ Cross-cutting IAM rules:
 - **Two secrets at launch, both in SSM SecureString** — the CloudFront signing key (first-party,
   read-scoped to `app-fn`) and the **Zeffy read-only API key** (third-party, read-scoped to
   `system-fn`). Both KMS-encrypted. The Zeffy key is **read-only** (low blast radius, manual
-  rotation per `Ops-Runbook.md`), so **Secrets Manager is still not deployed** — it returns only
+  rotation per `legacy-v1-v2-final:docs/Ops-Runbook.md`), so **Secrets Manager is still not deployed** — it returns only
   with the Stripe phase (Appendix A), whose write-capable, rotated keys justify it.
 - **Human AWS access** — see §6.3.
 
@@ -487,7 +487,7 @@ existed. It is now split honestly.
 | Website admin (the maintainer) | A dedicated IAM identity (or Identity Center user) with **MFA required**, scoped to the app's resources; **no ability to disable CloudTrail, delete the audit buckets, or administer the audit KMS CMK key policy** (explicit deny) |
 | Application admin | Cognito `admin` group, acting only through `app-fn`, MFA mandatory, every action audited |
 | Machine | Per-function least-privilege roles (§6.2) |
-| Billing | Billing alerts (budget threshold) delivered to **both** the maintainer and the board contact (`Ops-Runbook.md`) |
+| Billing | Billing alerts (budget threshold) delivered to **both** the maintainer and the board contact (`legacy-v1-v2-final:docs/Ops-Runbook.md`) |
 | Separation-of-duties honesty | With one human, Tiers 1–2 are the same person. The compensating controls are: sealed root held by the board, the explicit-deny on audit infrastructure, CloudTrail on everything the admin does, and the board's standing ability to rotate the admin's access |
 
 #### Target state (adopt when the trigger fires — see §14)
@@ -591,7 +591,7 @@ remains available for investigations — run ad hoc, not provisioned.
 
 ## 8. Rate limiting & abuse protection (lean launch)
 
-The review confirmed what `Service-Tradeoff-Analysis.md` already recommended: **no WAF at
+The review confirmed what `service-tradeoffs.md` already recommended: **no WAF at
 launch.** Against a \$25–200/year total run cost, Amplify-attached WAF (~\$15/mo integration +
 \$1/rule/mo + request fees) would be the largest line item in the entire stack, bought before any
 user exists to abuse anything. Launch protection is two layers, with WAF as a triggered phase-2
@@ -628,7 +628,7 @@ CloudWatch — or cohort > 250), attach WAF with the rule set preserved from rev
 rate rule, login protection keyed on **IP + UA** (not IP alone — shared campus NAT, §9A.2),
 `/apply` rule, managed Common/Known-Bad-Inputs/IP-reputation groups, sensitive rules starting in
 Count mode. If WAF becomes necessary, also re-evaluate Amplify vs S3+CloudFront hosting purely on
-the integration-fee math (`Service-Tradeoff-Analysis.md` §4.3).
+the integration-fee math (`service-tradeoffs.md` §4.3).
 
 ---
 
@@ -797,22 +797,22 @@ response-header tuning for the curriculum distribution — all deferred behind �
 | Comprehensive audit | CloudTrail (validated, WORM) + append-only PII-free AuditLog + daily WORM export (§7) |
 | Abuse limiting | API GW throttling + Cognito lockout + per-user write limits; WAF on trigger (§8) |
 | Revocable & expiring | Admin revoke + scheduled expiry; revocation reaches API access on the next request and content access within the signed-cookie TTL (kept short; re-checked at each cookie re-issuance, §9.2) |
-| Data protection & privacy | SSE at rest, TLS in transit, private buckets, retention TTLs, PII-free audit events, minors' consent gate (§5.1, `Platform-SRS.md` §6) |
-| Durability | PITR + deletion protection on all tables; tested restore procedure (`Ops-Runbook.md`) |
+| Data protection & privacy | SSE at rest, TLS in transit, private buckets, retention TTLs, PII-free audit events, minors' consent gate (§5.1, `requirements.md` §6) |
+| Durability | PITR + deletion protection on all tables; tested restore procedure (`legacy-v1-v2-final:docs/Ops-Runbook.md`) |
 
 ---
 
 ## 11. Observability & alerting (owned, not aspirational)
 
 - **Structured JSON logs** to CloudWatch (one event per line). X-Ray off by default.
-- **Alarms — each with a named destination** (full routing table in `Ops-Runbook.md`):
+- **Alarms — each with a named destination** (full routing table in `legacy-v1-v2-final:docs/Ops-Runbook.md`):
   - *Maintainer (ops alias):* 5xx rate, Lambda errors/throttles, **SQS DLQ depth > 0**, **`system-fn`
     async on-failure DLQ depth > 0** (expiry/reconcile), **Zeffy reconcile-poll errors /
     unmatched-donation backlog**, login-failure spikes, SES bounce-rate.
   - *Maintainer + board contact:* root-account usage, CloudTrail delivery failure or tampering,
     any `AuditLog` delete attempt, **billing over budget threshold**.
 - **Operating cadence:** this is a one-person, best-effort program — response is the **weekly
-  15-minute checklist** in `Ops-Runbook.md` (DLQ empty, trail delivering, budget on track), with
+  15-minute checklist** in `legacy-v1-v2-final:docs/Ops-Runbook.md` (DLQ empty, trail delivering, budget on track), with
   the severe-alarm subset escalating to the board contact. No 24/7 pretense.
 - **Dashboards:** applications by status, active members, expiring-soon.
 
@@ -821,7 +821,7 @@ response-header tuning for the curriculum distribution — all deferred behind �
 ## 12. Cost posture (launch — optimal lean structure)
 
 Near-zero at rest, no fixed-cost line items. Canonical credit figure: the **\$1,000 AWS nonprofit
-credit target** (`Service-Tradeoff-Analysis.md` §4.2/§5 — incl. the \$95-per-\$1,000 program fee,
+credit target** (`service-tradeoffs.md` §4.2/§5 — incl. the \$95-per-\$1,000 program fee,
 max \$5,000). At launch there is **no per-donation processing fee** (Zeffy is \$0 to the
 nonprofit).
 
@@ -837,7 +837,7 @@ nonprofit).
 | SES | per-1k emails | \$1–10/yr |
 | CloudTrail + CloudWatch | data events (~\$0.10/100k) + alarms + logs | \$5–50/yr |
 | SQS / EventBridge | volume | ~\$0 |
-| **Gross total** | | **≈ \$25–200/yr** — matching `Service-Tradeoff-Analysis.md` §4.2 |
+| **Gross total** | | **≈ \$25–200/yr** — matching `service-tradeoffs.md` §4.2 |
 | **Net after credit target** | | **\$0** |
 
 **Removed from rev. 1's launch bill:** AWS WAF (~\$300/yr — was the largest single line item,
@@ -849,7 +849,7 @@ CloudFront rev. 1 implied: it is a small **curriculum-only** distribution with a
 WAF attached**, inside the free-tier egress band (~\$0). The public site still uses Amplify's
 managed CDN.
 
-**Cost guardrails.** Beyond the \$10/mo budget alarm (`Ops-Runbook.md`), **AWS Cost Anomaly
+**Cost guardrails.** Beyond the \$10/mo budget alarm (`legacy-v1-v2-final:docs/Ops-Runbook.md`), **AWS Cost Anomaly
 Detection** (free) runs on the account to catch a runaway-retry or misconfig spike days before a
 monthly threshold would. Explicit CloudWatch log-group retention (§13) closes the one realistic
 unplanned-cost leak.
@@ -886,7 +886,7 @@ performance per watt than x86 — already adopted.
   off-region durability if the board later wants it.
 - **Single-maintainer friendliness:** one repo, clear module boundaries; the 3-function split
   lives in the deploy template, not the day-to-day editing experience. Operations live in
-  `Ops-Runbook.md`, written for a student volunteer.
+  `legacy-v1-v2-final:docs/Ops-Runbook.md`, written for a student volunteer.
 
 ---
 
@@ -901,7 +901,7 @@ launch lean without losing the roadmap:
 | **Cognito Plus** (adaptive auth) | Same evidence class as WAF, or board mandate |
 | **6-function split** (Appendix B) | Second maintainer joins |
 | **AWS Organizations + SCPs** (§6.3 target) | Second board custodian named, or program exits pilot |
-| **Stripe hosted Checkout + webhooks** (Appendix A) | Seconds-level activation becomes a hard requirement, **the Zeffy read-only poll proves brittle** (missed/late payments, Beta-API changes), recurring billing is introduced, or the board approves the fee trade-off (`Service-Tradeoff-Analysis.md` §6.7.1) |
+| **Stripe hosted Checkout + webhooks** (Appendix A) | Seconds-level activation becomes a hard requirement, **the Zeffy read-only poll proves brittle** (missed/late payments, Beta-API changes), recurring billing is introduced, or the board approves the fee trade-off (`service-tradeoffs.md` §6.7.1) |
 | **App Runner / Fargate + Aurora** | Always-warm or relational needs; same codebase migrates — trust boundaries, audit layers, and throttling carry over unchanged |
 
 ---
@@ -911,7 +911,7 @@ launch lean without losing the roadmap:
 1. ~~Credential type~~ — **resolved:** email + password (Cognito), `/auth/*` flows.
 2. ~~Cognito Plus from day one~~ — **resolved:** no; §14 trigger.
 3. ~~WAF at launch~~ — **resolved:** no; §8.3/§14 trigger (also resolves the rev. 1 conflict with
-   `Service-Tradeoff-Analysis.md`).
+   `service-tradeoffs.md`).
 4. ~~Function split granularity~~ — **resolved:** 3 functions at launch; 6 on trigger.
 5. ~~Admin MFA~~ — **resolved:** mandatory (§6.1).
 6. **Audit retention window** — ≥ 2 years adopted; confirm against donor/grant reporting
@@ -922,7 +922,7 @@ launch lean without losing the roadmap:
 8. **Admin "view as student"** — if built, it is an audited, read-only mode.
 9. ~~Interview always-required vs donor-only~~ — **resolved:** supporters self-serve with **no
    interview** (gated on a server-verified donation); the interview remains the beneficiary gate.
-10. **Minors policy** — `Platform-SRS.md` §6 sets under-13 exclusion + 13–17 guardian consent;
+10. **Minors policy** — `requirements.md` §6 sets under-13 exclusion + 13–17 guardian consent;
     awaiting board ratification.
 
 ---
@@ -950,7 +950,7 @@ launch lean without losing the roadmap:
       first sign-in forces **password change + MFA setup**. **No password is stored in any
       DynamoDB table** (Cognito holds the credential; `Members` holds the account record).
 - [ ] **Zeffy read-only API key** in SSM SecureString, **read-scoped to `system-fn`** only;
-      rotation procedure in `Ops-Runbook.md`.
+      rotation procedure in `legacy-v1-v2-final:docs/Ops-Runbook.md`.
 - [ ] DynamoDB tables with conditional-write transitions; idempotent admin grant
       (`APPROVED → ACTIVE` conditional); **PITR + deletion protection + TTL retention on every
       table**; `Members.byStatusAccessEnds` GSI (PK `status`, SK `accessEndsAt`).
@@ -971,12 +971,12 @@ launch lean without losing the roadmap:
       PITR on, **daily incremental export to the Object-Lock bucket**.
 - [ ] **CloudTrail** multi-region, log validation on, data events on `AuditLog` + `Members`,
       delivered to the Object-Lock bucket.
-- [ ] `/apply` includes the **age/consent gate** (`Platform-SRS.md` §6) + honeypot + email dedupe
+- [ ] `/apply` includes the **age/consent gate** (`requirements.md` §6) + honeypot + email dedupe
       + **strict server-side input validation**; HTTP API **CORS locked to the Amplify origin**.
 - [ ] **SES production access approved; SPF + DKIM + DMARC configured** on the sending domain;
       bounce/complaint notifications routed to the ops alias.
 - [ ] EventBridge-scheduled expiry + SES reminders; `/access/expired` reached on lapse.
-- [ ] CloudWatch alarms wired to the `Ops-Runbook.md` routing table, incl. SQS DLQ depth,
+- [ ] CloudWatch alarms wired to the `legacy-v1-v2-final:docs/Ops-Runbook.md` routing table, incl. SQS DLQ depth,
       **`system-fn` async on-failure DLQ depth**, **reconcile-poll errors / unmatched-donation
       backlog**, login-failure spikes, AuditLog delete attempts, billing budget (+ **Cost Anomaly
       Detection**); billing alert reaches the **board contact**.
@@ -987,8 +987,8 @@ launch lean without losing the roadmap:
       **`system-fn` async on-failure DLQ**, **WORM bucket Object Lock + versioning at creation**,
       **customer-managed KMS CMK on `AuditLog` + WORM bucket**.
 - [ ] **Restore procedure tested once** (table → PITR restore → verify) and recorded in
-      `Ops-Runbook.md`.
-- [ ] Dry-run cohort passes the end-to-end acceptance flow (`Platform-SRS.md` §10).
+      `legacy-v1-v2-final:docs/Ops-Runbook.md`.
+- [ ] Dry-run cohort passes the end-to-end acceptance flow (`requirements.md` §10).
 
 ---
 
@@ -997,7 +997,7 @@ launch lean without losing the roadmap:
 **Not in the launch build.** Launch self-serve supporters are handled by the **Zeffy read-only
 reconcile poll** (§9.1) — $0 fees, near-instant (minutes). Everything in this appendix (Stripe,
 **seconds-level** webhook activation) activates only on the §14 trigger and a board decision on
-processing fees (`Service-Tradeoff-Analysis.md` §6.7.1).
+processing fees (`service-tradeoffs.md` §6.7.1).
 
 Design (preserved from rev. 1, unchanged in substance): Stripe hosted Checkout (PCI SAQ-A);
 `POST /webhooks/stripe` handled by a dedicated `webhook-fn` that verifies the **Stripe

@@ -4,13 +4,13 @@
 **Doc type:** Software Requirements Specification — **vetted-access learning platform** (Phase 1+)
 **Owner:** Tinh Cao
 **Status:** Draft for board approval — v1.0, June 2026
-**Relationship to `docs/Project SRS.md`:** that document specifies **Phase 0 — the static landing
+**Relationship to `../v1/requirements.md`:** that document specifies **Phase 0 — the static landing
 page** — and remains its source of truth. *This* document authorizes the platform that the
 landing page's "Sign Up" and "Donate" calls-to-action eventually lead to. The platform design
-docs (`Architecture-Design.md`, `Customer-Journey.md`, `Sitemap-and-Wireframes.md`) take **this
+docs (`architecture.md`, `customer-journey.md`, `sitemap-wireframes.md`) take **this
 document** as their source of truth.
-**Companion docs:** `docs/Architecture-Design.md` · `docs/Customer-Journey.md` ·
-`docs/Sitemap-and-Wireframes.md` · `docs/Service-Tradeoff-Analysis.md` · `docs/Ops-Runbook.md`
+**Companion docs:** `architecture.md` · `customer-journey.md` ·
+`sitemap-wireframes.md` · `service-tradeoffs.md` · `legacy-v1-v2-final:docs/Ops-Runbook.md`
 
 ---
 
@@ -74,13 +74,13 @@ A small, vetted-access learning platform on AWS:
 
 | ID | Requirement |
 |----|-------------|
-| N1 | **Cost:** gross AWS run cost ≤ \$200/year at pilot scale; net \$0 against the **\$1,000 AWS nonprofit credit target** (per `Service-Tradeoff-Analysis.md` — the single canonical credit figure). No always-on compute. Fixed-cost security add-ons (WAF, Cognito Plus) require a documented trigger before enabling. |
-| N2 | **Hosting:** AWS only; the public site and SPA shell run on **AWS Amplify Hosting** (Code For Good's existing platform); no frontend migration to S3+CloudFront unless a phase-2 trigger fires. **Gated curriculum** is delivered from a separate **private-S3 + CloudFront distribution with signed-cookie access** (server-side gating, `Architecture-Design.md` §9.2) — a content-delivery component, not a frontend-hosting migration, with no WAF and free-tier egress. |
+| N1 | **Cost:** gross AWS run cost ≤ \$200/year at pilot scale; net \$0 against the **\$1,000 AWS nonprofit credit target** (per `service-tradeoffs.md` — the single canonical credit figure). No always-on compute. Fixed-cost security add-ons (WAF, Cognito Plus) require a documented trigger before enabling. |
+| N2 | **Hosting:** AWS only; the public site and SPA shell run on **AWS Amplify Hosting** (Code For Good's existing platform); no frontend migration to S3+CloudFront unless a phase-2 trigger fires. **Gated curriculum** is delivered from a separate **private-S3 + CloudFront distribution with signed-cookie access** (server-side gating, `architecture.md` §9.2) — a content-delivery component, not a frontend-hosting migration, with no WAF and free-tier egress. |
 | N3 | **Security:** server-side enforcement of roles, access windows, gating, and **supporter payment verification** (supporter access requires a server-verified Zeffy donation, never a client signal); least-privilege IAM per function; **mandatory MFA**; no card data in our stack (PCI SAQ-A via Zeffy); only a **read-only** Zeffy API key in-stack (SSM), no webhook. |
 | N4 | **Accountability:** two audit layers (CloudTrail + application AuditLog), append-only by IAM, with a tamper-evident export. Retention ≥ 2 years. |
-| N5 | **Durability:** PITR + deletion protection on every DynamoDB table; documented restore procedure (see `Ops-Runbook.md`); RPO ≤ 24 h, RTO ≤ 1 business day (volunteer-run program; board accepts this explicitly). |
+| N5 | **Durability:** PITR + deletion protection on every DynamoDB table; documented restore procedure (see `legacy-v1-v2-final:docs/Ops-Runbook.md`); RPO ≤ 24 h, RTO ≤ 1 business day (volunteer-run program; board accepts this explicitly). |
 | N6 | **Privacy:** data minimization, per-table retention (see §6), audit events free of PII payloads, and a deletion path for non-member PII. |
-| N7 | **Maintainability:** one repo, ≤ 3 deployed functions at launch, IaC (**SAM**), no click-ops in prod; a student volunteer should be able to operate it from `Ops-Runbook.md`. |
+| N7 | **Maintainability:** one repo, ≤ 3 deployed functions at launch, IaC (**SAM**), no click-ops in prod; a student volunteer should be able to operate it from `legacy-v1-v2-final:docs/Ops-Runbook.md`. |
 
 ## 6. Data handling summary (board-facing)
 
@@ -106,16 +106,16 @@ In-app card processing, Stripe/PayPal **webhooks**, recurring billing, automated
 AWS WAF, Cognito Plus threat protection, multi-account AWS Organizations governance, mobile apps,
 **open/public self-service registration** (supporters self-serve *access* only after an
 application + a server-verified donation — there is no open sign-up), and any AI/recommendation
-features. Each deferred item has a written re-entry trigger in `Architecture-Design.md` §14.
+features. Each deferred item has a written re-entry trigger in `architecture.md` §14.
 
 ## 8. Phasing
 
 | Phase | Deliverable | Status |
 |-------|-------------|--------|
-| **0** | Static landing page (per `Project SRS.md`) | In progress — ships first, independently |
+| **0** | Static landing page (per `../v1/requirements.md`) | In progress — ships first, independently |
 | **1** | This platform: apply → vet/donate → grant (incl. **self-serve supporter auto-grant via Zeffy read-only poll**) → learn → expire, audit, runbook | This SRS |
-| **2** | Evidence-triggered hardening: WAF, Cognito Plus, CloudTrail data-event expansion, 6-function split, Organizations/SCP governance | Triggers in `Architecture-Design.md` §14 |
-| **3** | Automated payments (Stripe hosted Checkout + signed webhooks) | Appendix A of `Architecture-Design.md`; requires board decision on fees |
+| **2** | Evidence-triggered hardening: WAF, Cognito Plus, CloudTrail data-event expansion, 6-function split, Organizations/SCP governance | Triggers in `architecture.md` §14 |
+| **3** | Automated payments (Stripe hosted Checkout + signed webhooks) | Appendix A of `architecture.md`; requires board decision on fees |
 
 ## 9. What the board is asked to approve
 
@@ -123,18 +123,18 @@ features. Each deferred item has a written re-entry trigger in `Architecture-Des
 2. The data-handling and minors policy in §6.
 3. The cost envelope in N1 and the **\$1,000 nonprofit credit** application (Need to submit by July 2026 for next Fiscal year with \$95 fee).
 4. The volunteer-run operating posture in N5/N7 (best-effort response, weekly ops checklist,
-   named board contact for severe alerts — see `Ops-Runbook.md`).
+   named board contact for severe alerts — see `legacy-v1-v2-final:docs/Ops-Runbook.md`).
 5. Day-1 governance: single AWS account; root credentials sealed with MFA and lodged with a named
    board custodian; graduation to AWS Organizations/SCPs when a second custodian exists
-   (`Architecture-Design.md` §6.3).
+   (`architecture.md` §6.3).
 6. The **self-serve supporter access model**: a donation auto-grants access (verified via Zeffy's
    read-only API) without an interview, and the **quid-pro-quo receipt language** is approved
    before launch — a contribution that unlocks access may be partly non-deductible
-   (`Service-Tradeoff-Analysis.md` §5).
+   (`service-tradeoffs.md` §5).
 
 ## 10. Acceptance criteria
 
-Phase 1 is done when the `Architecture-Design.md` §16 build checklist passes, the
-`Ops-Runbook.md` restore procedure has been tested once, and a dry-run cohort of test accounts
+Phase 1 is done when the `architecture.md` §16 build checklist passes, the
+`legacy-v1-v2-final:docs/Ops-Runbook.md` restore procedure has been tested once, and a dry-run cohort of test accounts
 has exercised: apply → approve → grant → sign-in → locked stage rejected server-side → submit
 deliverable → stage unlock → expiry → `/access/expired`.
