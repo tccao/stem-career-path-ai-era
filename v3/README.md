@@ -71,6 +71,17 @@ flowchart LR
 | data protection | deny-all browser writes; revocation sessionVersion; TTL; PITR production gate |
 | audit | client-immutable Firestore events + structured Cloud Logging copies; locked bucket production gate |
 
+Current lifecycle behavior:
+
+| operation | enforced result |
+| --- | --- |
+| submit proof | HTTPS URL is stored transactionally; only the natural next stage or an explicit admin unlock can complete |
+| re-enable | restores Firebase sign-in; an expired member remains ENDED until access is restored |
+| extend/restore | starts from the later of now or the old end date, marks the member ACTIVE, clears end metadata, and synchronizes student claims |
+| supporter restore | denied unless a current verified, succeeded, non-refunded, non-disputed payment still exists |
+| final staff-role removal | demoting admin to no staff role restores student claims when the account still has an active unexpired membership; otherwise clears the role |
+| session change | grant, role change, MFA confirmation, disable, revoke, and re-enable invalidate the old session and require fresh sign-in |
+
 The old `backend/functions/` directory and `docs/Spark-Backend.md` are historical references and are
 not deployed.
 
@@ -104,6 +115,22 @@ DEBUG= firebase emulators:exec --only firestore,auth \
 
 Do not use production credentials for these tests. Full setup, baselines, expected results,
 production configuration, deploy order, and read-only live checks are in the security walkthrough.
+
+## Production operator notes
+
+- `VITE_FB_*` and the reCAPTCHA Enterprise site key are public browser configuration; they are not
+  Admin SDK credentials.
+- Keep the service-account JSON outside the repository with mode `0600`. Normal production work uses
+  the admin/owner console; the CLI is break glass only.
+- Firebase TOTP requires Authentication upgraded to Identity Platform. An
+  `auth/operation-not-allowed` response means that upgrade/configuration is missing.
+- After first TOTP enrollment, `confirmMfaEnrollment` rotates the session. Request a new email link
+  and sign in with the current authenticator code.
+- `functions/unauthenticated` in a deployed browser can mean either a revoked Auth session or a
+  missing App Check token. The CSP must allow both `firebaseappcheck.googleapis.com` and
+  `content-firebaseappcheck.googleapis.com`.
+- Every staff role change revokes the old token. When an admin's final staff role is removed, an
+  eligible returning student must sign in again before the dashboard will accept restored claims.
 
 ## Deploy
 

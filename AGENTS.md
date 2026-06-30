@@ -8,10 +8,11 @@ Code For Good nonprofit project, owner Tinh Cao. Three horizons in one repo:
 
 - **V1 — static landing page (BUILT).** Single marketing HTML file (`STEM Career Path Landing Page.html`, renamed to `index.html` for hosting). Plain HTML + embedded CSS + minimal JS. AWS static hosting.
 - **V2 — vetted-access learning platform (PLANNED, NOT BUILT).** AWS serverless app: apply → vet/donate → grant → learn → expire. Fully designed in `docs/`; no code yet.
-- **V3 — hosted Firebase MVP (BUILT).** `v3/` contains the deployed Amplify + Firebase Spark implementation: public landing page, student app, admin console, Firestore Rules, local privileged admin CLI, and Playwright browser tests. On `feat/v3-mvp`, `v3/README.md` and `v3/CLAUDE.md` are authoritative for implemented behavior.
+- **V3 — secured hosted Firebase MVP (BUILT).** `v3/` contains the deployed Amplify + Firebase Blaze/Identity Platform implementation: public landing page, student app, admin/owner console, App-Check-protected 2nd-generation callable Functions, read-only browser Firestore Rules, a break-glass admin CLI, and Playwright/security tests. On `feat/v3-mvp`, `v3/README.md`, `v3/CLAUDE.md`, and `v3/docs/Security-Verification-Walkthrough.md` are authoritative for implemented behavior and operations.
 
 Source of truth: `docs/Project SRS.md` (V1), `docs/Platform-SRS.md` (V2), and
-`v3/README.md` + `v3/CLAUDE.md` (implemented V3 behavior and operations).
+`v3/README.md` + `v3/CLAUDE.md` + `v3/docs/Security-Verification-Walkthrough.md` (implemented V3
+behavior, tests, and operations).
 
 ## Repo layout
 
@@ -86,22 +87,38 @@ access duration,365 days by default for both tracks; operator may explicitly ove
 age gate,UI exposes only 13–17 and 18+; 13–17 requires guardian consent before the full form
 unsupported ages,no under-13 product path/state; Firestore Rules defensively deny undeclared values
 application outcomes,beneficiary routes to Cal.com after submit; supporter routes to Zeffy
-privileged access,only local admin CLI grants/extends/revokes accounts; browser cannot mint users
+student progress,submitStage callable validates an HTTPS proof URL and transactionally unlocks only the next stage or an explicit admin override
+access recovery,re-enable restores sign-in only; Extend/Restore access creates a future window and clears ENDED lifecycle fields
+final staff-role removal,demoting admin to no staff role restores exact claims for an active unexpired member and revokes the old staff session
+privileged access,normal operations use TOTP- and App-Check-protected callables; local Admin SDK commands are explicit attributable break glass
+browser boundary,all Firestore writes are denied; the browser cannot directly mint users or assign claims
 landing tests,7 Playwright Chrome scenarios in v3/frontend/tests/e2e/landing.spec.js
 ```
 
 Run the V3 verification suite before committing landing or access changes:
 
 ```bash
-cd v3/frontend && npm run build
-cd v3/frontend && npm run test:e2e
-cd v3 && firebase emulators:exec --config backend/firebase.json --only auth,firestore \
-  'cd frontend && node scripts/live-apply.mjs'
-cd v3/backend && firebase emulators:exec --project demo-cfg --only auth,firestore \
-  'cd admin-cli && node test/flow.test.mjs'
-cd v3 && tidy -q -e frontend/index.html
-cd v3 && xmllint --html --noout frontend/index.html
+(cd v3/frontend && npm run build && npm run test:security)
+(cd v3/frontend && npm run test:e2e)
+
+(cd v3/backend && DEBUG= firebase emulators:exec --only firestore \
+  'cd admin-cli && npm run test:rules'
+)
+(cd v3/backend && DEBUG= ZEFFY_API_KEY=test-key ZEFFY_API_BASE_URL=http://127.0.0.1:7777 \
+firebase emulators:exec --only auth,firestore,functions \
+  'cd admin-cli && npm run test:security'
+)
+(cd v3/backend && DEBUG= firebase emulators:exec --only firestore,auth \
+  'cd admin-cli && npm run test:flow'
+)
+
+(cd v3 && tidy -q -e frontend/index.html)
+(cd v3 && xmllint --html --noout frontend/index.html)
 ```
+
+Never set `GOOGLE_APPLICATION_CREDENTIALS` for emulator tests. Production staff role changes,
+MFA confirmation, disables, revokes, grants, and re-enables rotate `sessionVersion`; the affected
+account must use a new email sign-in link (and TOTP for staff) rather than reusing an open session.
 
 ---
 

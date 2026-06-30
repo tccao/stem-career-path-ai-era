@@ -25,6 +25,8 @@ not implement or deploy from them.
 | revocation | revocations/{uid}.sessionVersion checked by Rules and every callable |
 | lockdown | non-owner sensitive reads and calls denied; owner recovery remains |
 | payments | Zeffy confirm is server-side and email-bound; refund sync revokes supporter |
+| access recovery | enable restores sign-in; extendAccess separately restores an expired member to ACTIVE and synchronizes claims |
+| role removal | removing an admin's final staff role restores claims for an ACTIVE unexpired member and revokes the old staff token |
 | settings | owner-only callable; exact zeffy.com/cal.com host allowlist |
 | retention | Firestore TTL field overrides + scheduled maintenance |
 | audit | actor-attributed Firestore events plus structured Cloud Logging copy |
@@ -40,6 +42,9 @@ not implement or deploy from them.
   the same application.
 - Never remove staff MFA, App Check, revocation, or lockdown checks from a callable.
 - Never allow a member mutation to target an owner/admin account.
+- Keep re-enable separate from access restoration; never reactivate an expired window implicitly.
+- When removing an admin's final staff role, preserve a valid returning student's server-derived
+  `accessBasis` and `accessEnds`; never trust browser-supplied claims.
 - Every privileged mutation must include actor-attributed audit evidence.
 - Never weaken the CSP with `script-src 'unsafe-inline'`.
 - Never run emulator E2E tests with production credentials or endpoints.

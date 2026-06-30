@@ -1,16 +1,24 @@
 # STEM Graduates Career Path - AI Era
 
-A Code For Good static landing-page project that introduces the **STEM Graduates Career Path - AI Era** initiative, explains its eight-pillar readiness pathway, and provides clear calls to action for program sign-up and donations. Students currently in school are expected to spend 12-18 months completing the program, while recent graduates are expected to spend 8-12 weeks completing the program.
+A Code For Good career-readiness initiative with three versioned horizons in one repository. The
+current hosted application is V3: an AWS Amplify frontend backed by Firebase Identity Platform,
+Firestore, App Check, and 2nd-generation callable Functions. It provides public application intake,
+two gated learning paths, proof-of-work stage progression, and TOTP-protected admin/owner operations.
 
-This project is designed to be simple, maintainable, and friendly for student volunteers while remaining clean enough for Code For Good leadership review and AWS static hosting.
+The original V1 static landing page and the planned V2 AWS architecture remain in this repository as
+separate historical/design sources. Do not apply V1's single-file constraints to `v3/`.
 
 ## Project Overview
 
 The **STEM Graduates Career Path - AI Era** project helps STEM students and recent graduates prepare for careers shaped by artificial intelligence, automation, cloud platforms, and changing employer expectations.
 
-The landing page will explain the program mission, show the eight-pillar career-readiness pathway, highlight impact stories or testimonials, provide resources, and guide visitors to sign up or donate.
+The current V3 application explains the program, accepts age-gated beneficiary/supporter applications,
+routes applicants to Cal.com or Zeffy, grants time-bounded student access, and tracks sequential
+proof-of-work through the Full Roadmap and 28-day Fast Track. Staff operations are server-enforced,
+audited, TOTP-protected, and attested with Firebase App Check.
 
-This project should be treated as a maintainable static web project, not just a one-time HTML file.
+The V1 material below remains the reference for the standalone static landing page. Current runtime,
+security, setup, and deployment behavior is documented under `v3/`.
 
 ## Organization
 
@@ -19,23 +27,24 @@ This project should be treated as a maintainable static web project, not just a 
 **Project Owner:** Tinh Cao  
 **Primary Reviewer:** Code For Good Leadership  
 **Future Maintainers:** Student volunteers  
-**Project Type:** Static landing page (V1) evolving toward a vetted-access learning platform (V2)
+**Project Type:** Versioned landing page, AWS platform design, and secured hosted Firebase MVP
 
 ## Project Horizons
 
 This repository covers three stages of the same initiative:
 
-- **V1 — Static landing page (current MVP).** A single `index.html` marketing page on AWS static
-  hosting. Most of this README documents V1.
+- **V1 — Static landing page (built).** A single `index.html` marketing page on AWS static hosting.
+  Most of the reference material later in this README documents V1.
 - **V2 — Vetted-access learning platform (planned).** A standalone app (public / student / admin zones,
   an apply → interview → donate → provision access flow, and the two learning paths) on an AWS
   serverless stack. V2 is **fully planned** in the documents below but **not built**; a runnable local
   prototype lives in `demo/`.
-- **V3 — Hosted MVP (LIVE).** A pragmatic ~$0 variant of V2: **AWS Amplify** hosts the frontend and
-  **Firebase (Blaze)** is the backend — Firestore + passwordless auth, enforcement in Firestore Security
-  Rules plus admin/owner-gated Cloud Functions, and an **owner > admin > student** role tier. Lives in
-  `v3/`. Start with **[`v3/docs/Setup-Guide.md`](v3/docs/Setup-Guide.md)** (install → configure → deploy
-  → test on Amplify + Firebase, incl. owner CLI ops); architecture in
+- **V3 — Secured hosted MVP (current implementation).** **AWS Amplify** hosts the Vite frontend and
+  **Firebase Blaze with Identity Platform** provides email-link Auth, staff TOTP, App Check,
+  Firestore, and callable Functions. Browsers cannot write Firestore directly. Students submit HTTPS
+  proof links sequentially; admins can grant, disable, re-enable, and restore ended access; owners can
+  manage staff, settings, and lockdown. Lives in `v3/`. Start with
+  **[`v3/docs/Setup-Guide.md`](v3/docs/Setup-Guide.md)**; architecture in
   [`v3/docs/Architecture-V3.md`](v3/docs/Architecture-V3.md); agent guide in
   [`v3/CLAUDE.md`](v3/CLAUDE.md).
 
@@ -55,7 +64,7 @@ All planning lives in `docs/`. Read these before contributing to the V2 platform
 > The original combined planning file, `docs/Sprint-Planning_Sitemap-and-Wireframes.md`, has been
 > **retired** — its content is split across the Sitemap, Customer-Journey, and Architecture docs above.
 
-## MVP Deliverable
+## V1 MVP Deliverable (historical reference)
 
 The first version of this project will deliver:
 

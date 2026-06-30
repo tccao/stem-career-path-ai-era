@@ -1,4 +1,4 @@
-# V3 System Architecture (Rev. 2)
+# V3 System Architecture (Rev. 3)
 
 Current architecture for the secured hosted MVP. Security verification and deployment procedure:
 [`Security-Verification-Walkthrough.md`](Security-Verification-Walkthrough.md).
@@ -116,6 +116,11 @@ therefore fails immediately without waiting for its normal expiration.
 Staff TOTP enrollment is confirmed server-side from the Auth user record. The callable then sets
 `mfaEnrolled=true`, rotates the session, and requires a fresh email-link + TOTP sign-in.
 
+Removing a staff role follows the same invalidation rule. If the Auth account also has an ACTIVE,
+unexpired member record, `setRole(role=none)` restores `role=student`, `accessBasis`, and `accessEnds`
+from that server record. Otherwise it clears the role. It never leaves a valid returning student
+without the claims required by `assertActiveStudent`.
+
 ## 5. Firestore boundary
 
 | collection | browser read | browser write | server writer |
@@ -183,6 +188,9 @@ The server-owned curriculum is `backend/sync-fn/curriculum.json`; no copy is dep
 - HTTPS proof URL and bounded key/length;
 - progress write and audit in the same transaction.
 
+After a successful response, the browser refetches `getStudentDashboard`; the newly completed stage
+and next naturally open stage therefore come from committed server state rather than optimistic UI.
+
 ## 9. Payments
 
 Zeffy remains hosted; V3 stores no card data. `confirmDonation` re-fetches the payment using a
@@ -202,6 +210,7 @@ normalized buyer/applicant email, and one payment bound to one application. Only
 | disable | Auth disabled + session rotated + member ENDED |
 | enable | Auth enabled + member ACTIVE only if window remains + new session rotation |
 | extend/restore | active or ended enabled member receives a future window + ACTIVE state; reversed supporter payment remains denied |
+| remove staff role | active unexpired member regains exact student claims; otherwise staff claims are cleared; old staff token is revoked |
 | revoke | expired claim + new sessionVersion + refresh-token revoke + member ENDED |
 | lockdown | all non-owner sensitive Firestore reads and callables denied; owner can investigate/lift |
 | break glass | service credential outside repo + exact phrase + operator uid; normal UI uses callables |
@@ -243,6 +252,8 @@ admin reads are Firebase-specific. No React/framework migration is required for 
 - Scale-to-zero functions can cold-start; admin operations tolerate this, while dashboard functions
   are bounded to one member and two small subcollections.
 - Current static security baseline caps total Brotli JavaScript at 220 KB and the logo at 300 KB.
+- The CSP permits both Firebase App Check token endpoints, including
+  `content-firebaseappcheck.googleapis.com`; removing either breaks production callable attestation.
 - External Zeffy/Cal calls are staff-only, timed out, and never on student rendering paths.
 
 ## 14. Deferred/non-runtime references

@@ -1,6 +1,6 @@
 # V3 Security Verification Walkthrough
 
-Rev. 1 — 2026-06-26. This is the authoritative install, local-emulator, test, and
+Rev. 2 — 2026-06-29. This is the authoritative install, local-emulator, test, and
 pre-production security gate for V3. It replaces the old Spark/functions-free test path.
 
 ## 1. Security baseline
@@ -20,6 +20,8 @@ owner/admin token whose account has a confirmed TOTP factor.
 | refund | verified supporter session revoked when sync sees refund/dispute | src/integrations.js syncDonations |
 | revocation | sessionVersion metadata invalidates the already-issued token immediately | revocations/{uid} + security.js + Rules |
 | reactivation | admin/owner may re-enable a disabled student; owner may re-enable disabled staff | enableAccount + admin member/account views |
+| access restoration | expired enabled member remains ENDED until extendAccess atomically restores ACTIVE state and matching claims | extendAccess + admin/extend.mjs |
+| final staff-role removal | active unexpired returning member demoted from admin regains student claims while the prior staff token is revoked | setRole + listAccounts memberStatus |
 | staff MFA | TOTP enrollment confirmed by Admin SDK; mfaEnrolled claim required | confirmMfaEnrollment + security.js + Rules |
 | App Check | enforceAppCheck=true outside the Functions emulator | src/config.js |
 | lockdown | deny non-owner sensitive reads and calls; owner recovery remains available | firestore.rules + security.js |
@@ -75,6 +77,10 @@ gitleaks detect --source . --redact --no-banner
 
 CI uses the commit-pinned Gitleaks action and the same locked npm/Firebase commands in
 `.github/workflows/v3-security.yml`.
+
+If the Gitleaks action fails on a GitHub API rate-limit or a misleading license lookup without
+reporting a leak, inspect the job log and rerun the failed job. Do not disable the scan or change
+source code merely to mask an external API failure; a clean rerun is still required.
 
 ## 3. Safe local configuration
 
@@ -204,7 +210,8 @@ DEBUG= firebase emulators:exec --only firestore,auth \
   'cd admin-cli && npm run test:flow'
 ```
 
-Success baseline: `ALL_PASS`, including the idempotent second grant and one-user-only assertion.
+Success baseline: `ALL_PASS`, including the idempotent second grant, one-user-only assertion, and
+restoration of an ENDED member with matching Firestore/Auth access expiry.
 
 ## 5. Manual local application verification
 
@@ -257,7 +264,10 @@ These controls are external state and must be verified before deployment.
 
 ### 6.1 Credential hygiene
 
-- Rotate the `GEMINI_API_KEY` exposed in the earlier Firebase CLI transcript.
+- Treat an OAuth bearer token printed by an Admin SDK/CLI error as exposed; redact logs and allow the
+  short-lived token to expire or revoke the issuing credential/session when exposure scope is unclear.
+- If a service-account JSON was attached, copied into an untrusted location, or otherwise shared,
+  delete/rotate that service-account key and install a replacement.
 - Keep service-account JSON outside the repository, for example
   `$HOME/.config/cfg-v3/firebase-admin.json`, mode `0600`.
 - Prefer Application Default Credentials or workload identity over a long-lived JSON key.
@@ -281,6 +291,26 @@ Expected output: `mfaState=ENABLED` and `improvedEmailPrivacy=true`. Bootstrap t
 Do not assign a second production owner/admin until the first owner has successfully reauthenticated
 with TOTP.
 
+```bash
+export CFG_OWNER_BOOTSTRAP=I_UNDERSTAND_ROOT_ACCESS
+node admin-cli/make-owner.mjs 'actual-owner@example.org'
+```
+
+For Microsoft Authenticator manual enrollment, add an **Other account** and enter the generated
+secret key, not the entire `otpauth://` URI. Keep phone/computer time automatic and use a fresh code
+near the start of its 30-second window. MFA confirmation rotates the session, so finish by requesting
+a new email link and signing in with TOTP.
+
+Operational error map:
+
+| error | meaning and required action |
+| --- | --- |
+| `auth/invalid-email` in make-owner | a placeholder such as `OWNER_EMAIL` was passed; rerun with the actual email |
+| `app/invalid-credential` / `ENOENT` | `GOOGLE_APPLICATION_CREDENTIALS` points to no file; install the JSON outside the repo and use its WSL path |
+| `auth/operation-not-allowed` | Auth has not been upgraded to Identity Platform or TOTP is not enabled there |
+| `auth/invalid-verification-code` | TOTP secret, device time, or 30-second code does not match; synchronize time or restart enrollment |
+| `permission-denied` after role/MFA change | the old session was intentionally revoked; sign out and use a new email link plus TOTP |
+
 ### 6.3 Firebase App Check
 
 1. Register the web app with reCAPTCHA Enterprise in Firebase App Check.
@@ -290,8 +320,23 @@ with TOTP.
 5. Callable enforcement is already code-enforced with `enforceAppCheck: true` outside emulators.
 6. Never register `localhost` as a production reCAPTCHA domain; use Firebase debug tokens locally if
    production-service integration testing is explicitly required.
+7. Keep both `https://firebaseappcheck.googleapis.com` and
+   `https://content-firebaseappcheck.googleapis.com` in the Amplify CSP `connect-src` list. A blocked
+   token exchange commonly surfaces as `functions/unauthenticated` even when Firebase Auth succeeded.
 
-### 6.4 Secrets, origins, recovery, and budget
+### 6.4 Access and role recovery
+
+- **Enable is not extend:** re-enabling an expired account restores sign-in but correctly leaves its
+  member `ENDED`. Use **Restore access** afterward to create a future window.
+- `extendAccess` clears `endedReason`, `endedAt`, and `expiresAt`, writes ACTIVE state and audit in the
+  transaction, then synchronizes Auth claims.
+- Supporter restoration requires a current verified succeeded payment without refund, dispute, or
+  processed revocation.
+- Every admin/owner role change invalidates the existing staff token. When an admin is changed to no
+  staff role and has an ACTIVE unexpired member record, its student role, basis, and expiry are
+  restored; the user must sign in again. Owner-to-admin remains a staff role.
+
+### 6.5 Secrets, origins, recovery, and budget
 
 ```bash
 cd v3/backend
@@ -303,7 +348,7 @@ Set `APP_ORIGINS` for the Functions deployment to the exact Amplify/custom origi
 Enable Firestore PITR, set a billing budget/anomaly alert, and verify the TTL policies from
 `firestore.indexes.json` are active after index deployment.
 
-### 6.5 Locked audit retention
+### 6.6 Locked audit retention
 
 Firestore `auditLog` is an operational index; the structured `securityAudit` copies in Cloud Logging
 are the tamper-resistant record. Create and test the sink before locking the bucket—locking is
