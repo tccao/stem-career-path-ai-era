@@ -1,0 +1,817 @@
+# STEM Graduates Career Path — AI Era
+
+## Project Execution Plan
+
+**Project Owner:** Tinh Cao
+
+**Organization:** Code For Good (<https://www.codeforgood.org>)
+
+**Project Type:** Static landing page + maintainable documentation
+
+**Initial Deliverable:** Single HTML landing page supported by Markdown planning and maintenance docs
+
+**Primary Reviewer:** Code For Good Leadership
+
+**Future Maintainers:** Student volunteers
+
+> **Scope note (June 2026):** this SRS specifies **Phase 0 — the static landing page** only.
+> The vetted-access learning **platform** that the landing page's Sign Up / Donate CTAs lead to
+> is specified separately in **`../v2/requirements.md`**, which is the source of truth for
+> `../v2/architecture.md`, `../v2/customer-journey.md`, and `../v2/sitemap-wireframes.md`.
+
+## 1. Project Purpose
+
+The **STEM Graduates Career Path — AI Era** project is a Code For Good initiative designed to help STEM students and recent graduates prepare for careers shaped by artificial intelligence, automation, cloud platforms, and changing employer expectations.
+
+The landing page will introduce the program, explain its 8-pillar readiness pathway, provide clear calls to action, and support future program growth through sign-ups, donations, testimonials, and resources.
+
+## 2. Project Goals
+
+### 2.1 Primary Goals
+
+* Create a single-page landing page for the STEM Graduates Career Path — AI Era initiative.
+* Maintain visual consistency with the current Code For Good website.
+* Clearly explain the program mission, structure, and expected participant outcomes.
+* Provide clear calls to action for program sign-up and donations.
+* Make the project simple enough for student and volunteer teams to maintain.
+* Prepare the project for review and deployment by Code For Good Leadership.
+
+### 2.2 Secondary Goals
+
+* Establish clean documentation for future contributors.
+* Create a repeatable structure for future Code For Good project pages.
+* Make the page accessible, responsive, and easy to update.
+* Avoid unnecessary frameworks or build tools in the MVP.
+
+## 3. Target Audiences
+
+### 3.1 STEM Students and Recent Graduates
+
+Students and graduates who want guidance on career readiness, portfolio building, AI-era skills, certifications, freelance options, and job preparation.
+
+### 3.2 Program Donors and Supporters
+
+Individuals or organizations who may donate to help cover program costs, tooling, cloud hosting, mentoring resources, educational materials, or student support.
+
+### 3.3 Code For Good Volunteers and Mentors
+
+Volunteers who may help with mentorship, curriculum support, resume reviews, mock interviews, technical workshops, or student project feedback.
+
+### 3.4 Student Maintainers
+
+Students who will learn web development by maintaining the page, updating content, and improving the project over time.
+
+### 3.5 Code For Good Leadership
+
+Leadership responsible for validating that the project is clean, maintainable, and ready to be hosted within Code For Good’s AWS environment.
+
+## 4. Design Direction
+
+The landing page should preserve the existing Code For Good design identity.
+
+### 4.1 Visual Style
+
+* Clean nonprofit-style layout
+* Light background
+* Purple/lavender accent colors
+* Rounded cards
+* Soft shadows
+* Centered sections with readable text width
+* Simple navigation
+* Responsive grid layouts
+
+### 4.2 Code For Good Color Direction
+
+Suggested CSS variables:
+
+```css
+:root {
+  --cfg-purple-dark: #4b0082;
+  --cfg-purple: #6a0dad;
+  --cfg-lavender: #b19cd9;
+  --cfg-purple-light: #f3e9f9;
+  --cfg-section-bg: #f9f3fc;
+  --cfg-text: #333333;
+  --cfg-muted: #555555;
+  --cfg-card-bg: #ffffff;
+  --cfg-border: #eadcf5;
+}
+```
+
+### 4.3 Design Rule
+
+Use the reference landing page for structure and flow, but use Code For Good’s current visual identity for branding.
+
+## 5. Landing Page Architecture
+
+### 5.1 Final Page Sections
+
+1. Header with Code For Good navigation
+2. STEM Career Path dropdown menu
+3. Hero section
+4. Mission / problem section
+5. Program Pillars S-curve trail
+6. How It Works section
+7. Program Timeline Tracks section
+8. Testimonials / impact stories section
+9. Resources section
+10. FAQ section
+11. Final CTA section
+12. Footer
+
+## 6. Header and Navigation Plan
+
+### 6.1 Main Header
+
+Keep the same general navigation structure as the current Code For Good page.
+
+Main navigation:
+
+```text
+About | Volunteer | Success Stories | Contact | STEM Career Path ▼
+```
+
+### 6.2 STEM Career Path Dropdown
+
+The **STEM Career Path** navigation item should open a dropdown on hover and click.
+
+Dropdown links:
+
+```text
+Overview
+Program Pillars
+How It Works
+Timeline Tracks
+Testimonials
+Resources
+FAQ
+Sign Up
+```
+
+### 6.3 Navigation Requirements
+
+* Must work on desktop and mobile.
+* Dropdown must be keyboard accessible.
+* On small screens, navigation should wrap or collapse cleanly.
+* Anchor links should scroll to page sections.
+
+## 7. Hero Section Plan
+
+### 7.1 Hero Headline
+
+```text
+STEM Graduates Career Path — AI Era
+```
+
+### 7.2 Hero Subheadline
+
+```text
+A Code For Good initiative helping STEM students and recent graduates build AI-era skills, project portfolios, confidence, and career readiness.
+```
+
+### 7.3 CTA Buttons
+
+Primary CTA:
+
+```text
+Sign Up
+```
+
+Secondary CTA:
+
+```text
+Donate
+```
+
+### 7.4 CTA Behavior for MVP
+
+For the first version, buttons will use placeholder links:
+
+```html
+<a href="#signup">Sign Up for the Program</a>
+<a href="#donate">Donate to Support the Program</a>
+```
+
+Later, these can be replaced with actual form, donation, or CRM links.
+
+## 8. Mission / Problem Section
+
+### 8.1 Section Purpose
+
+AI is changing what early-career STEM professionals need to succeed. A degree is still valuable, but students now need practical projects, AI-assisted workflows, cloud and tooling exposure, professional branding, and clear career direction.
+
+This program helps students move from uncertainty to a structured readiness path through guided learning, community projects, mentorship, and portfolio development.
+
+### 8.2 Cards/Images Layout for Attention Hook
+
+* Career uncertainty
+* Skills gap
+* Portfolio gap
+* Access gap
+
+## 9. Program Pillars S-Curve Trail
+
+### 9.1 The 8 Pillars
+
+1. AI-Augmented Skills
+2. Deployed Project Portfolio
+3. Gig Economy Entry
+4. Personal Branding
+5. Micro-Internships
+6. Strategic Certifications
+7. Industry Tooling
+8. Community Impact Projects
+
+### 9.2 Desktop Layout
+
+Use a 3-column S-curve layout:
+
+```text
+[1] AI-Augmented Skills  →  [2] Deployed Project Portfolio  →  [3] Gig Economy Entry
+                                                                          ↓
+[6] Strategic Certifications  ←  [5] Micro-Internships  ←  [4] Personal Branding
+↓
+[7] Industry Tooling  →  [8] Community Impact Projects
+```
+
+### 9.3 Mobile Layout
+
+Use a vertical trail:
+
+```text
+1 ↓ 2 ↓ 3 ↓ 4 ↓ 5 ↓ 6 ↓ 7 ↓ 8
+```
+
+### 9.4 Pillar Card Template
+
+Each card should include:
+
+```text
+Number
+Title
+Short description
+Example activity or outcome
+```
+
+### 9.6 Draft Pillar Descriptions
+
+#### 1. AI-Augmented Skills
+
+Students learn how to use AI tools responsibly for research, coding support, writing, debugging, productivity, and career preparation.
+
+#### 2. Deployed Project Portfolio
+
+Students build and publish real projects that demonstrate practical skills, not just classroom theory.
+
+#### 3. Gig Economy Entry
+
+Students learn how platforms like Upwork, Contra, and Toptal work, and how to position small technical services professionally.
+
+#### 4. Personal Branding
+
+Students improve their LinkedIn, GitHub, resume, portfolio, and professional storytelling.
+
+#### 5. Micro-Internships
+
+Students gain short, focused project experience that helps them build confidence and work samples.
+
+#### 6. Strategic Certifications
+
+Students identify practical certifications from providers such as AWS, Google, Microsoft, Databricks, or other relevant platforms.
+
+#### 7. Industry Tooling
+
+Students practice tools commonly used by modern teams, including GitHub, cloud platforms, automation tools, documentation tools, and AI assistants.
+
+#### 8. Community Impact Projects
+
+Students contribute to mission-driven Code For Good projects that support nonprofits and local communities.
+
+## 10. How It Works Section
+
+### 10.1 Section Purpose
+
+Explain the participant journey.
+
+### 10.2 Proposed Steps
+
+1. Sign up and share your background
+2. Follow the 8-pillar readiness pathway
+3. Build projects and career materials
+4. Receive feedback from volunteers and mentors
+5. Prepare for jobs, freelance work, internships, or startup paths
+
+### 10.3 Layout
+
+Use a simple numbered step layout or horizontal timeline on desktop. Use stacked cards on mobile.
+
+## 11. Program Timeline Tracks
+
+### 11.1 Section Purpose
+
+The landing page should explain that the program supports two participant timelines: a longer track for current students who are still in school and a faster track for recent graduates who need job-readiness support sooner.
+
+This section helps visitors understand which version of the program fits their current stage.
+
+### 11.2 During School Track
+
+The **During School Track** is designed for current high school, college, or graduate students who can build career readiness over multiple academic terms.
+
+Recommended duration:
+
+```text
+12–18 months
+```
+
+Primary focus:
+
+* Build AI-augmented learning habits
+* Complete portfolio projects gradually
+* Strengthen GitHub, LinkedIn, and resume presence
+* Explore certifications strategically
+* Participate in micro-internships or volunteer projects
+* Gain confidence before graduation
+
+Suggested milestones:
+
+1. Foundation and self-assessment
+2. AI-era skill building
+3. Portfolio project development
+4. Certifications and industry tooling
+5. Micro-internships or volunteer projects
+6. Career materials and interview preparation
+
+### 11.3 Recent Graduate Track
+
+The **Recent Graduate Track** is designed for students who have already graduated or are close to graduation and need a focused career-readiness sprint.
+
+Recommended duration:
+
+```text
+8–12 weeks
+```
+
+Primary focus:
+
+* Clarify target roles quickly
+* Polish resume, LinkedIn, and GitHub
+* Build or improve one deployable project
+* Practice interview and job-search workflows
+* Learn practical AI and industry tooling
+* Prepare for job applications, freelance work, internships, or startup paths
+
+Suggested milestones:
+
+1. Career direction and readiness audit
+2. Resume, LinkedIn, and GitHub cleanup
+3. Portfolio project sprint
+4. AI and industry tooling practice
+5. Applications, mock interviews, and mentor feedback
+6. Final job, freelance, internship, or startup readiness review
+
+### 11.4 Timeline Display Requirement
+
+The landing page should show both tracks in a side-by-side card layout on desktop and stacked cards on mobile.
+
+Each timeline card should include:
+
+```text
+Track name
+Recommended duration
+Who it is for
+Main outcomes
+Suggested milestones
+```
+
+### 11.5 Acceptance Criteria
+
+* The page clearly shows both program tracks.
+* Each track includes a recommended duration.
+* The During School Track shows a 12–18 month pathway.
+* The Recent Graduate Track shows an 8–12 week pathway.
+* Timeline cards are readable on desktop and mobile.
+* Timeline content uses plain language suitable for students and volunteers.
+
+## 12. Testimonials / Impact Stories Section
+
+### 12.1 Section Purpose
+
+Build trust and show human impact.
+
+### 12.2 Rule
+
+No fake testimonials. Use impact statement cards inplace until we get real testimonials.
+
+### 12.3 MVP Card Types
+
+#### Student Participant
+
+```text
+Structured guidance helps students understand where to start and what to build next.
+```
+
+#### Volunteer Mentor
+
+```text
+Mentors can support students through resume reviews, project feedback, mock interviews, and technical workshops.
+```
+
+#### Nonprofit Partner
+
+```text
+Community projects give students practical experience while helping nonprofits save time through technology.
+```
+
+#### Student Maintainer
+
+```text
+High school volunteers can maintain and improve the page while learning real-world HTML, CSS, documentation, and version control.
+```
+
+### 12.4 Future Version
+
+Replace impact cards with real testimonials once the program has participants, mentors, or partners willing to share quotes.
+
+## 13. Resources Section
+
+### 13.1 Section Purpose
+
+Give the page room to grow into a practical student resource hub.
+
+### 13.2 MVP Resource Cards
+
+* Resume and LinkedIn checklist
+* GitHub portfolio checklist
+* AI tool safety guide
+* Cloud certification guide
+* Freelance readiness checklist
+* Project idea bank
+
+### 13.3 MVP Behavior
+
+Resource links can point to placeholder anchors until actual documents are created.
+
+## 14. FAQ Section
+
+### 14.1 FAQ Questions
+
+1. Who is this program for?
+2. Do I need coding experience?
+3. Is this only for computer science students?
+4. How long does the program take?
+5. What does the donation support?
+6. Can high school students contribute?
+7. How can mentors or volunteers help?
+8. Is this program connected to Code For Good projects?
+
+### 14.2 FAQ Behavior
+
+Use a simple accordion with minimal JavaScript.
+
+## 15. Final CTA Section
+
+### 15.1 CTA Copy
+
+```text
+Ready to support STEM graduates in the AI era?
+```
+
+Buttons:
+
+```text
+Sign Up
+Donate
+```
+
+## 16. Technical Requirements
+
+### 16.1 MVP Requirements
+
+* Single `index.html` file
+* Embedded CSS
+* Minimal embedded JavaScript
+* No frontend framework
+* No package manager
+* Responsive design
+* Accessible navigation
+* Semantic HTML
+* Clear section comments
+* AWS static-hosting ready
+
+### 16.2 JavaScript Scope
+
+Only use JavaScript for:
+
+* Mobile navigation toggle
+* Dropdown behavior if needed
+* FAQ accordion
+* Optional smooth scrolling
+
+### 16.3 Avoid in MVP
+
+* React
+* Bootstrap
+* Tailwind
+* External build tools
+* Backend forms
+* Complex animations
+* External analytics scripts
+
+## 17. Maintainability Rules
+
+### 17.1 Use Section Comments
+
+Example:
+
+```html
+<!-- ================= HERO SECTION ================= -->
+```
+
+### 17.2 Use CSS Variables
+
+All colors should be controlled from the `:root` block.
+
+### 17.3 Keep Content Easy to Edit
+
+Avoid deeply nested HTML when possible.
+
+### 17.4 Use Plain Language Comments
+
+Comments should help new students understand what each section does.
+
+### 17.5 Protect Accessibility
+
+Do not remove:
+
+* `alt` text
+* semantic headings
+* navigation labels
+* button labels
+* focus states
+
+## 18. Suggested Repository Structure
+
+```text
+stem-career-path-ai-era/
+│
+├── index.html
+├── README.md
+│
+├── docs/
+│   ├── project SRS.md
+│
+├── assets/
+│   ├── images/
+│   ├── icons/
+│
+└── references/
+    ├── CodeForGood_index.html
+```
+
+## 19. Documentation Plan
+
+### 19.1 README.md
+
+Purpose:
+
+* Explain what the project is
+* Explain how to open the site locally
+* Explain the project structure
+* Explain how to make safe edits
+* Explain deployment assumptions
+
+### 19.2 docs/project-overview.md
+
+Purpose:
+
+* Program mission
+* Audiences
+* 8 pillars
+* Success metrics
+
+### 19.3 docs/design-guidelines.md
+
+Purpose:
+
+* Code For Good color system
+* Typography guidance
+* Button styles
+* Card styles
+* Layout rules
+
+### 19.4 docs/content-guide.md
+
+Purpose:
+
+* How to edit hero copy
+* How to edit pillar cards
+* How to edit FAQs
+* How to add testimonials
+* How to update CTA links
+
+### 19.5 docs/maintenance-guide.md
+
+Purpose:
+
+* Beginner-friendly guide for student maintainers
+* Local testing steps
+* Mobile testing checklist
+* Link checking checklist
+* Common mistakes to avoid
+
+### 19.6 docs/aws-deployment-notes.md
+
+Purpose:
+
+* Explain that the page is static
+* No backend required for MVP
+* Ready for S3 + CloudFront hosting
+* Uses relative asset paths
+* Forms and donations require external links unless backend is added later
+
+### 19.7 docs/student-onboarding.md
+
+Purpose:
+
+* Teach high school students how to contribute
+* Explain HTML/CSS basics used in this project
+* Explain GitHub workflow
+* Explain review process
+
+## 20. Development Phases
+
+### Phase 1 — Planning
+
+Deliverables:
+
+* Project execution plan
+* Landing page outline
+* Design notes
+* Documentation structure
+
+### Phase 2 — Content Drafting
+
+Deliverables:
+
+* Final hero copy
+* Final pillar descriptions
+* Final how-it-works steps
+* FAQ draft
+* CTA copy
+
+### Phase 3 — HTML/CSS Build
+
+Deliverables:
+
+* `index.html`
+* Responsive layout
+* Header dropdown
+* S-curve pillar trail
+* CTA buttons
+* Testimonial cards
+* FAQ accordion
+
+### Phase 4 — Documentation
+
+Deliverables:
+
+* `README.md`
+* `docs/project-overview.md`
+* `docs/design-guidelines.md`
+* `docs/content-guide.md`
+* `docs/maintenance-guide.md`
+* `docs/aws-deployment-notes.md`
+* `docs/student-onboarding.md`
+
+### Phase 5 — Review and Handoff
+
+Deliverables:
+
+* Final QA checklist
+* Demo script
+* Known limitations
+* Future roadmap
+* Code For Good Leadership handoff notes
+
+## 21. QA Checklist
+
+### 21.1 Content QA
+
+* [ ] Page title is clear
+* [ ] Mission is understandable within 5 seconds
+* [ ] Donation CTA is visible
+* [ ] Sign-up CTA is visible
+* [ ] 8 pillars are listed correctly
+* [ ] No fake testimonials are used
+* [ ] Contact information is correct
+
+### 21.2 Design QA
+
+* [ ] Matches Code For Good colors
+* [ ] Cards have consistent spacing
+* [ ] Buttons are easy to see
+* [ ] Mobile layout works
+* [ ] S-curve trail is readable on desktop
+* [ ] Pillars stack correctly on mobile
+
+### 21.3 Accessibility QA
+
+* [ ] Images have alt text
+* [ ] Navigation has aria label
+* [ ] Buttons and links are keyboard accessible
+* [ ] Color contrast is readable
+* [ ] Headings follow logical order
+* [ ] FAQ accordion is usable with keyboard
+
+### 21.4 Technical QA
+
+* [ ] `index.html` opens locally
+* [ ] No broken internal links
+* [ ] No console errors
+* [ ] CSS is embedded
+* [ ] JavaScript is minimal
+* [ ] No framework dependencies
+* [ ] Assets use relative paths
+
+### 21.5 AWS Readiness QA
+
+* [ ] Static hosting compatible
+* [ ] No backend required for MVP
+* [ ] Links can be updated later
+* [ ] File names are clean
+* [ ] Documentation explains deployment assumptions
+
+## 22. Future Roadmap
+
+### Version 1.0
+
+* Static landing page
+* Donation CTA
+* Sign-up CTA
+* Program pillar trail
+* FAQ
+* Documentation
+
+### Version 1.1
+
+* Add real sign-up form link
+* Add real donation platform link
+* Add real testimonials
+* Add downloadable resource PDFs
+* Add screenshots or student project examples
+
+### Version 2.0
+
+* Separate resource pages
+* Student dashboard concept
+* Mentor directory
+* Program application workflow
+* CMS or simple content management approach
+* Analytics and impact tracking
+
+## 23. Open Questions
+
+These should be clarified before final implementation:
+
+1. What donation platform or link should the Donate button use?
+2. What form should the Sign Up button use?
+3. Should the page use the current Code For Good logo file path: `codeforgood-logo.png`?
+4. Should testimonials start as impact cards until real quotes are collected?
+5. Will the page live as a standalone page or be added into the existing Code For Good website?
+6. Are there required AWS hosting conventions from the senior SWE?
+7. Who will approve final copy before deployment?
+
+## 24. Immediate Next Steps
+
+1. Finalize landing page section copy.
+2. Confirm CTA links for Donate and Sign Up.
+3. Build `index.html` with embedded CSS and minimal JavaScript.
+4. Create documentation files.
+5. Run QA checklist.
+6. Prepare demo script and handoff notes for Code For Good Leadership.
+
+## License
+
+```text
+MIT License
+
+Copyright (c) 2026 Code For Good
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```

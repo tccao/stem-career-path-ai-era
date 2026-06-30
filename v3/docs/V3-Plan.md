@@ -1,18 +1,19 @@
 # V3 Plan — Hosted demo on Amplify + Firebase (Rev. 2, DRAFT)
 
-Owner: Tinh Cao · Code For Good. This is the **V3 horizon**: take the runnable V2 demo
-(`demo/`, Node/Express + AWS SDK v3 over local DynamoDB) and ship it as a **real hosted app**
-with the least possible operational surface. V3 is a deliberate pivot off the all-AWS V2
+Owner: Tinh Cao · Code For Good. This is the **V3 horizon**: take the retired V2 prototype
+(Node/Express + AWS SDK v3 over local DynamoDB, preserved at tag `legacy-v1-v2-final`) and ship it
+as a **real hosted app** with the least possible operational surface. V3 is a deliberate pivot off the all-AWS V2
 design — frontend on **AWS Amplify Hosting**, backend on **Firebase** (Firestore + Cloud
 Functions + Storage + Auth-for-sessions-only) via the official SDKs.
 
-> V3 does **not** replace V2's `docs/Architecture-Design.md`. It is a leaner, hosted variant
+> V3 does **not** erase V2's historical [architecture](../../docs/legacy-v1-v2/v2/architecture.md). It is a leaner, hosted variant
 > that keeps V2's security invariants (server-side enforcement, audit-only-via-server,
 > no client-minted accounts, idempotent transitions) while optimizing for two goals the
 > user set: **minimize read-heavy cost** and **simplify the account lifecycle**.
 
-Source of truth this builds on: `demo/docs/Demo-Architecture.md` (component map) ·
-`docs/Customer-Journey.md` (lifecycle) · `docs/Platform-SRS.md` (FRs/NFRs).
+Historical inputs: [prototype component map](../../docs/legacy-v1-v2/v2/prototype-reproduction.md) ·
+[customer journey](../../docs/legacy-v1-v2/v2/customer-journey.md) ·
+[platform requirements](../../docs/legacy-v1-v2/v2/requirements.md).
 
 > **Rev. 2 — tech-debt audit fixes folded in.** Design corrections from the audit:
 > (1) role/window claims are **persisted via `setCustomUserClaims`**, not baked one-shot
@@ -40,7 +41,7 @@ keep V2 trust model,server-side enforcement in Cloud Functions + Firestore Secur
 
 ```csv
 non-goal (V3),why
-rebuild on AWS Lambda/Cognito/DynamoDB,that is V2 (docs/Architecture-Design.md); V3 is the lean hosted path
+rebuild on AWS Lambda/Cognito/DynamoDB,that is the archived V2 architecture; V3 is the lean hosted path
 MFA at launch,deferred like V2 §14; Firebase Auth MFA is a config-only add later
 real card processing in-stack,donations stay hosted (Zeffy) — V3 only verifies server-side, never touches card data
 admin deliverable-verification of every stage,kept self-attested for pilot (matches demo); add verify step post-pilot
@@ -208,7 +209,7 @@ open-source libs,nanoid (code), node:crypto (hash) — firebase-admin signs the 
 
 Security Rules sketch (enforced by Firestore, no extra reads):
 
-```
+```javascript
 match /memberDashboard/{uid} {
   allow read: if request.auth.uid == uid
     && request.auth.token.role == 'student'
@@ -235,7 +236,7 @@ v3/
     app.html                   # student SPA shell
     admin.html                 # admin SPA shell
     public/
-      curriculum.json          # static curriculum bundle (0-read cache; copied from demo/src/content)
+      curriculum.json          # static curriculum bundle (0-read cache; derived from the historical V2 content)
     src/
       firebase.js              # initializeApp + getFirestore/getFunctions/getAuth (modular SDK)
       lib/
@@ -266,8 +267,8 @@ v3/
         _audit.js  _db.js      # shared: append-only audit, admin SDK handles
 ```
 
-V1 (`STEM Career Path Landing Page.html`) and V2 (`demo/`, `docs/`) are untouched —
-V3 is self-contained under `v3/`.
+V1 and V2 are retired from `main` and preserved in the Markdown archive plus tag
+`legacy-v1-v2-final`; V3 remains self-contained under `v3/`.
 
 ---
 
@@ -310,7 +311,7 @@ switch).
 
 ---
 
-## 8. Migration from `demo/` (what ports, what changes)
+## 8. Migration from the historical V2 prototype
 
 ```csv
 demo piece,V3 outcome
