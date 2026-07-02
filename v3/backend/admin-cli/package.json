@@ -17,7 +17,8 @@
     "test:cli-safety": "node --test test/cli-safety.test.mjs",
     "test:flow": "node test/flow.test.mjs",
     "test:rules": "node --test test/firestore.rules.test.mjs",
-    "test:security": "node --test test/security.e2e.test.mjs"
+    "test:security": "node --test test/security.e2e.test.mjs",
+    "test:maintenance": "node --test test/maintenance.test.mjs"
   },
   "dependencies": {
     "firebase-admin": "^14.1.0",

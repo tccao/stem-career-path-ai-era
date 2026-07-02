@@ -19,13 +19,13 @@ not implement or deploy from them.
 | frontend | frontend/ Vite entries index.html app.html admin.html |
 | deployed backend | backend/sync-fn only; firebase.json codebase sync; Node 22 |
 | public intake | anonymous Auth + production App Check + callable validation/rate limit/dedupe |
-| student data | getStudentDashboard/getCurriculum/submitStage callables; no direct Firestore access |
+| student data | getStudentDashboard/getCurriculum/submitStage callables; transactional progressCompleted counter; no direct Firestore access |
 | staff | owner/admin claim + confirmed TOTP + current sessionVersion + production App Check |
 | browser writes | all denied by firestore.rules |
 | revocation | revocations/{uid}.sessionVersion checked by Rules and every callable |
 | lockdown | non-owner sensitive reads and calls denied; owner recovery remains |
-| payments | Zeffy confirm is server-side and email-bound; refund sync revokes supporter |
-| access recovery | enable restores sign-in; extendAccess separately restores an expired member to ACTIVE and synchronizes claims |
+| payments | Zeffy confirm is server-side and email-bound; daily scheduled + staff-triggered refund sync revokes supporter |
+| access recovery | enable restores learning only after mistaken disable with time remaining; revoked/reversed/expired stays ENDED until validated extendAccess |
 | role removal | removing an admin's final staff role restores claims for an ACTIVE unexpired member and revokes the old staff token |
 | settings | owner-only callable; exact zeffy.com/cal.com host allowlist |
 | retention | Firestore TTL field overrides + scheduled maintenance |

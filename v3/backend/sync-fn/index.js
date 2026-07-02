@@ -1,6 +1,6 @@
 export { submitApplication, grant, rejectApplication } from './src/lifecycle.js';
 export { getCurriculum, getStudentDashboard, submitStage } from './src/student.js';
-export { syncDonations, confirmDonation, getInterview } from './src/integrations.js';
+export { syncDonations, confirmDonation, getInterview, donationReconcile } from './src/integrations.js';
 export {
   confirmMfaEnrollment,
   setStageLock,

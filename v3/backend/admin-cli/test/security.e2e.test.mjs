@@ -11,6 +11,8 @@ const runId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const apps = [];
 const supporterEmail = `supporter-${runId}@example.test`;
 const paymentId = `payment-${runId}`;
+const rejectedSupporterEmail = `rejected-supporter-${runId}@example.test`;
+const altPaymentId = `payment-alt-${runId}`;
 let paymentIsRefunded = false;
 
 const payment = () => ({
@@ -24,6 +26,10 @@ const payment = () => ({
   created: Math.floor(Date.now() / 1_000),
   buyer: { email: supporterEmail, first_name: 'Supporter', last_name: 'Student' },
 });
+const altPayment = () => ({
+  ...payment(), id: altPaymentId, refund_status: 'none',
+  buyer: { email: rejectedSupporterEmail, first_name: 'Rejected', last_name: 'Supporter' },
+});
 
 const zeffyMock = createServer((req, res) => {
   res.setHeader('content-type', 'application/json');
@@ -31,6 +37,8 @@ const zeffyMock = createServer((req, res) => {
     res.end(JSON.stringify({ data: [{ id: 'campaign-1', title: 'Fund a Seat', status: 'active', currency: 'USD' }], has_more: false }));
   } else if (req.url === `/api/v1/payments/${encodeURIComponent(paymentId)}`) {
     res.end(JSON.stringify(payment()));
+  } else if (req.url === `/api/v1/payments/${encodeURIComponent(altPaymentId)}`) {
+    res.end(JSON.stringify(altPayment()));
   } else if (req.url.startsWith('/api/v1/payments?')) {
     res.end(JSON.stringify({ data: [payment()], has_more: false }));
   } else {
@@ -130,6 +138,11 @@ test('V3 callable security flow', async (t) => {
     await admin.call('setStageLock', { uid: student.user.uid, stageKey: 'd28', action: 'unlocked' });
     const completed = await student.call('submitStage', { stageKey: 'd28', deliverableUrl: 'https://example.test/override' });
     assert.equal(completed.status, 'complete');
+    const counted = await db.collection('members').doc(student.user.uid).get();
+    assert.equal(counted.get('progressCompleted'), 3);
+    const resubmit = await student.call('submitStage', { stageKey: 'd01', deliverableUrl: 'https://example.test/day-1-proof' });
+    assert.equal(resubmit.idempotent, true);
+    assert.equal((await db.collection('members').doc(student.user.uid).get()).get('progressCompleted'), 3);
   });
 
   await t.test('concurrent grant calls converge on one account', async () => {
@@ -206,6 +219,48 @@ test('V3 callable security flow', async (t) => {
     assert.equal(sync.revoked, 1);
     await expectDenied(supporterClient.call('getStudentDashboard'), /unauthenticated|revoked/i);
     await expectDenied(admin.call('extendAccess', { uid: supporterUser.uid, days: 30 }), /failed-precondition|verified payment/i);
+  });
+
+  await t.test('re-enable does not restore a revoked supporter without a clean payment', async () => {
+    const supporterUser = await adminAuth.getUserByEmail(supporterEmail);
+    const enabled = await admin.call('enableAccount', { uid: supporterUser.uid });
+    assert.equal(enabled.memberStatus, 'ENDED');
+    const member = await db.collection('members').doc(supporterUser.uid).get();
+    assert.equal(member.get('endedReason'), 'payment_reversed');
+    const refreshed = await adminAuth.getUser(supporterUser.uid);
+    assert.ok(Number(refreshed.customClaims.accessEnds || 0) <= Date.now());
+    await expectDenied(admin.call('extendAccess', { uid: supporterUser.uid, days: 30 }), /failed-precondition|verified payment/i);
+  });
+
+  await t.test('re-enable restores access only after a mistaken disable', async () => {
+    const applicant2 = await client('applicant-enable');
+    await signInAnonymously(applicant2.auth);
+    const application = await applicant2.call('submitApplication', {
+      name: 'Mistaken Disable', email: `mistaken-disable-${runId}@example.test`, ageBracket: '18plus',
+      guardianConsent: false, accessChoice: 'beneficiary',
+    });
+    const granted = await admin.call('grant', { applicationId: application.applicationId, path: 'fasttrack', days: 90 });
+    await admin.call('disableAccount', { uid: granted.uid });
+    assert.equal((await admin.call('enableAccount', { uid: granted.uid })).memberStatus, 'ACTIVE');
+    await admin.call('revokeAccess', { uid: granted.uid });
+    await admin.call('disableAccount', { uid: granted.uid });
+    assert.equal((await admin.call('enableAccount', { uid: granted.uid })).memberStatus, 'ENDED');
+    assert.equal((await db.collection('members').doc(granted.uid).get()).get('endedReason'), 'revoked');
+  });
+
+  await t.test('a payment cannot be bound to a rejected application', async () => {
+    const applicant3 = await client('applicant-rejected');
+    await signInAnonymously(applicant3.auth);
+    const application = await applicant3.call('submitApplication', {
+      name: 'Rejected Supporter', email: rejectedSupporterEmail, ageBracket: '18plus',
+      guardianConsent: false, accessChoice: 'supporter',
+    });
+    await admin.call('rejectApplication', { applicationId: application.applicationId, reasonCode: 'withdrawn' });
+    await expectDenied(admin.call('confirmDonation', {
+      applicationId: application.applicationId, paymentId: altPaymentId, path: 'fasttrack', days: 90,
+    }), /failed-precondition|rejected/i);
+    const donation = await db.collection('donations').doc(altPaymentId).get();
+    assert.ok(!donation.exists || donation.get('applicationId') !== application.applicationId);
   });
 
   await t.test('disable is immediate and an enabled member with expired access can be restored', async () => {

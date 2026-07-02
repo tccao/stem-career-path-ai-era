@@ -192,7 +192,8 @@ Success criteria:
 | payment verification | settled matching-email Zeffy payment grants supporter |
 | refund | reversed payment revokes the already-issued supporter session |
 | staff MFA | staff token without confirmed MFA is denied |
-| reactivation | admin may reactivate students; only owner may reactivate disabled staff |
+| reactivation | mistaken disable restores active access; revoked/reversed member remains ENDED; only owner may reactivate disabled staff |
+| rejected payment binding | rejected application is denied before donation binding |
 | settings | admin denied; evil host denied; owner allowed for approved hosts |
 | disable/enable | old token denied immediately; expired re-enabled member can be extended and member/claim agree on ACTIVE |
 | revoke | already-issued student token denied immediately |
@@ -200,9 +201,20 @@ Success criteria:
 | role removal | already-issued admin token denied immediately; an active member demoted from staff regains exact student claims |
 | audit | access.granted event includes actorId |
 
-Required baseline: 15 tests pass, 0 fail, and no duplicate account/member is created.
+Required baseline: 18 tests pass, 0 fail (17 named subtests plus parent suite), and no duplicate
+account/member is created.
 
-### 4.4 Break-glass CLI regression
+### 4.4 Scheduled-maintenance regression
+
+```bash
+cd v3/backend
+DEBUG= firebase emulators:exec --only auth,firestore \
+  'cd admin-cli && npm run test:maintenance'
+```
+
+Required baseline: 2 tests pass, covering expiry fault isolation and donation reconcile mirroring.
+
+### 4.5 Break-glass CLI regression
 
 ```bash
 cd v3/backend
@@ -383,7 +395,9 @@ Use a maintenance window and the owner lockdown control to avoid mixing old clie
    firebase deploy --only functions:sync,firestore:indexes
    ```
 
-4. Confirm all callable deployments are healthy and secrets are attached.
+4. Confirm all callable deployments are healthy and secrets are attached. Confirm both Cloud
+   Scheduler jobs exist: `maintenanceSweep` and `donationReconcile` (every 24 hours,
+   `America/Chicago`).
 5. Deploy the Amplify frontend with `npm run build:production`. The production preflight fails if the
    App Check key or Firebase identifiers are missing, or if emulator mode is enabled.
 6. Deploy restrictive Rules:

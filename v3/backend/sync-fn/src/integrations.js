@@ -1,8 +1,9 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { defineSecret } from 'firebase-functions/params';
 import { z } from 'zod';
 import { db, FieldValue } from './context.js';
-import { callableOptions, DEFAULT_ACCESS_DAYS, IS_EMULATOR, MAX_ACCESS_DAYS, MAX_SYNC_PAGES } from './config.js';
+import { callableOptions, DEFAULT_ACCESS_DAYS, IS_EMULATOR, MAX_ACCESS_DAYS, MAX_SYNC_PAGES, REGION } from './config.js';
 import { writeAudit } from './audit.js';
 import { assertStaff } from './security.js';
 import { grantAccess, STATE } from './lifecycle.js';
@@ -63,15 +64,8 @@ async function loadCampaigns(key) {
   return campaigns;
 }
 
-export const syncDonations = onCall(callableOptions({
-  secrets: [ZEFFY_API_KEY], timeoutSeconds: 120, maxInstances: 1,
-}), async (req) => {
-  const { uid: actorId } = await assertStaff(req);
-  const input = parse(z.object({ cursor: z.string().max(1_024).nullable().optional() }).strict(), req.data || {});
-  const key = ZEFFY_API_KEY.value();
-  if (!key) throw new HttpsError('failed-precondition', 'Zeffy integration is not configured');
+export async function runDonationSync({ key, actorId, cursor = null }) {
   const campaigns = await loadCampaigns(key);
-  let cursor = input.cursor || null;
   let synced = 0;
   let pages = 0;
   const refundCandidates = [];
@@ -116,6 +110,44 @@ export const syncDonations = onCall(callableOptions({
   }
   await writeAudit({ type: 'donations.synced', targetType: 'system', targetId: 'zeffy', actorId, reasonCode: `${synced}:${revoked}` });
   return { synced, revoked, campaigns: Object.keys(campaigns).length, nextCursor: cursor, truncated: Boolean(cursor) };
+}
+
+export async function runScheduledDonationReconcile({ key }) {
+  let cursor = null;
+  let synced = 0;
+  let revoked = 0;
+  let calls = 0;
+  do {
+    const result = await runDonationSync({ key, actorId: 'system:reconcile', cursor });
+    synced += result.synced;
+    revoked += result.revoked;
+    cursor = result.truncated ? result.nextCursor : null;
+    calls += 1;
+  } while (cursor && calls < 5);
+  if (cursor) console.info(JSON.stringify({ severity: 'NOTICE', donationReconcile: 'truncated', nextCursor: cursor }));
+  return { synced, revoked, calls, nextCursor: cursor, truncated: Boolean(cursor) };
+}
+
+export const syncDonations = onCall(callableOptions({
+  secrets: [ZEFFY_API_KEY], timeoutSeconds: 120, maxInstances: 1,
+}), async (req) => {
+  const { uid: actorId } = await assertStaff(req);
+  const input = parse(z.object({ cursor: z.string().max(1_024).nullable().optional() }).strict(), req.data || {});
+  const key = ZEFFY_API_KEY.value();
+  if (!key) throw new HttpsError('failed-precondition', 'Zeffy integration is not configured');
+  return runDonationSync({ key, actorId, cursor: input.cursor || null });
+});
+
+export const donationReconcile = onSchedule({
+  schedule: 'every 24 hours', region: REGION, timeZone: 'America/Chicago', memory: '256MiB',
+  timeoutSeconds: 300, maxInstances: 1, secrets: [ZEFFY_API_KEY],
+}, async () => {
+  const key = ZEFFY_API_KEY.value();
+  if (!key) {
+    console.info(JSON.stringify({ severity: 'NOTICE', donationReconcile: 'skipped: ZEFFY_API_KEY not configured' }));
+    return;
+  }
+  await runScheduledDonationReconcile({ key });
 });
 
 const ConfirmSchema = z.object({
@@ -136,6 +168,9 @@ export const confirmDonation = onCall(callableOptions({ secrets: [ZEFFY_API_KEY]
   ]);
   if (!application.exists) throw new HttpsError('not-found', 'application not found');
   if (application.get('accessChoice') !== 'supporter') throw new HttpsError('failed-precondition', 'application is not on the supporter path');
+  if (application.get('status') === STATE.REJECTED) {
+    throw new HttpsError('failed-precondition', 'application is rejected and cannot accept a payment');
+  }
   if (payment.status !== 'succeeded' || refunded(payment)) throw new HttpsError('failed-precondition', 'payment is not settled and clean');
   if (normalizeEmail(payment.buyer?.email || '') !== normalizeEmail(application.get('email'))) {
     throw new HttpsError('failed-precondition', 'payment email does not match application email');

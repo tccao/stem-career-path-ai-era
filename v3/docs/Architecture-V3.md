@@ -29,7 +29,7 @@ Iconify `logos` pack; render locally with `mmdc --iconPacks @iconify-json/logos`
 flowchart LR
   subgraph clients["Client surfaces — untrusted"]
     direction TB
-    browser["Browser SPA<br/>applicant · student · admin / owner"]
+    browser@{ icon: "logos:vitejs", form: "square", label: "Vite multi-page app — applicant · student · admin / owner", pos: "b" }
   end
 
   subgraph aws["AWS edge"]
@@ -190,6 +190,8 @@ The server-owned curriculum is `backend/sync-fn/curriculum.json`; no copy is dep
 
 After a successful response, the browser refetches `getStudentDashboard`; the newly completed stage
 and next naturally open stage therefore come from committed server state rather than optimistic UI.
+Each accepted submission also updates `members/{uid}.progressCompleted` transactionally. Staff list
+views use this counter; member detail still reads exact per-stage state.
 
 ## 9. Payments
 
@@ -200,6 +202,8 @@ normalized buyer/applicant email, and one payment bound to one application. Only
 
 `syncDonations` uses bounded pages and a single instance. A refund/dispute on a payment with
 `grantedUid` calls the same revocation path and records `revocationProcessedAt` idempotently.
+A scheduled `donationReconcile` runs the same bounded mirror and revocation path every 24 hours,
+following up to five continuation batches. Staff sync can also follow `nextCursor` immediately.
 
 ## 10. Staff and incident controls
 
@@ -207,8 +211,8 @@ normalized buyer/applicant email, and one payment bound to one application. Only
 | --- | --- |
 | owner hierarchy | admin cannot manage staff; self role/disable denied; last active owner cannot be removed |
 | settings | owner-only and zeffy.com/cal.com HTTPS hosts only |
-| disable | Auth disabled + session rotated + member ENDED |
-| enable | Auth enabled + member ACTIVE only if window remains + new session rotation |
+| disable | Auth disabled + session rotated + member ENDED; existing revoked/reversed/expired reason is preserved |
+| enable | Auth enabled + session rotated; ACTIVE returns only after mistaken disable with remaining window; revoked/reversed/expired stays ENDED |
 | extend/restore | active or ended enabled member receives a future window + ACTIVE state; reversed supporter payment remains denied |
 | remove staff role | active unexpired member regains exact student claims; otherwise staff claims are cleared; old staff token is revoked |
 | revoke | expired claim + new sessionVersion + refresh-token revoke + member ENDED |
@@ -233,7 +237,9 @@ Firestore PITR and budget alerts are mandatory external configuration gates.
 | function abuse | App Check + role/MFA + rate limits + maxInstances |
 | external latency | 15-second aborts and bounded pages |
 | Zeffy concurrency | syncDonations maxInstances=1 |
-| admin account listing | 100-user pages with continuation token |
+| admin account listing | 100-user pages; owner console follows continuation token |
+| refund latency | donationReconcile daily, maxInstances=1, skip if Zeffy secret unset |
+| staff member list | progressCompleted avoids N+1 progress reads; detail reads exact stage state |
 | student startup | one dashboard callable returns member progress locks curriculum |
 | partial grant | resumable PROVISIONING operation |
 | scheduled cleanup | maintenanceSweep maxInstances=1 |

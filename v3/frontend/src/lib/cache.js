@@ -9,7 +9,3 @@ export async function loadCurriculum() {
   curriculum = (await getCurriculum()).data.curriculum;
   return curriculum;
 }
-
-export function clearCurriculumCache() {
-  curriculum = null;
-}

@@ -6,6 +6,9 @@ and a Firebase Blaze backend (Auth, Firestore, and 2nd-generation Cloud Function
 Security and test source of truth:
 [`docs/Security-Verification-Walkthrough.md`](docs/Security-Verification-Walkthrough.md).
 Architecture source of truth: [`docs/Architecture-V3.md`](docs/Architecture-V3.md).
+Architect presentation package:
+[`docs/Architect-Defense-Guide.md`](docs/Architect-Defense-Guide.md) and
+[`docs/Implementation-Handler-Catalog.md`](docs/Implementation-Handler-Catalog.md).
 
 ## Runtime context
 
@@ -76,11 +79,12 @@ Current lifecycle behavior:
 | operation | enforced result |
 | --- | --- |
 | submit proof | HTTPS URL is stored transactionally; only the natural next stage or an explicit admin unlock can complete |
-| re-enable | restores Firebase sign-in; an expired member remains ENDED until access is restored |
+| re-enable | restores Firebase sign-in; learning access returns only after a mistaken disable with time remaining; revoked, payment-reversed, and expired members stay ENDED until access is restored |
 | extend/restore | starts from the later of now or the old end date, marks the member ACTIVE, clears end metadata, and synchronizes student claims |
 | supporter restore | denied unless a current verified, succeeded, non-refunded, non-disputed payment still exists |
 | final staff-role removal | demoting admin to no staff role restores student claims when the account still has an active unexpired membership; otherwise clears the role |
 | session change | grant, role change, MFA confirmation, disable, revoke, and re-enable invalidate the old session and require fresh sign-in |
+| donation reconcile | daily scheduled Zeffy mirror revokes reversed supporter payments without staff action |
 
 The old `backend/functions/` directory and `docs/Spark-Backend.md` are historical references and are
 not deployed.
@@ -129,6 +133,8 @@ production configuration, deploy order, and read-only live checks are in the sec
 - `functions/unauthenticated` in a deployed browser can mean either a revoked Auth session or a
   missing App Check token. The CSP must allow both `firebaseappcheck.googleapis.com` and
   `content-firebaseappcheck.googleapis.com`.
+- After deploy, confirm both Cloud Scheduler jobs exist: `maintenanceSweep` and
+  `donationReconcile`.
 - Every staff role change revokes the old token. When an admin's final staff role is removed, an
   eligible returning student must sign in again before the dashboard will accept restored claims.
 

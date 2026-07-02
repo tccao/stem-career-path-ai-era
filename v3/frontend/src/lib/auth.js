@@ -186,27 +186,4 @@ export function hasEnrolledMfa(user) {
   return multiFactor(user).enrolledFactors.some((factor) => factor.factorId === TotpMultiFactorGenerator.FACTOR_ID);
 }
 
-export function mountLogin(root, heading = 'Sign in') {
-  root.innerHTML = '';
-  const wrap = document.createElement('div'); wrap.className = 'login';
-  const h = document.createElement('h2'); h.textContent = heading;
-  const input = document.createElement('input');
-  input.type = 'email'; input.placeholder = 'you@example.com'; input.autocomplete = 'email'; input.className = 'cfg-input';
-  const btn = document.createElement('button'); btn.textContent = 'Email me a sign-in link'; btn.className = 'btn btn-purple';
-  const msg = document.createElement('p'); msg.className = 'cfg-msg';
-  btn.onclick = async () => {
-    const email = input.value.trim();
-    if (!email) { msg.textContent = 'Enter your email.'; return; }
-    btn.disabled = true; msg.textContent = 'Sending…';
-    try {
-      await requestSignInLink(email);
-      msg.textContent = `Link sent to ${email}. Open it in this browser within 15 minutes.`;
-    } catch (error) {
-      msg.textContent = `Error: ${error.code || error.message}`;
-      btn.disabled = false;
-    }
-  };
-  wrap.append(h, input, btn, msg); root.append(wrap);
-}
-
 export { onAuthStateChanged };

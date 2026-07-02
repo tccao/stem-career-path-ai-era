@@ -208,10 +208,16 @@ async function loadMembers() {
   if (!members.length) { $('members').innerHTML = '<div class="empty">No provisioned members yet.</div>'; return; }
   const cur = await loadCurriculum();
   const rows = await Promise.all(members.map(async (m) => {
+    const defs = cur[m.path]?.stages || cur.fasttrack.stages;
+    const total = defs.length;
+    if (typeof m.progressCompleted === 'number') {
+      const comp = Math.min(m.progressCompleted, total);
+      const pct = total ? Math.round((100 * comp) / total) : 0;
+      return { m, completed: null, comp, total, pct, defs, current: comp >= total ? 'Path complete' : 'Open details for next stage' };
+    }
     const ps = await getDocs(collection(db, 'members', m.uid, 'progress')).catch(() => ({ docs: [] }));
     const completed = new Set(ps.docs.filter((d) => d.data().status === 'complete').map((d) => d.id));
-    const defs = cur[m.path]?.stages || cur.fasttrack.stages;
-    const total = defs.length, comp = defs.filter((s) => completed.has(s.key)).length;
+    const comp = defs.filter((s) => completed.has(s.key)).length;
     const pct = total ? Math.round((100 * comp) / total) : 0;
     const next = defs.find((s) => !completed.has(s.key));
     return { m, completed, comp, total, pct, defs, current: next ? `${next.label}: ${next.title}` : 'Path complete' };
@@ -251,7 +257,12 @@ function showMemberExtend(uid) {
 }
 
 async function openMemberProgress(row) {
-  const { m, defs, completed, comp, total, pct } = row;
+  const { m, defs, comp, total, pct } = row;
+  let { completed } = row;
+  if (!completed) {
+    const ps = await getDocs(collection(db, 'members', m.uid, 'progress')).catch(() => ({ docs: [] }));
+    completed = new Set(ps.docs.filter((d) => d.data().status === 'complete').map((d) => d.id));
+  }
   const ls = await getDocs(collection(db, 'members', m.uid, 'stageLocks')).catch(() => ({ forEach() {} }));
   const ov = {}; ls.forEach((d) => { ov[d.id] = d.data().state; });
   const nextOpen = defs.find((s) => !completed.has(s.key))?.key ?? null;
@@ -364,13 +375,17 @@ const ROLE_RANK = { owner: 3, admin: 2, student: 1 };
 const promoteTarget = (r) => (r === 'admin' ? 'owner' : r === 'owner' ? null : 'admin');
 const demoteTarget = (r) => (r === 'owner' ? 'admin' : r === 'admin' ? 'none' : null);
 
-async function renderOwnerView() {
+async function renderOwnerView(pageToken = null, previous = []) {
   const host = $('ownerView');
   host.innerHTML = '<div class="empty">Loading accounts…</div>';
   let locked = false, reason = '';
   try { const s = await getDoc(doc(db, 'system', 'lockdown')); if (s.exists()) { locked = s.data().enabled === true; reason = s.data().reason || ''; } } catch { /* default unlocked */ }
-  let accounts = [];
-  try { accounts = (await call('listAccounts')).accounts || []; }
+  let accounts = []; let nextToken = null;
+  try {
+    const page = await call('listAccounts', pageToken ? { pageToken } : {});
+    accounts = [...previous, ...(page.accounts || [])];
+    nextToken = page.nextPageToken || null;
+  }
   catch (e) { host.innerHTML = `<div class="empty">Could not load accounts (${esc(e.code || e.message)}).</div>`; return; }
   // Join student display names from the members collection.
   const nameByUid = {};
@@ -400,6 +415,7 @@ async function renderOwnerView() {
       <div class="owner-main">
         <div class="don-bar"><h2 style="font-size:1.05rem;margin:0">Accounts <span class="count-chip">${accounts.length}</span></h2><button class="btn sec" id="acctRefresh">Refresh</button></div>
         <div class="don-table"><table><thead><tr><th>Account</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows || '<tr><td colspan="4" class="empty">No accounts.</td></tr>'}</tbody></table></div>
+        ${nextToken ? '<button class="btn sec" id="acctMore">Load more accounts</button>' : ''}
         <p class="owner-hint">Promote: student → admin → owner. Demoting an admin restores their active student membership when one exists; otherwise it removes the staff role. Disable blocks sign-in + ends sessions immediately. You can't change or disable your own account, and an owner can't be disabled here.</p>
       </div>
       <aside class="owner-side">
@@ -415,6 +431,7 @@ async function renderOwnerView() {
     </div>`;
 
   $('acctRefresh').onclick = () => renderOwnerView();
+  if ($('acctMore')) $('acctMore').onclick = () => renderOwnerView(nextToken, accounts);
   if ($('lockOn')) $('lockOn').onclick = () => setLockdown(true, $('lockReason').value.trim());
   if ($('lockOff')) $('lockOff').onclick = () => setLockdown(false, $('lockReason').value.trim());
   host.querySelectorAll('button[data-prom]').forEach((b) => { b.onclick = () => changeRole(b.dataset.prom, b.dataset.to, 'Promote'); });
@@ -445,17 +462,26 @@ async function reactivateMember(uid) {
     const result = await call('enableAccount', { uid });
     toast(result.memberStatus === 'ACTIVE'
       ? 'Member reactivated'
-      : 'Account re-enabled, but access is expired. Extend access to reactivate learning.');
+      : 'Account re-enabled, but learning access is not active. Extend access to restore learning.');
     await loadMembers();
   } catch (e) { toast('Reactivate failed: ' + (e.code || e.message)); }
 }
 async function refreshDonations(btn) {
   const orig = btn.textContent; btn.disabled = true; btn.textContent = 'Syncing…';
   try {
-    const r = await httpsCallable(functions, 'syncDonations')();
-    toast(`Synced ${r.data?.synced ?? 0} donations`);
+    let cursor = null, synced = 0, revoked = 0, calls = 0;
+    do {
+      const r = (await httpsCallable(functions, 'syncDonations')(cursor ? { cursor } : {})).data || {};
+      synced += r.synced || 0; revoked += r.revoked || 0;
+      cursor = r.truncated ? r.nextCursor : null;
+      calls += 1;
+    } while (cursor && calls < 5);
+    toast(cursor
+      ? `Synced ${synced} donations (more remain — run sync again)`
+      : `Synced ${synced} donations${revoked ? `, revoked ${revoked}` : ''}`);
     await renderDonationsView();
-  } catch (e) { toast('Sync failed: ' + (e.code || e.message)); btn.disabled = false; btn.textContent = orig; }
+  } catch (e) { toast('Sync failed: ' + (e.code || e.message)); }
+  finally { btn.disabled = false; btn.textContent = orig; }
 }
 async function renderDonationsView() {
   const host = $('donationsView');

@@ -92,6 +92,7 @@ export const submitStage = onCall(callableOptions(), async (req) => {
     if (!naturallyOpen && !overrideOpen) throw new HttpsError('failed-precondition', 'complete prior stages first');
 
     tx.create(progressRef, { status: 'complete', deliverableUrl, completedAt: FieldValue.serverTimestamp() });
+    tx.update(memberRef, { progressCompleted: completed.length + 1 });
     queueAudit(tx, { type: 'stage.submitted', targetType: 'member', targetId: uid, actorId: uid, reasonCode: input.stageKey });
   });
 

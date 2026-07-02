@@ -173,8 +173,14 @@ export const disableAccount = onCall(callableOptions(), async (req) => {
   if ((await memberRef.get()).exists) {
     await db.runTransaction(async (tx) => {
       const member = await tx.get(memberRef);
-      tx.update(memberRef, { status: STATE.ENDED, endedReason: 'disabled', endedAt: FieldValue.serverTimestamp() });
-      queueAudit(tx, { type: 'account.disabled', targetType: 'account', targetId: uid, actorId, fromStatus: member.get('status'), toStatus: STATE.ENDED });
+      const fromStatus = member.get('status');
+      tx.update(memberRef, {
+        status: STATE.ENDED,
+        ...(fromStatus === STATE.ACTIVE
+          ? { endedReason: 'disabled', endedAt: FieldValue.serverTimestamp() }
+          : {}),
+      });
+      queueAudit(tx, { type: 'account.disabled', targetType: 'account', targetId: uid, actorId, fromStatus, toStatus: STATE.ENDED });
     });
   } else {
     await writeAudit({ type: 'account.disabled', targetType: 'account', targetId: uid, actorId });
@@ -196,12 +202,16 @@ export const enableAccount = onCall(callableOptions(), async (req) => {
   let status = null;
   if (member.exists) {
     const accessEnds = Number(member.get('accessEnds') || 0);
-    status = accessEnds > Date.now() ? STATE.ACTIVE : STATE.ENDED;
-    await auth.setCustomUserClaims(uid, { role: 'student', accessBasis: member.get('accessBasis'), accessEnds });
-    await memberRef.update({
-      status,
-      endedReason: status === STATE.ACTIVE ? FieldValue.delete() : 'expired',
-    });
+    const endedReason = member.get('endedReason') || null;
+    const restorable = accessEnds > Date.now()
+      && (member.get('status') === STATE.ACTIVE || endedReason === 'disabled');
+    status = restorable ? STATE.ACTIVE : STATE.ENDED;
+    if (restorable) {
+      await auth.setCustomUserClaims(uid, { role: 'student', accessBasis: member.get('accessBasis'), accessEnds });
+      await memberRef.update({ status, endedReason: FieldValue.delete(), endedAt: FieldValue.delete() });
+    } else if (member.get('status') !== STATE.ENDED) {
+      await memberRef.update({ status: STATE.ENDED, endedReason: endedReason || 'expired' });
+    }
   }
   await recordSessionRevocation(uid);
   await writeAudit({ type: 'account.enabled', targetType: 'account', targetId: uid, actorId, toStatus: status || undefined });
